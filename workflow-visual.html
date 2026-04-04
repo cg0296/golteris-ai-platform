@@ -224,6 +224,77 @@
     }
     .principle h4 { font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin-bottom: 0.25rem; }
     .principle p { font-size: 0.78rem; color: #64748b; line-height: 1.4; }
+
+    /* ==================== MOBILE ==================== */
+    @media (max-width: 768px) {
+      header { padding: 1.25rem 1rem; }
+      header h1 { font-size: 1.35rem; }
+      header p { font-size: 0.85rem; }
+
+      /* Horizontally scrollable tab bar */
+      .tabs {
+        padding: 0 0.5rem;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .tabs::-webkit-scrollbar { display: none; }
+      .tab {
+        padding: 0.75rem 0.9rem;
+        font-size: 0.8rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .content { padding: 1rem 0.75rem; }
+      .panel { padding: 1rem; border-radius: 10px; }
+
+      /* Collapse all multi-column grids to single column */
+      .comparison,
+      .overview-grid,
+      .principle-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+      }
+
+      /* Inline-styled grids throughout the doc */
+      [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+      }
+
+      .comparison-section { padding: 1rem; }
+      .overview-hero h2 { font-size: 1.2rem; }
+      .overview-hero p { font-size: 0.85rem; }
+      .overview-card,
+      .overview-full { padding: 1rem; }
+      .overview-full h3 { font-size: 0.95rem; }
+
+      /* Step view — tighter on small screens */
+      .step { gap: 0.75rem; }
+      .step-marker { min-width: 36px; }
+      .step-number { width: 32px; height: 32px; font-size: 0.8rem; }
+      .step-body { padding: 0.75rem 0.9rem; }
+      .step-body h3 { font-size: 0.9rem; }
+      .step-body p { font-size: 0.8rem; }
+
+      /* Mermaid diagrams — allow horizontal scroll rather than overflow */
+      .mermaid { min-width: 0 !important; }
+      .mermaid svg { max-width: 100% !important; height: auto !important; }
+
+      /* Legend wraps tighter */
+      .legend { gap: 0.75rem; }
+    }
+
+    @media (max-width: 480px) {
+      header { padding: 1rem 0.85rem; }
+      header h1 { font-size: 1.15rem; }
+      .tab { padding: 0.65rem 0.75rem; font-size: 0.75rem; }
+      .content { padding: 0.75rem 0.5rem; }
+      .panel { padding: 0.85rem; }
+      .overview-hero h2 { font-size: 1.05rem; }
+    }
   </style>
 </head>
 <body>
