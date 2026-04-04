@@ -234,18 +234,18 @@
 </header>
 
 <div class="tabs">
-  <button class="tab active" onclick="showTab('overview')">Overview</button>
-  <button class="tab" onclick="showTab('casestudy')">Case Study</button>
+  <button class="tab active" onclick="showTab('casestudy')">Case Study</button>
+  <button class="tab" onclick="showTab('broker')">Broker Impact</button>
+  <button class="tab" onclick="showTab('detail')">Process Detail</button>
   <button class="tab" onclick="showTab('architecture')">Architecture</button>
   <button class="tab" onclick="showTab('compare')">Workflow</button>
-  <button class="tab" onclick="showTab('detail')">Process Detail</button>
-  <button class="tab" onclick="showTab('broker')">Broker Impact</button>
+  <button class="tab" onclick="showTab('overview')">Overview</button>
 </div>
 
 <div class="content">
 
   <!-- ==================== OVERVIEW ==================== -->
-  <div id="overview" class="panel active">
+  <div id="overview" class="panel hidden">
 
     <div class="overview-hero">
       <h2>An AI-powered operations platform that converts natural-language business communication into structured work, tracked workflows, and downstream actions.</h2>
@@ -927,7 +927,7 @@ flowchart TD
   </div>
 
   <!-- ==================== CASE STUDY ==================== -->
-  <div id="casestudy" class="panel hidden">
+  <div id="casestudy" class="panel active">
 
     <div style="text-align:center; margin-bottom:2rem;">
       <span style="background:#f59e0b; color:#fff; font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; padding:0.35rem 0.85rem; border-radius:6px;">Case Study</span>
