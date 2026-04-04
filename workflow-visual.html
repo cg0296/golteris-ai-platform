@@ -147,9 +147,8 @@
 
 <div class="tabs">
   <button class="tab active" onclick="showTab('architecture')">Architecture</button>
-  <button class="tab" onclick="showTab('compare')">Before &amp; After</button>
-  <button class="tab" onclick="showTab('detail')">AI Detail View</button>
-  <button class="tab" onclick="showTab('steps')">Step-by-Step</button>
+  <button class="tab" onclick="showTab('compare')">Workflow</button>
+  <button class="tab" onclick="showTab('detail')">Process Detail</button>
 </div>
 
 <div class="content">
@@ -184,22 +183,20 @@ flowchart TD
       <!-- FUTURE (right) -->
       <div class="comparison-section after-side">
         <span class="section-label label-after">FUTURE STATE</span>
-        <div class="section-title">AI Agent Hierarchy &mdash; Behind the Email Box</div>
+        <div class="section-title">AI Agent System &mdash; Multi Agent Hierarchy</div>
         <p style="color:#94a3b8; font-size:0.82rem; margin-bottom:1rem;">Email stays as the interface. AI agents work behind it.</p>
 
         <pre class="mermaid">
 flowchart TD
     CUS2["Clients"]:::cust <-->|"RFQ / Quote"| EMAIL["Email Box"]:::email
     EMAIL <-->|"RFQ / Bid"| CAR2["Carriers"]:::carrier
-    EMAIL <--> ORCH["Orchestration\nAgent"]:::orch
-    ORCH --- AGENTS["Intake | Structuring | Outreach | Bid Analysis | Pricing | Quote"]:::agentrow
+    EMAIL <--> ORCH["Broker Agent"]:::orch
     ORCH -.->|"approval /\nescalation"| BROKER2["Broker\n(HITL)"]:::hitl
 
     classDef cust fill:#0ea5e9,stroke:#0284c7,color:#fff
     classDef carrier fill:#f59e0b,stroke:#d97706,color:#fff
     classDef email fill:#1e3a5f,stroke:#38bdf8,color:#fff,stroke-width:3px
     classDef orch fill:#059669,stroke:#047857,color:#fff,stroke-width:3px
-    classDef agentrow fill:#1e293b,stroke:#10b981,color:#e2e8f0,stroke-width:2px
     classDef hitl fill:#8b5cf6,stroke:#7c3aed,color:#fff,stroke-dasharray: 5 5
         </pre>
 
@@ -210,10 +207,6 @@ flowchart TD
 
     </div>
 
-    <!-- Action buttons (shared) -->
-    <div style="display:flex; justify-content:center; gap:1rem; margin-top:1.5rem;">
-      <button onclick="toggleFacts()" id="facts-toggle" style="background:#334155; color:#e2e8f0; border:1px solid #475569; border-radius:8px; padding:0.5rem 1.25rem; font-size:0.85rem; font-weight:500; cursor:pointer; transition:all 0.2s;">Show Key Facts</button>
-    </div>
 
     <!-- ===== INSIDE THE BLACK BOX (hidden by default) ===== -->
     <div id="blackbox-panel" style="display:none; margin-top:1.5rem;">
@@ -357,51 +350,22 @@ flowchart TD
         </div>
       </div>
     </div>
-
-    <!-- Callouts (hidden by default) -->
-    <div id="facts-panel" style="display:none;">
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin-top:1rem;">
-        <div style="background:#0f172a; border:1px solid #334155; border-top:3px solid #ef4444; border-radius:8px; padding:1rem;">
-          <h4 style="color:#ef4444; font-size:0.85rem; margin-bottom:0.5rem;">SINGLE POINT OF FAILURE</h4>
-          <p style="color:#94a3b8; font-size:0.8rem; line-height:1.4;">One person, one inbox. Broker unavailable = everything stops.</p>
-        </div>
-        <div style="background:#0f172a; border:1px solid #334155; border-top:3px solid #ef4444; border-radius:8px; padding:1rem;">
-          <h4 style="color:#ef4444; font-size:0.85rem; margin-bottom:0.5rem;">UNSTRUCTURED DATA</h4>
-          <p style="color:#94a3b8; font-size:0.8rem; line-height:1.4;">All information lives in email threads and manually-built spreadsheets. No system of record.</p>
-        </div>
-        <div style="background:#0f172a; border:1px solid #334155; border-top:3px solid #ef4444; border-radius:8px; padding:1rem;">
-          <h4 style="color:#ef4444; font-size:0.85rem; margin-bottom:0.5rem;">NO AUDIT TRAIL</h4>
-          <p style="color:#94a3b8; font-size:0.8rem; line-height:1.4;">Can't trace how a quote was built or why a carrier was selected. It's all in the broker's head.</p>
-        </div>
-      </div>
-
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1rem;">
-        <div style="background:#0f172a; border:1px solid #334155; border-top:3px solid #f59e0b; border-radius:8px; padding:1rem;">
-          <h4 style="color:#f59e0b; font-size:0.85rem; margin-bottom:0.5rem;">SERIAL THROUGHPUT</h4>
-          <p style="color:#94a3b8; font-size:0.8rem; line-height:1.4;">One quote at a time. Scaling means hiring more brokers and duplicating the same manual process.</p>
-        </div>
-        <div style="background:#0f172a; border:1px solid #334155; border-top:3px solid #f59e0b; border-radius:8px; padding:1rem;">
-          <h4 style="color:#f59e0b; font-size:0.85rem; margin-bottom:0.5rem;">ERROR-PRONE</h4>
-          <p style="color:#94a3b8; font-size:0.8rem; line-height:1.4;">Every data transfer is manual copy/paste between emails and spreadsheets. Typos, missed fields, wrong versions.</p>
-        </div>
-      </div>
-    </div>
   </div>
 
-  <!-- ==================== BEFORE & AFTER COMPARISON ==================== -->
+  <!-- ==================== WORKFLOW (current state only) ==================== -->
   <div id="compare" class="panel">
-    <div class="comparison">
+    <div style="text-align:center; margin-bottom:1.5rem;">
+      <span class="section-label label-before" style="font-size:0.85rem; padding:0.5rem 1.25rem;">CURRENT STATE WORKFLOW</span>
+      <div class="section-title" style="margin-top:1rem;">Freight Quote Process &mdash; Manual Broker Flow</div>
+    </div>
 
-      <!-- BEFORE (left) -->
-      <div class="comparison-section before-side">
-        <span class="section-label label-before">BEFORE &mdash; Current State</span>
-        <div class="section-title">Manual Broker Process</div>
-        <div class="legend">
-          <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9"></div> Customer</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Broker (manual)</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Carriers</div>
-        </div>
-        <pre class="mermaid">
+    <div class="legend" style="justify-content:center;">
+      <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9"></div> Customer</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Broker (manual)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Carriers</div>
+    </div>
+
+    <pre class="mermaid">
 flowchart TD
     A["Customer sends\nRFQ email"]:::cust --> B["Broker reviews\nfor completeness"]:::broker
     B --> C{"Info\nmissing?"}:::broker
@@ -419,257 +383,19 @@ flowchart TD
     classDef cust fill:#0ea5e9,stroke:#0284c7,color:#fff
     classDef broker fill:#8b5cf6,stroke:#7c3aed,color:#fff
     classDef carrier fill:#f59e0b,stroke:#d97706,color:#fff
-        </pre>
-      </div>
-
-      <!-- AFTER (right) -->
-      <div class="comparison-section after-side">
-        <span class="section-label label-after">AFTER &mdash; Future State</span>
-        <div class="section-title">AI-Automated Broker Process</div>
-        <div class="legend">
-          <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9"></div> Customer</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> AI Agent</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Carriers</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Broker (oversight)</div>
-        </div>
-        <pre class="mermaid">
-flowchart TD
-    A["Customer sends\nRFQ email"]:::cust --> B["AI parses &\nvalidates RFQ"]:::ai
-    B --> C{"Info\nmissing?"}:::ai
-    C -->|Yes| D["AI generates\nfollow-up"]:::ai
-    D --> E["Customer\nclarifies"]:::cust
-    E --> B
-    C -->|No| F["AI structures\ninto spreadsheet"]:::ai
-    F --> G["AI distributes to\nmatched carriers"]:::ai
-    G --> H["Carriers review\n& return bids"]:::carrier
-    H --> I["AI parses bids &\nranks carriers"]:::ai
-    I --> J["AI applies markup\n& generates quote"]:::ai
-    J --> K["AI sends\nfinal quote"]:::ai
-    K --> L["Customer\nreceives quote"]:::cust
-
-    I -.->|Dashboard| O["Broker reviews\n& approves"]:::broker
-
-    classDef cust fill:#0ea5e9,stroke:#0284c7,color:#fff
-    classDef ai fill:#10b981,stroke:#059669,color:#fff
-    classDef carrier fill:#f59e0b,stroke:#d97706,color:#fff
-    classDef broker fill:#8b5cf6,stroke:#7c3aed,color:#fff
-        </pre>
-      </div>
-
-    </div>
-
-    <!-- Zoom into AI Agent button -->
-    <div style="text-align:center; margin-top:1.5rem;">
-      <button onclick="toggleAIAgent()" id="ai-agent-toggle" style="background:#10b981; color:#fff; border:none; border-radius:8px; padding:0.5rem 1.25rem; font-size:0.85rem; font-weight:500; cursor:pointer; transition:all 0.2s;">Zoom Into the AI Agent &darr;</button>
-    </div>
-
-    <!-- ===== INSIDE THE AI AGENT (hidden) ===== -->
-    <div id="ai-agent-panel" style="display:none; margin-top:1.5rem;">
-      <div style="background:#0f172a; border:2px solid #10b981; border-radius:12px; padding:1.5rem; position:relative;">
-        <div style="position:absolute; top:-0.7rem; left:1.5rem; background:#10b981; color:#fff; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; padding:0.25rem 0.75rem; border-radius:4px;">Inside the AI Agent &mdash; Multi-Agent Hierarchy</div>
-
-        <p style="color:#94a3b8; font-size:0.85rem; margin-top:0.5rem; margin-bottom:1.25rem;">The email box stays as the interface to the outside world. Behind it, an Orchestration Agent delegates work to specialized sub-agents.</p>
-
-        <!-- Agent hierarchy diagram -->
-        <div id="ai-agent-mermaid-container"></div>
-
-        <!-- Agent detail toggle -->
-        <div style="text-align:center; margin-top:1rem;">
-          <button onclick="toggleAgentDetails()" id="agent-details-toggle" style="background:#334155; color:#e2e8f0; border:1px solid #475569; border-radius:8px; padding:0.4rem 1rem; font-size:0.8rem; font-weight:500; cursor:pointer; transition:all 0.2s;">Show Agent Details</button>
-        </div>
-
-        <!-- Agent detail cards -->
-        <div id="agent-details-panel" style="display:none; margin-top:1rem;">
-
-          <!-- Orchestrator -->
-          <div style="background:#1e293b; border:2px solid #10b981; border-radius:10px; padding:1rem 1.25rem; margin-bottom:1rem;">
-            <h4 style="font-size:0.95rem; font-weight:700; color:#6ee7b7; margin-bottom:0.4rem;">Orchestrator Agent</h4>
-            <p style="font-size:0.8rem; color:#94a3b8; line-height:1.5;">The central coordinator. Receives triggers (new email, bid received, timer), decides which sub-agent to invoke, manages state transitions, and enforces human-in-the-loop checkpoints. Maintains the full quote lifecycle in a structured data store.</p>
-            <div style="margin-top:0.4rem; font-size:0.7rem; color:#10b981; font-weight:600;">ROLE: Routing &bull; State Management &bull; HITL Gates &bull; Audit Log</div>
-          </div>
-
-          <!-- Sub-agents grid -->
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
-
-            <!-- Intake Agent -->
-            <div style="background:#1e293b; border:1px solid #334155; border-left:3px solid #0ea5e9; border-radius:8px; padding:0.85rem 1rem;">
-              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
-                <span style="background:#0ea5e9; color:#fff; font-size:0.6rem; font-weight:700; padding:0.15rem 0.4rem; border-radius:3px;">CUSTOMER-FACING</span>
-              </div>
-              <h4 style="font-size:0.85rem; font-weight:600; color:#7dd3fc; margin-bottom:0.25rem;">Intake Agent</h4>
-              <p style="font-size:0.78rem; color:#94a3b8; line-height:1.4;">Monitors inbound email. Parses natural-language RFQs using LLM. Extracts structured fields (origin, destination, truck type, insurance, lanes, count, pricing format). Validates completeness against rules. If missing info, drafts follow-up email for approval.</p>
-              <div style="margin-top:0.3rem; font-size:0.65rem; color:#64748b; font-weight:600; text-transform:uppercase;">Tech: LLM &bull; Email API &bull; Validation Engine</div>
-            </div>
-
-            <!-- Structuring Agent -->
-            <div style="background:#1e293b; border:1px solid #334155; border-left:3px solid #10b981; border-radius:8px; padding:0.85rem 1rem;">
-              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
-                <span style="background:#10b981; color:#fff; font-size:0.6rem; font-weight:700; padding:0.15rem 0.4rem; border-radius:3px;">DATA</span>
-              </div>
-              <h4 style="font-size:0.85rem; font-weight:600; color:#6ee7b7; margin-bottom:0.25rem;">Structuring Agent</h4>
-              <p style="font-size:0.78rem; color:#94a3b8; line-height:1.4;">Takes validated RFQ data and generates a standardized carrier-ready spreadsheet. Normalizes lane details, equipment specs, insurance requirements into a consistent template. Zero manual data entry.</p>
-              <div style="margin-top:0.3rem; font-size:0.65rem; color:#64748b; font-weight:600; text-transform:uppercase;">Tech: Template Engine &bull; Data Normalization</div>
-            </div>
-
-            <!-- Carrier Agent -->
-            <div style="background:#1e293b; border:1px solid #334155; border-left:3px solid #f59e0b; border-radius:8px; padding:0.85rem 1rem;">
-              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
-                <span style="background:#f59e0b; color:#fff; font-size:0.6rem; font-weight:700; padding:0.15rem 0.4rem; border-radius:3px;">CARRIER-FACING</span>
-              </div>
-              <h4 style="font-size:0.85rem; font-weight:600; color:#fcd34d; margin-bottom:0.25rem;">Carrier Outreach Agent</h4>
-              <p style="font-size:0.78rem; color:#94a3b8; line-height:1.4;">Selects carriers from database based on lane, equipment type, and historical performance. Distributes the structured RFQ to matched carriers via email or API. Tracks which carriers were contacted and response status.</p>
-              <div style="margin-top:0.3rem; font-size:0.65rem; color:#64748b; font-weight:600; text-transform:uppercase;">Tech: Carrier DB &bull; Matching Algorithm &bull; Email API</div>
-            </div>
-
-            <!-- Bid Analysis Agent -->
-            <div style="background:#1e293b; border:1px solid #334155; border-left:3px solid #f59e0b; border-radius:8px; padding:0.85rem 1rem;">
-              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
-                <span style="background:#f59e0b; color:#fff; font-size:0.6rem; font-weight:700; padding:0.15rem 0.4rem; border-radius:3px;">CARRIER-FACING</span>
-              </div>
-              <h4 style="font-size:0.85rem; font-weight:600; color:#fcd34d; margin-bottom:0.25rem;">Bid Analysis Agent</h4>
-              <p style="font-size:0.78rem; color:#94a3b8; line-height:1.4;">Monitors inbox for carrier bid responses. Parses pricing from emails and spreadsheets (multiple formats). Normalizes into a comparison matrix. Ranks carriers by cost, service history, and operational fit. Recommends best bid.</p>
-              <div style="margin-top:0.3rem; font-size:0.65rem; color:#64748b; font-weight:600; text-transform:uppercase;">Tech: LLM &bull; Email Parsing &bull; Scoring Model</div>
-            </div>
-
-            <!-- Pricing Agent -->
-            <div style="background:#1e293b; border:1px solid #334155; border-left:3px solid #0ea5e9; border-radius:8px; padding:0.85rem 1rem;">
-              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
-                <span style="background:#0ea5e9; color:#fff; font-size:0.6rem; font-weight:700; padding:0.15rem 0.4rem; border-radius:3px;">CUSTOMER-FACING</span>
-              </div>
-              <h4 style="font-size:0.85rem; font-weight:600; color:#7dd3fc; margin-bottom:0.25rem;">Pricing &amp; Quote Agent</h4>
-              <p style="font-size:0.78rem; color:#94a3b8; line-height:1.4;">Applies configurable markup rules to selected carrier bid. Generates the final customer-ready quote in the requested format (per lane, per truck, or average). Composes and sends the quote email after broker approval.</p>
-              <div style="margin-top:0.3rem; font-size:0.65rem; color:#64748b; font-weight:600; text-transform:uppercase;">Tech: Pricing Engine &bull; Doc Generation &bull; Email API</div>
-            </div>
-
-            <!-- Dashboard / HITL -->
-            <div style="background:#1e293b; border:1px solid #334155; border-left:3px dashed #8b5cf6; border-radius:8px; padding:0.85rem 1rem;">
-              <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
-                <span style="background:#8b5cf6; color:#fff; font-size:0.6rem; font-weight:700; padding:0.15rem 0.4rem; border-radius:3px;">HUMAN-IN-THE-LOOP</span>
-              </div>
-              <h4 style="font-size:0.85rem; font-weight:600; color:#c4b5fd; margin-bottom:0.25rem;">Broker Dashboard</h4>
-              <p style="font-size:0.78rem; color:#94a3b8; line-height:1.4;">Not an agent — the human oversight layer. Broker sees real-time quote status, AI recommendations, and approval gates. Can approve, edit, or reject at any checkpoint. Full audit trail of every decision.</p>
-              <div style="margin-top:0.3rem; font-size:0.65rem; color:#64748b; font-weight:600; text-transform:uppercase;">Interface: Web Dashboard &bull; Notifications</div>
-            </div>
-
-          </div>
-        </div>
-
-      </div>
-    </div>
-
+    </pre>
   </div>
 
-  <!-- ==================== AI DETAIL VIEW ==================== -->
+  <!-- ==================== PROCESS DETAIL (combined) ==================== -->
   <div id="detail" class="panel steps">
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9"></div> Customer (human)</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> AI-Automated</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Carriers (external)</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6; border:2px dashed #c4b5fd"></div> Human-in-the-Loop (optional)</div>
+    <div style="text-align:center; margin-bottom:1.5rem;">
+      <span class="section-label label-before" style="font-size:0.85rem; padding:0.5rem 1.25rem;">PROCESS DETAIL</span>
+      <div class="section-title" style="margin-top:1rem;">Step-by-Step Breakdown</div>
     </div>
 
-    <div class="step actor-customer">
-      <div class="step-marker"><div class="step-number">1</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>Customer Sends RFQ</h3>
-        <p>Customer emails a natural-language request. No change needed &mdash; this is the input trigger.</p>
-      </div>
-    </div>
-    <div class="step actor-ai">
-      <div class="step-marker"><div class="step-number">2</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>AI Parses &amp; Validates RFQ</h3>
-        <p><strong>AI capability:</strong> NLP extraction of origin, destination, truck type, insurance, lane specs, truck count, and pricing format. Automatically flags missing fields and generates follow-up questions.</p>
-        <div class="ai-tag">LLM &bull; Email Parsing &bull; Validation Rules</div>
-      </div>
-    </div>
-    <div class="step actor-ai">
-      <div class="step-marker"><div class="step-number">3</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>AI Structures into Spreadsheet</h3>
-        <p><strong>AI capability:</strong> Converts validated request into a standardized carrier-ready spreadsheet. Zero manual data entry.</p>
-        <div class="ai-tag">Data Extraction &bull; Template Generation &bull; Normalization</div>
-      </div>
-    </div>
-
-    <!-- HITL: Review structured data before sending to carriers -->
-    <div class="step actor-hitl">
-      <div class="step-marker"><div class="step-number">&#10003;</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <div class="hitl-badge">Optional &mdash; Human in the Loop</div>
-        <h3>Broker Reviews Structured RFQ</h3>
-        <p>Broker reviews the AI-generated spreadsheet on the dashboard. Can approve, edit, or reject before it goes to carriers. Ensures the AI correctly interpreted the customer's request.</p>
-      </div>
-    </div>
-
-    <div class="step actor-ai">
-      <div class="step-marker"><div class="step-number">4</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>AI Distributes to Carriers</h3>
-        <p><strong>AI capability:</strong> Auto-selects relevant carriers from database based on lane, equipment, and history. Sends structured RFQ via email or API.</p>
-        <div class="ai-tag">Carrier Matching &bull; Email Automation &bull; CRM Integration</div>
-      </div>
-    </div>
-    <div class="step actor-carrier">
-      <div class="step-marker"><div class="step-number">5</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>Carriers Review &amp; Respond</h3>
-        <p>Carriers respond with pricing. External process &mdash; AI monitors for and parses incoming responses.</p>
-      </div>
-    </div>
-    <div class="step actor-ai">
-      <div class="step-marker"><div class="step-number">6</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>AI Parses Bids &amp; Ranks Carriers</h3>
-        <p><strong>AI capability:</strong> Ingests carrier responses, extracts pricing, normalizes into comparison matrix, ranks by cost, history, and fit.</p>
-        <div class="ai-tag">Email Parsing &bull; Bid Comparison &bull; Scoring Model</div>
-      </div>
-    </div>
-
-    <!-- HITL: Review bid selection before markup -->
-    <div class="step actor-hitl">
-      <div class="step-marker"><div class="step-number">&#10003;</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <div class="hitl-badge">Optional &mdash; Human in the Loop</div>
-        <h3>Broker Reviews Bid Selection</h3>
-        <p>Broker reviews the AI's ranked bid comparison and recommended carrier selection on the dashboard. Can override the selection, adjust preferences, or approve to proceed.</p>
-      </div>
-    </div>
-
-    <div class="step actor-ai">
-      <div class="step-marker"><div class="step-number">7</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>AI Applies Markup &amp; Generates Quote</h3>
-        <p><strong>AI capability:</strong> Applies configurable markup rules. Generates customer-ready quote in requested format (per lane, per truck, average).</p>
-        <div class="ai-tag">Pricing Engine &bull; Markup Rules &bull; Document Generation</div>
-      </div>
-    </div>
-
-    <!-- HITL: Final approval before sending to customer -->
-    <div class="step actor-hitl">
-      <div class="step-marker"><div class="step-number">&#10003;</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <div class="hitl-badge">Optional &mdash; Human in the Loop</div>
-        <h3>Broker Approves Final Quote</h3>
-        <p>Broker reviews the final customer-facing quote and markup on the dashboard. Last chance to adjust pricing or wording before it reaches the customer. Approve to send.</p>
-      </div>
-    </div>
-
-    <div class="step actor-ai">
-      <div class="step-marker"><div class="step-number">8</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>AI Sends Final Quote to Customer</h3>
-        <p><strong>AI capability:</strong> Delivers approved quote via email. Full audit trail logged to dashboard.</p>
-        <div class="ai-tag">Email Delivery &bull; Dashboard &bull; Audit Trail</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== STEP-BY-STEP (original manual) ==================== -->
-  <div id="steps" class="panel steps">
     <div class="legend">
       <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9"></div> Customer</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Broker</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Broker (manual)</div>
       <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Carriers</div>
     </div>
 
@@ -684,7 +410,7 @@ flowchart TD
       <div class="step-marker"><div class="step-number">2</div><div class="step-line"></div></div>
       <div class="step-body">
         <h3>Broker Reviews for Completeness</h3>
-        <p>The broker checks that all required lane information is present. If anything is missing, the broker follows up with the customer.</p>
+        <p>The broker checks that all required lane information is present. If anything is missing, the broker follows up with the customer before proceeding.</p>
       </div>
     </div>
     <div class="step actor-broker">

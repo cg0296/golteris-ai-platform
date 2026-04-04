@@ -1,0 +1,6 @@
+ok lets document the workflow in a .md
+
+Client/customer  sends natural language request for quote to broker. The request for quote will be in natural language . will contain truck type, insurance requirements, driver responsibility etc. Essentially the customer is a company that needs freight moved from point A to point b. its called a lane. they need a price per lane  or price per truck per lane or average priceper truck.
+
+Broker Reviews request for quote and makes sure all information is there. If its not they will respond to get the rest of the info needed for a full request for quote. Broker needs to get trucks 
+Broker converts a request for quote and now needs to determine 
