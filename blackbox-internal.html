@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inside the Black Box — Broker Manual Process</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+    header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-bottom: 1px solid #334155;
+      padding: 2rem 3rem;
+    }
+    header h1 { font-size: 1.75rem; font-weight: 700; color: #f8fafc; }
+    header p { color: #94a3b8; margin-top: 0.5rem; font-size: 0.95rem; max-width: 720px; }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 0.75rem;
+      color: #38bdf8;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .content { padding: 2rem 3rem; }
+    .panel {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 2rem;
+      overflow-x: auto;
+    }
+    .panel .mermaid { display: flex; justify-content: center; }
+
+    .context-bar {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding: 1rem 1.25rem;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-left: 4px solid #8b5cf6;
+      border-radius: 8px;
+    }
+    .context-bar .icon { font-size: 1.5rem; }
+    .context-bar .text h3 { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; }
+    .context-bar .text p { font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem; }
+
+    .process-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    @media (max-width: 800px) { .process-grid { grid-template-columns: 1fr; } }
+    .process-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-left: 3px solid #8b5cf6;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+    }
+    .process-card h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #c4b5fd;
+      margin-bottom: 0.35rem;
+    }
+    .process-card p {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .process-card .tools {
+      margin-top: 0.4rem;
+      font-size: 0.7rem;
+      color: #64748b;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .toggle-btn {
+      background: #334155;
+      color: #e2e8f0;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      padding: 0.5rem 1.25rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .toggle-btn:hover { background: #475569; }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="back-link" href="workflow-visual.html">&larr; Back to Architecture Overview</a>
+  <h1>Inside the Black Box</h1>
+  <p>What actually happens inside the broker's manual process. Every step is human-driven, email-dependent, and serial.</p>
+</header>
+
+<div class="content">
+
+  <!-- Context reminder -->
+  <div class="context-bar">
+    <div class="icon">&#9899;</div>
+    <div class="text">
+      <h3>You are looking inside: Broker — Email + Manual Process (Black Box)</h3>
+      <p>This is the center hub from the architecture diagram. Customers and carriers connect to this from the outside.</p>
+    </div>
+  </div>
+
+  <!-- Main diagram -->
+  <div class="panel">
+    <pre class="mermaid">
+flowchart TD
+    IN["Inbound Email\n(RFQs from Customers,\nBids from Carriers)"]:::input
+
+    IN --> READ["Read & Interpret\nEmails"]:::broker
+    READ --> CHECK["Check\nCompleteness"]:::broker
+    CHECK -->|"missing info"| FOLLOWUP["Compose Follow-up\nEmail to Customer"]:::broker
+    FOLLOWUP -.->|"send & wait"| IN
+    CHECK -->|"complete"| BUILD["Build Spreadsheet\n(manual data entry)"]:::broker
+    BUILD --> DISTRIBUTE["Compose & Send\nRFQ Emails to Carriers"]:::broker
+    DISTRIBUTE -.->|"send & wait for bids"| IN
+
+    IN --> COMPARE["Compare Bids\n(manual spreadsheet)"]:::broker
+    COMPARE --> NEGOTIATE["Negotiate &\nSelect Carrier"]:::broker
+    NEGOTIATE --> MARKUP["Calculate Markup\n(manual)"]:::broker
+    MARKUP --> COMPOSE["Compose Quote\nEmail"]:::broker
+    COMPOSE --> OUT["Outbound Email\n(Quotes to Customers,\nRFQs to Carriers)"]:::output
+
+    classDef input fill:#0ea5e9,stroke:#0284c7,color:#fff
+    classDef output fill:#0ea5e9,stroke:#0284c7,color:#fff
+    classDef broker fill:#8b5cf6,stroke:#7c3aed,color:#fff
+    </pre>
+  </div>
+
+  <!-- Toggle for process details -->
+  <div style="text-align:center; margin-top:1.5rem;">
+    <button class="toggle-btn" onclick="toggleDetails();" id="details-toggle">Show Process Details</button>
+  </div>
+
+  <!-- Process detail cards -->
+  <div id="details-panel" style="display:none;">
+    <div class="process-grid">
+      <div class="process-card">
+        <h4>1. Read & Interpret Emails</h4>
+        <p>Broker opens each email and mentally extracts: origin, destination, truck type, insurance, lane specs, truck count, pricing expectations. No parsing — pure human reading.</p>
+        <div class="tools">Tools: Outlook / Gmail</div>
+      </div>
+      <div class="process-card">
+        <h4>2. Check Completeness</h4>
+        <p>Broker checks if all required fields are present based on experience and memory. No checklist, no validation rules. Easy to miss something.</p>
+        <div class="tools">Tools: Broker's memory</div>
+      </div>
+      <div class="process-card">
+        <h4>3. Compose Follow-up</h4>
+        <p>If info is missing, broker manually writes an email asking the customer for specifics. Then waits for a reply — could be hours or days.</p>
+        <div class="tools">Tools: Outlook / Gmail</div>
+      </div>
+      <div class="process-card">
+        <h4>4. Build Spreadsheet</h4>
+        <p>Broker manually retypes email content into a spreadsheet: lane details, truck count, equipment, insurance, driver responsibilities. Copy/paste and typo-prone.</p>
+        <div class="tools">Tools: Excel / Google Sheets</div>
+      </div>
+      <div class="process-card">
+        <h4>5. Distribute to Carriers</h4>
+        <p>Broker attaches the spreadsheet and composes individual emails to each carrier. May forget a carrier or send the wrong version.</p>
+        <div class="tools">Tools: Outlook / Gmail + Excel</div>
+      </div>
+      <div class="process-card">
+        <h4>6. Compare Bids</h4>
+        <p>As bid emails arrive, broker reads each one, extracts the pricing, and manually enters it into a comparison spreadsheet. Different carriers use different formats.</p>
+        <div class="tools">Tools: Outlook / Gmail + Excel</div>
+      </div>
+      <div class="process-card">
+        <h4>7. Negotiate & Select</h4>
+        <p>Broker evaluates bids on cost, service fit, and reliability. May go back and forth with carriers via email. Selection criteria lives in broker's head.</p>
+        <div class="tools">Tools: Outlook / Gmail + judgment</div>
+      </div>
+      <div class="process-card">
+        <h4>8. Calculate Markup</h4>
+        <p>Broker applies a markup percentage to the selected carrier price in the spreadsheet. Manual formula — no rules engine, no guardrails.</p>
+        <div class="tools">Tools: Excel / Google Sheets</div>
+      </div>
+      <div class="process-card" style="grid-column: 1 / -1;">
+        <h4>9. Compose Quote Email</h4>
+        <p>Broker writes the final quote email to the customer with the marked-up pricing. Formatted as price per lane, per truck per lane, or average — depending on what the customer asked for. Sent manually.</p>
+        <div class="tools">Tools: Outlook / Gmail</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      darkMode: true,
+      background: '#1e293b',
+      primaryColor: '#8b5cf6',
+      primaryTextColor: '#fff',
+      lineColor: '#64748b',
+      fontFamily: 'Segoe UI, system-ui, sans-serif'
+    }
+  });
+
+  function toggleDetails() {
+    const panel = document.getElementById('details-panel');
+    const btn = document.getElementById('details-toggle');
+    if (panel.style.display === 'none') {
+      panel.style.display = 'block';
+      btn.textContent = 'Hide Process Details';
+    } else {
+      panel.style.display = 'none';
+      btn.textContent = 'Show Process Details';
+    }
+  }
+</script>
+
+</body>
+</html>
