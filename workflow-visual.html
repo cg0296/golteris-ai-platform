@@ -594,73 +594,185 @@ flowchart TD
   </div>
 
   <!-- ==================== PROCESS DETAIL (combined) ==================== -->
-  <div id="detail" class="panel steps">
+  <div id="detail" class="panel">
     <div style="text-align:center; margin-bottom:1.5rem;">
       <span class="section-label label-before" style="font-size:0.85rem; padding:0.5rem 1.25rem;">PROCESS DETAIL</span>
       <div class="section-title" style="margin-top:1rem;">Step-by-Step Breakdown</div>
     </div>
 
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9"></div> Customer</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Broker (manual)</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Carriers</div>
-    </div>
+    <div class="comparison">
 
-    <div class="step actor-customer">
-      <div class="step-marker"><div class="step-number">1</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>Customer Sends RFQ</h3>
-        <p>The customer emails a natural-language request for quote including origin/destination, truck type, insurance, driver responsibilities, lane specs, truck count, and pricing expectations.</p>
+      <!-- CURRENT (left) -->
+      <div class="comparison-section before-side">
+        <span class="section-label label-before">CURRENT STATE</span>
+        <div class="section-title" style="font-size:0.95rem;">Manual Broker Process</div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9"></div> Customer</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> Broker</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Carriers</div>
+        </div>
+
+        <div class="steps">
+          <div class="step actor-customer">
+            <div class="step-marker"><div class="step-number">1</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>Customer Sends RFQ</h3>
+              <p>Emails a natural-language request with origin/destination, truck type, insurance, lane specs, truck count, and pricing expectations.</p>
+            </div>
+          </div>
+          <div class="step actor-broker">
+            <div class="step-marker"><div class="step-number">2</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>Broker Reviews for Completeness</h3>
+              <p>Checks all required lane information is present. Follows up with customer if anything is missing.</p>
+            </div>
+          </div>
+          <div class="step actor-broker">
+            <div class="step-marker"><div class="step-number">3</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>Broker Standardizes the Request</h3>
+              <p>Manually converts the email into a structured spreadsheet with lane details, truck count, equipment, insurance, and requirements.</p>
+            </div>
+          </div>
+          <div class="step actor-broker">
+            <div class="step-marker"><div class="step-number">4</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>Broker Sends to Carriers</h3>
+              <p>Distributes the spreadsheet to multiple carriers individually via email.</p>
+            </div>
+          </div>
+          <div class="step actor-carrier">
+            <div class="step-marker"><div class="step-number">5</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>Carriers Review &amp; Respond</h3>
+              <p>Carriers evaluate lanes and return pricing via email or spreadsheet.</p>
+            </div>
+          </div>
+          <div class="step actor-broker">
+            <div class="step-marker"><div class="step-number">6</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>Broker Compares &amp; Negotiates</h3>
+              <p>Manually reads bid emails, enters pricing into comparison spreadsheet, negotiates, and selects best bid.</p>
+            </div>
+          </div>
+          <div class="step actor-broker">
+            <div class="step-marker"><div class="step-number">7</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>Broker Applies Markup</h3>
+              <p>Calculates markup percentage in spreadsheet to determine sell price.</p>
+            </div>
+          </div>
+          <div class="step actor-broker">
+            <div class="step-marker"><div class="step-number">8</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>Final Quote Sent to Customer</h3>
+              <p>Composes and sends quote email to customer.</p>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="step actor-broker">
-      <div class="step-marker"><div class="step-number">2</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>Broker Reviews for Completeness</h3>
-        <p>The broker checks that all required lane information is present. If anything is missing, the broker follows up with the customer before proceeding.</p>
+
+      <!-- FUTURE (right) -->
+      <div class="comparison-section after-side">
+        <span class="section-label label-after">FUTURE STATE</span>
+        <div class="section-title" style="font-size:0.95rem;">AI-Automated with Human Oversight</div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#0ea5e9"></div> Customer</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> AI Agent</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Carriers</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6; border:2px dashed #c4b5fd;"></div> HITL (optional)</div>
+        </div>
+
+        <div class="steps">
+          <div class="step actor-customer">
+            <div class="step-marker"><div class="step-number">1</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>Customer Sends RFQ</h3>
+              <p>No change — customer emails a natural-language request. This is the input trigger.</p>
+            </div>
+          </div>
+          <div class="step actor-ai">
+            <div class="step-marker"><div class="step-number">2</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>AI Parses &amp; Validates RFQ</h3>
+              <p>NLP extraction of origin, destination, truck type, insurance, lane specs, truck count, pricing format. Flags missing fields and generates follow-up questions.</p>
+              <div class="ai-tag">LLM &bull; Email Parsing &bull; Validation Rules</div>
+            </div>
+          </div>
+          <div class="step actor-ai">
+            <div class="step-marker"><div class="step-number">3</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>AI Structures into Spreadsheet</h3>
+              <p>Converts validated request into a standardized carrier-ready spreadsheet. Zero manual data entry.</p>
+              <div class="ai-tag">Data Extraction &bull; Template Generation &bull; Normalization</div>
+            </div>
+          </div>
+          <div class="step actor-hitl">
+            <div class="step-marker"><div class="step-number">&#10003;</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="hitl-badge">Optional &mdash; Human in the Loop</div>
+              <h3>Broker Reviews Structured RFQ</h3>
+              <p>Reviews AI-generated spreadsheet on dashboard. Can approve, edit, or reject before it goes to carriers.</p>
+            </div>
+          </div>
+          <div class="step actor-ai">
+            <div class="step-marker"><div class="step-number">4</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>AI Distributes to Carriers</h3>
+              <p>Auto-selects relevant carriers from database based on lane, equipment, and history. Sends structured RFQ via email or API.</p>
+              <div class="ai-tag">Carrier Matching &bull; Email Automation &bull; CRM Integration</div>
+            </div>
+          </div>
+          <div class="step actor-carrier">
+            <div class="step-marker"><div class="step-number">5</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>Carriers Review &amp; Respond</h3>
+              <p>No change — carriers respond with pricing. AI monitors for and parses incoming responses.</p>
+            </div>
+          </div>
+          <div class="step actor-ai">
+            <div class="step-marker"><div class="step-number">6</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>AI Parses Bids &amp; Ranks Carriers</h3>
+              <p>Ingests carrier responses, extracts pricing, normalizes into comparison matrix, ranks by cost, history, and fit.</p>
+              <div class="ai-tag">Email Parsing &bull; Bid Comparison &bull; Scoring Model</div>
+            </div>
+          </div>
+          <div class="step actor-hitl">
+            <div class="step-marker"><div class="step-number">&#10003;</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="hitl-badge">Optional &mdash; Human in the Loop</div>
+              <h3>Broker Reviews Bid Selection</h3>
+              <p>Reviews AI's ranked comparison and recommended carrier on the dashboard. Can override selection or approve to proceed.</p>
+            </div>
+          </div>
+          <div class="step actor-ai">
+            <div class="step-marker"><div class="step-number">7</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>AI Applies Markup &amp; Generates Quote</h3>
+              <p>Applies configurable markup rules. Generates customer-ready quote in requested format (per lane, per truck, average).</p>
+              <div class="ai-tag">Pricing Engine &bull; Markup Rules &bull; Document Generation</div>
+            </div>
+          </div>
+          <div class="step actor-hitl">
+            <div class="step-marker"><div class="step-number">&#10003;</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <div class="hitl-badge">Optional &mdash; Human in the Loop</div>
+              <h3>Broker Approves Final Quote</h3>
+              <p>Reviews final customer-facing quote and markup on dashboard. Last chance to adjust pricing before it reaches the customer.</p>
+            </div>
+          </div>
+          <div class="step actor-ai">
+            <div class="step-marker"><div class="step-number">8</div><div class="step-line"></div></div>
+            <div class="step-body">
+              <h3>AI Sends Final Quote to Customer</h3>
+              <p>Delivers approved quote via email. Full audit trail logged to dashboard.</p>
+              <div class="ai-tag">Email Delivery &bull; Dashboard &bull; Audit Trail</div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="step actor-broker">
-      <div class="step-marker"><div class="step-number">3</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>Broker Standardizes the Request</h3>
-        <p>Converts the natural-language request into a structured spreadsheet covering lane details, truck count, equipment type, insurance, and service requirements.</p>
-      </div>
-    </div>
-    <div class="step actor-broker">
-      <div class="step-marker"><div class="step-number">4</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>Broker Sends to Carriers</h3>
-        <p>The structured lane request is distributed to multiple carriers to solicit competitive pricing.</p>
-      </div>
-    </div>
-    <div class="step actor-carrier">
-      <div class="step-marker"><div class="step-number">5</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>Carriers Review &amp; Respond</h3>
-        <p>Carriers evaluate the lanes and return their pricing via email or completed spreadsheets.</p>
-      </div>
-    </div>
-    <div class="step actor-broker">
-      <div class="step-marker"><div class="step-number">6</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>Broker Compares &amp; Negotiates</h3>
-        <p>Reviews all bids, compares pricing and service fit, negotiates where needed, and selects the best carrier bid.</p>
-      </div>
-    </div>
-    <div class="step actor-broker">
-      <div class="step-marker"><div class="step-number">7</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>Broker Applies Markup</h3>
-        <p>A markup percentage is applied to the selected carrier price to determine the broker's sell price.</p>
-      </div>
-    </div>
-    <div class="step actor-broker">
-      <div class="step-marker"><div class="step-number">8</div><div class="step-line"></div></div>
-      <div class="step-body">
-        <h3>Final Quote Sent to Customer</h3>
-        <p>The broker sends the final pricing back to the customer as price per lane, per truck per lane, or average price per truck.</p>
-      </div>
+
     </div>
   </div>
 
