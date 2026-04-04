@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Freight Quote Workflow &mdash; Before &amp; After AI</title>
+  <title>Golteris AI Platform &mdash; Operational AI for Freight Brokerage</title>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -136,25 +136,253 @@
       border-radius: 4px;
       margin-bottom: 0.4rem;
     }
+
+    /* Overview page */
+    .overview-hero { text-align: center; padding: 1rem 0 2rem; }
+    .overview-hero h2 { font-size: 1.6rem; font-weight: 700; color: #f8fafc; line-height: 1.3; max-width: 700px; margin: 0 auto; }
+    .overview-hero p { color: #94a3b8; font-size: 0.95rem; max-width: 640px; margin: 1rem auto 0; line-height: 1.6; }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    @media (max-width: 900px) { .overview-grid { grid-template-columns: 1fr; } }
+
+    .overview-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 1.5rem;
+    }
+    .overview-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .overview-card p, .overview-card li {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+    .overview-card ul {
+      list-style: none;
+      padding: 0;
+    }
+    .overview-card ul li {
+      padding: 0.3rem 0;
+      padding-left: 1.25rem;
+      position: relative;
+    }
+    .overview-card ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.65rem;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .card-problem { border-top: 3px solid #ef4444; }
+    .card-problem h3 { color: #fca5a5; }
+    .card-problem ul li::before { background: #ef4444; }
+    .card-current { border-top: 3px solid #8b5cf6; }
+    .card-current h3 { color: #c4b5fd; }
+    .card-current ul li::before { background: #8b5cf6; }
+    .card-future { border-top: 3px solid #10b981; }
+    .card-future h3 { color: #6ee7b7; }
+    .card-future ul li::before { background: #10b981; }
+    .card-why { border-top: 3px solid #38bdf8; }
+    .card-why h3 { color: #7dd3fc; }
+    .card-why ul li::before { background: #38bdf8; }
+
+    .overview-full {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .overview-full h3 { font-size: 1rem; font-weight: 700; color: #f1f5f9; margin-bottom: 0.75rem; }
+    .overview-full p { color: #94a3b8; font-size: 0.85rem; line-height: 1.6; }
+    .principle-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    @media (max-width: 900px) { .principle-grid { grid-template-columns: 1fr; } }
+    .principle {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+    }
+    .principle h4 { font-size: 0.85rem; font-weight: 600; color: #e2e8f0; margin-bottom: 0.25rem; }
+    .principle p { font-size: 0.78rem; color: #64748b; line-height: 1.4; }
   </style>
 </head>
 <body>
 
 <header>
-  <h1>Freight Quote Workflow</h1>
-  <p>Before &amp; After: how AI automation transforms the broker's manual process into an automated pipeline.</p>
+  <h1>Golteris AI Platform</h1>
+  <p>Operational AI for freight brokerage. Replacing manual inbox-driven processes with an intelligent, auditable pipeline.</p>
 </header>
 
 <div class="tabs">
-  <button class="tab active" onclick="showTab('architecture')">Architecture</button>
+  <button class="tab active" onclick="showTab('overview')">Overview</button>
+  <button class="tab" onclick="showTab('casestudy')">Case Study</button>
+  <button class="tab" onclick="showTab('architecture')">Architecture</button>
   <button class="tab" onclick="showTab('compare')">Workflow</button>
   <button class="tab" onclick="showTab('detail')">Process Detail</button>
 </div>
 
 <div class="content">
 
+  <!-- ==================== OVERVIEW ==================== -->
+  <div id="overview" class="panel active">
+
+    <div class="overview-hero">
+      <h2>An AI-powered operations platform that converts natural-language business communication into structured work, tracked workflows, and downstream actions.</h2>
+      <p>Most businesses still translate unstructured requests into spreadsheets, forms, and workflow systems by hand. This is slow, inconsistent, and impossible to scale. Golteris standardizes that translation layer.</p>
+    </div>
+
+    <div class="overview-grid">
+
+      <!-- What It Does -->
+      <div class="overview-card card-future">
+        <h3>What the Platform Does</h3>
+        <p>Golteris monitors inbound business communication — email, messages, documents — and converts it into structured, actionable data. It then orchestrates the downstream workflow automatically.</p>
+        <ul style="margin-top:0.75rem;">
+          <li>Accepts natural-language input from any channel</li>
+          <li>Extracts key business information using AI</li>
+          <li>Converts it into a defined data model</li>
+          <li>Generates spreadsheets, records, or outbound content</li>
+          <li>Starts and tracks the related workflow through completion</li>
+          <li>Escalates to humans when confidence is low or risk is high</li>
+        </ul>
+      </div>
+
+      <!-- The Problem It Solves -->
+      <div class="overview-card card-problem">
+        <h3>The Problem It Solves</h3>
+        <p>Across industries, operational teams are buried in email-driven processes. Someone manually reads a request, interprets it, asks follow-up questions, builds a sheet, coordinates with external parties, compares responses, and sends back a result.</p>
+        <ul style="margin-top:0.75rem;">
+          <li>Slow response times on repeatable work</li>
+          <li>Inbox chaos — requests get buried or lost</li>
+          <li>Inconsistent handling across team members</li>
+          <li>Missed details leading to lost revenue</li>
+          <li>Total dependence on one person remembering the process</li>
+          <li>No audit trail for how decisions were made</li>
+        </ul>
+      </div>
+
+      <!-- Where It Applies -->
+      <div class="overview-card card-current">
+        <h3>Where It Applies</h3>
+        <p>Any workflow where unstructured communication needs to become structured work. The platform is not limited to one industry — it's built for the pattern, not the vertical.</p>
+        <ul style="margin-top:0.75rem;">
+          <li>Freight brokerage and logistics quoting</li>
+          <li>RFP and procurement response</li>
+          <li>Sales handoffs and deal intake</li>
+          <li>Customer onboarding and intake forms</li>
+          <li>Support requests and case processing</li>
+          <li>Claims processing and compliance workflows</li>
+          <li>Any email-heavy, spreadsheet-driven operation</li>
+        </ul>
+      </div>
+
+      <!-- Why Now -->
+      <div class="overview-card card-why">
+        <h3>Why Now</h3>
+        <p>Embedding AI into an organization is quickly shifting from something that creates competitive advantage to something required to stay competitive at all.</p>
+        <ul style="margin-top:0.75rem;">
+          <li>Businesses that use AI well will reduce manual work, improve efficiency, respond faster, and deliver a better customer experience</li>
+          <li>Businesses that do not will increasingly struggle to keep pace</li>
+          <li>The need is not just to experiment with AI, but to identify where it can be applied in practical ways that improve operations</li>
+          <li>LLM capabilities have reached the point where parsing unstructured communication into structured data is reliable enough for production use</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- How It Works -->
+    <div class="overview-full" style="border-top:3px solid #10b981; margin-top:1.5rem;">
+      <h3 style="color:#6ee7b7;">How It Works</h3>
+      <p>The platform uses a multi-agent architecture. Low-level agents handle focused, repeatable tasks. A central orchestrator manages flow, state, and sequencing. AI handles the messy parts — interpreting natural language, fuzzy matching, and exception handling. Deterministic automation handles everything else.</p>
+      <div class="principle-grid" style="margin-top:1rem;">
+        <div class="principle">
+          <h4>Monitor</h4>
+          <p>Watch inbound channels (email, messages, uploads) for new requests or replies.</p>
+        </div>
+        <div class="principle">
+          <h4>Extract</h4>
+          <p>AI parses natural language into structured fields. Flags what's missing.</p>
+        </div>
+        <div class="principle">
+          <h4>Validate</h4>
+          <p>Check completeness against business rules. Draft follow-ups automatically if needed.</p>
+        </div>
+        <div class="principle">
+          <h4>Generate</h4>
+          <p>Create spreadsheets, records, outbound content, or structured artifacts from extracted data.</p>
+        </div>
+        <div class="principle">
+          <h4>Coordinate</h4>
+          <p>Distribute work to external parties, collect responses, and track status across the full lifecycle.</p>
+        </div>
+        <div class="principle">
+          <h4>Decide</h4>
+          <p>Compare options, apply business rules, and surface recommendations — with human approval at key gates.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- How This Differs -->
+    <div class="overview-full" style="border-top:3px solid #334155; margin-top:1.5rem;">
+      <h3>How This Differs From ChatGPT</h3>
+      <p>ChatGPT is a prompt-response assistant — it helps with a single task or conversation. Golteris is an <strong>operations system</strong> that manages entire business processes from intake to completion. It monitors communication, maintains state across multiple steps and messages, triggers actions automatically, coordinates tools like email and spreadsheets, and uses AI only where ambiguity requires interpretation. The core difference is <strong>conversation</strong> versus <strong>operational execution</strong>.</p>
+    </div>
+
+    <!-- Product Principles -->
+    <div class="overview-full" style="margin-top:1.5rem;">
+      <h3>Product Principles</h3>
+      <div class="principle-grid">
+        <div class="principle">
+          <h4>Smallest Repeatable Tasks</h4>
+          <p>Break work into the smallest repeatable units. Give each task a clear input and output.</p>
+        </div>
+        <div class="principle">
+          <h4>Explicit State</h4>
+          <p>Keep workflow state explicit. Use orchestration to control the process, not implicit assumptions.</p>
+        </div>
+        <div class="principle">
+          <h4>AI Where It Matters</h4>
+          <p>Use AI when reality is messy, not where simple rules are enough. Don't over-automate deterministic steps.</p>
+        </div>
+        <div class="principle">
+          <h4>Human Escalation</h4>
+          <p>Escalate to humans when confidence is low or business risk is high. Never let AI silently make high-stakes decisions.</p>
+        </div>
+        <div class="principle">
+          <h4>Orchestration First</h4>
+          <p>Low-level agents do focused tasks. A central orchestrator manages flow, state, and which agent runs next.</p>
+        </div>
+        <div class="principle">
+          <h4>Auditable by Default</h4>
+          <p>Every decision, every data transformation, every approval is logged. Full traceability from intake to completion.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
   <!-- ==================== ARCHITECTURE ==================== -->
-  <div id="architecture" class="panel active">
+  <div id="architecture" class="panel hidden">
 
     <div class="comparison">
 
@@ -164,16 +392,7 @@
         <div class="section-title">Hub &amp; Spoke &mdash; Broker as Black Box</div>
         <p style="color:#94a3b8; font-size:0.82rem; margin-bottom:1rem;">All communication funnels through one person and one inbox.</p>
 
-        <pre class="mermaid">
-flowchart TD
-    CUS["Clients"]:::cust <-->|"RFQ / Quote"| BROKER
-    BROKER["Broker\n\nEmail + Manual Process\n(Black Box)"]:::blackbox
-    BROKER <-->|"RFQ / Bid"| CAR["Carriers"]:::carrier
-
-    classDef cust fill:#0ea5e9,stroke:#0284c7,color:#fff
-    classDef carrier fill:#f59e0b,stroke:#d97706,color:#fff
-    classDef blackbox fill:#1e1e2e,stroke:#8b5cf6,color:#e2e8f0,stroke-width:3px
-        </pre>
+        <div id="arch-current-container"></div>
 
         <div style="text-align:center; margin-top:1rem;">
           <button onclick="toggleBlackbox()" id="blackbox-toggle" style="background:#8b5cf6; color:#fff; border:none; border-radius:8px; padding:0.4rem 1rem; font-size:0.8rem; font-weight:500; cursor:pointer; transition:all 0.2s;">Zoom Into Black Box &darr;</button>
@@ -186,19 +405,7 @@ flowchart TD
         <div class="section-title">AI Agent System &mdash; Multi Agent Hierarchy</div>
         <p style="color:#94a3b8; font-size:0.82rem; margin-bottom:1rem;">Email stays as the interface. AI agents work behind it.</p>
 
-        <pre class="mermaid">
-flowchart TD
-    CUS2["Clients"]:::cust <-->|"RFQ / Quote"| EMAIL["Email Box"]:::email
-    EMAIL <-->|"RFQ / Bid"| CAR2["Carriers"]:::carrier
-    EMAIL <--> ORCH["Broker Agent"]:::orch
-    ORCH -.->|"approval /\nescalation"| BROKER2["Broker\n(HITL)"]:::hitl
-
-    classDef cust fill:#0ea5e9,stroke:#0284c7,color:#fff
-    classDef carrier fill:#f59e0b,stroke:#d97706,color:#fff
-    classDef email fill:#1e3a5f,stroke:#38bdf8,color:#fff,stroke-width:3px
-    classDef orch fill:#059669,stroke:#047857,color:#fff,stroke-width:3px
-    classDef hitl fill:#8b5cf6,stroke:#7c3aed,color:#fff,stroke-dasharray: 5 5
-        </pre>
+        <div id="arch-future-container"></div>
 
         <div style="text-align:center; margin-top:1rem;">
           <button onclick="toggleAIAgentArch()" id="ai-arch-toggle" style="background:#10b981; color:#fff; border:none; border-radius:8px; padding:0.4rem 1rem; font-size:0.8rem; font-weight:500; cursor:pointer; transition:all 0.2s;">Zoom Into AI Agents &darr;</button>
@@ -457,6 +664,149 @@ flowchart TD
     </div>
   </div>
 
+  <!-- ==================== CASE STUDY ==================== -->
+  <div id="casestudy" class="panel hidden">
+
+    <div style="text-align:center; margin-bottom:2rem;">
+      <span style="background:#f59e0b; color:#fff; font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; padding:0.35rem 0.85rem; border-radius:6px;">Case Study</span>
+      <h2 style="font-size:1.5rem; font-weight:700; color:#f8fafc; margin-top:1rem;">Beltmann Logistics</h2>
+      <p style="color:#94a3b8; font-size:0.9rem; max-width:640px; margin:0.75rem auto 0; line-height:1.6;">A national logistics and relocation company drowning in email-driven freight quoting. Their transportation team manually processes every RFQ, carrier bid, and customer quote through a single inbox.</p>
+    </div>
+
+    <!-- The Situation -->
+    <div class="overview-grid">
+
+      <div class="overview-card card-problem">
+        <h3>The Pain</h3>
+        <p>Jillian, the transportation lead, described a daily reality of inbox chaos. Her team handles complex project requests with multiple truck types, special equipment, driver unload requirements, and storage charges — all arriving as unstructured emails.</p>
+        <ul style="margin-top:0.75rem;">
+          <li>High email volume with repetitive back-and-forth</li>
+          <li>Complex RFQs: 6 lift-gate vans + 26 straight trucks + storage in one email</li>
+          <li>Manually retyping email content into spreadsheets</li>
+          <li>Individually emailing carriers for each lane</li>
+          <li>Carrier bids come back as emails, not spreadsheets — broker re-enters everything</li>
+          <li>Client-specific workflows with no standardization</li>
+          <li>Missing details cause delays and lost opportunities</li>
+        </ul>
+      </div>
+
+      <div class="overview-card card-current">
+        <h3>Current Process</h3>
+        <p>Every quote request flows through the team's inbox. There is no system — just email, spreadsheets, and the broker's memory.</p>
+        <ul style="margin-top:0.75rem;">
+          <li>Customer sends project request via email (natural language)</li>
+          <li>Broker reads email, mentally parses truck types, lanes, requirements</li>
+          <li>Broker follows up for missing info (dates, equipment, unload specs)</li>
+          <li>Broker manually builds carrier pricing spreadsheet</li>
+          <li>Broker emails carriers individually</li>
+          <li>Carriers reply by email — broker extracts pricing manually</li>
+          <li>Broker compares bids, applies markup, sends quote to customer</li>
+          <li>Entire process takes hours to days per project</li>
+        </ul>
+      </div>
+
+      <div class="overview-card card-future">
+        <h3>Proposed Solution</h3>
+        <p>Deploy the Golteris AI platform to monitor Beltmann's mailbox and automate the quoting pipeline. The broker shifts from doing the work to overseeing it.</p>
+        <ul style="margin-top:0.75rem;">
+          <li>AI agent monitors the inbox and parses inbound RFQs</li>
+          <li>Extracts truck types, lanes, equipment, storage, driver requirements</li>
+          <li>Flags missing fields and drafts follow-up questions automatically</li>
+          <li>Generates carrier-ready spreadsheets from email content</li>
+          <li>Distributes to matched carriers automatically</li>
+          <li>Parses carrier bid responses (email or spreadsheet)</li>
+          <li>Compares bids, applies markup, generates customer quote</li>
+          <li>Supports client-specific workflows — not one rigid process</li>
+        </ul>
+      </div>
+
+      <div class="overview-card card-why">
+        <h3>Why Beltmann</h3>
+        <p>Beltmann is the ideal first deployment. The pain is acute, the sponsor is engaged, and success opens the door to the entire organization.</p>
+        <ul style="margin-top:0.75rem;">
+          <li>Jillian is a strong internal champion — "if it works, I'm pitching it to every department"</li>
+          <li>30-day free trial already agreed to</li>
+          <li>Company is growing month over month — volume will only increase</li>
+          <li>Believes another department may already use something similar</li>
+          <li>Success differentiates Beltmann from competitors: "quotes back to customers within a day"</li>
+          <li>Potential to expand across all departments within the organization</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- What Jillian Wants to See -->
+    <div class="overview-full" style="border-top:3px solid #f59e0b; margin-top:1.5rem;">
+      <h3 style="color:#fcd34d;">What the Demo Needs to Prove</h3>
+      <p>Jillian doesn't want a generic software pitch. She wants to see whether this can materially reduce the back-and-forth her team handles with clients and carriers.</p>
+      <div class="principle-grid" style="margin-top:1rem;">
+        <div class="principle">
+          <h4>Mailbox Monitoring</h4>
+          <p>Agent watches the inbox, reads inbound quote and project emails as they arrive.</p>
+        </div>
+        <div class="principle">
+          <h4>Field Extraction</h4>
+          <p>Extract truck types, lane details, equipment specs, storage charges, driver requirements from messy emails.</p>
+        </div>
+        <div class="principle">
+          <h4>Missing Info Detection</h4>
+          <p>Identify what's missing and draft targeted follow-up questions automatically.</p>
+        </div>
+        <div class="principle">
+          <h4>Spreadsheet Generation</h4>
+          <p>Generate a carrier-ready pricing sheet from inbound request data in seconds.</p>
+        </div>
+        <div class="principle">
+          <h4>Data Cleanup</h4>
+          <p>Take raw messy input and strip it down to only the fields carriers need to see.</p>
+        </div>
+        <div class="principle">
+          <h4>Multi-Lane Handling</h4>
+          <p>Handle multiple lanes, truck types, and equipment in a single request — Atlanta to Illinois, Illinois to Indiana, Indiana to Wisconsin.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Impact -->
+    <div class="overview-full" style="border-top:3px solid #10b981; margin-top:1.5rem;">
+      <h3 style="color:#6ee7b7;">Expected Impact</h3>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin-top:1rem;">
+        <div style="text-align:center; padding:1.25rem; background:#1e293b; border:1px solid #334155; border-radius:8px;">
+          <div style="font-size:2rem; font-weight:700; color:#10b981;">Hours &rarr; Minutes</div>
+          <p style="font-size:0.8rem; color:#94a3b8; margin-top:0.5rem;">Project quoting time per request</p>
+        </div>
+        <div style="text-align:center; padding:1.25rem; background:#1e293b; border:1px solid #334155; border-radius:8px;">
+          <div style="font-size:2rem; font-weight:700; color:#10b981;">Minimal Touch</div>
+          <p style="font-size:0.8rem; color:#94a3b8; margin-top:0.5rem;">Reduce broker touchpoints to oversight only</p>
+        </div>
+        <div style="text-align:center; padding:1.25rem; background:#1e293b; border:1px solid #334155; border-radius:8px;">
+          <div style="font-size:2rem; font-weight:700; color:#10b981;">Same Day Quotes</div>
+          <p style="font-size:0.8rem; color:#94a3b8; margin-top:0.5rem;">Return carrier pricing to customers within a day</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Engagement Plan -->
+    <div class="overview-full" style="border-top:3px solid #38bdf8; margin-top:1.5rem;">
+      <h3 style="color:#7dd3fc;">Engagement Plan</h3>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem; margin-top:1rem;">
+        <div class="principle" style="border-left:3px solid #38bdf8;">
+          <h4>Phase 1: Discovery</h4>
+          <p>Understand Jillian's exact workflows, client-specific variations, and carrier communication patterns. Not a one-size-fits-all deployment.</p>
+        </div>
+        <div class="principle" style="border-left:3px solid #38bdf8;">
+          <h4>Phase 2: Trial (30 days)</h4>
+          <p>Deploy intake automation: mailbox monitoring, field extraction, missing info detection, and spreadsheet generation on live email traffic.</p>
+        </div>
+        <div class="principle" style="border-left:3px solid #38bdf8;">
+          <h4>Phase 3: Expand</h4>
+          <p>If trial succeeds, expand to carrier distribution, bid parsing, quote generation. Jillian pitches to other departments. Custom implementation then ongoing subscription.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
 </div>
 
 <script>
@@ -649,6 +999,37 @@ flowchart TD
     }
   }
 
+  const archCurrentDef = `flowchart TD
+    CUS["Clients"]:::cust <-->|"RFQ / Quote"| BROKER
+    BROKER["Broker\\n\\nEmail + Manual Process\\n(Black Box)"]:::blackbox
+    BROKER <-->|"RFQ / Bid"| CAR["Carriers"]:::carrier
+    classDef cust fill:#0ea5e9,stroke:#0284c7,color:#fff
+    classDef carrier fill:#f59e0b,stroke:#d97706,color:#fff
+    classDef blackbox fill:#1e1e2e,stroke:#8b5cf6,color:#e2e8f0,stroke-width:3px`;
+
+  const archFutureDef = `flowchart TD
+    CUS2["Clients"]:::cust <-->|"RFQ / Quote"| EMAIL["Email Box"]:::email
+    EMAIL <-->|"RFQ / Bid"| CAR2["Carriers"]:::carrier
+    EMAIL <--> ORCH["Broker Agent"]:::orch
+    ORCH -.->|"approval /\\nescalation"| BROKER2["Broker\\n(HITL)"]:::hitl
+    classDef cust fill:#0ea5e9,stroke:#0284c7,color:#fff
+    classDef carrier fill:#f59e0b,stroke:#d97706,color:#fff
+    classDef email fill:#1e3a5f,stroke:#38bdf8,color:#fff,stroke-width:3px
+    classDef orch fill:#059669,stroke:#047857,color:#fff,stroke-width:3px
+    classDef hitl fill:#8b5cf6,stroke:#7c3aed,color:#fff,stroke-dasharray: 5 5`;
+
+  let archRendered = false;
+  async function renderArchDiagrams() {
+    if (archRendered) return;
+    const c1 = document.getElementById('arch-current-container');
+    const c2 = document.getElementById('arch-future-container');
+    const r1 = await mermaid.render('arch-current-svg', archCurrentDef);
+    c1.innerHTML = '<div style="display:flex;justify-content:center;">' + r1.svg + '</div>';
+    const r2 = await mermaid.render('arch-future-svg', archFutureDef);
+    c2.innerHTML = '<div style="display:flex;justify-content:center;">' + r2.svg + '</div>';
+    archRendered = true;
+  }
+
   function showTab(id) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(d => {
@@ -659,6 +1040,7 @@ flowchart TD
     target.classList.add('active');
     target.classList.remove('hidden');
     document.querySelector(`.tab[onclick="showTab('${id}')"]`).classList.add('active');
+    if (id === 'architecture') renderArchDiagrams();
   }
 </script>
 
