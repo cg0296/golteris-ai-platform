@@ -142,8 +142,7 @@ a { color: var(--blue); text-decoration: none; }
 
 /* ============ LAYOUT SHELL ============ */
 .shell {
-  display: grid;
-  grid-template-columns: 232px 1fr;
+  display: block;
   min-height: 100vh;
   width: 100%;
 }
@@ -159,11 +158,6 @@ a { color: var(--blue); text-decoration: none; }
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--nav-border);
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  align-self: start;
-  z-index: 20;
 }
 
 .brand {
@@ -309,7 +303,6 @@ a { color: var(--blue); text-decoration: none; }
   position: relative;
   min-height: 100vh;
   min-width: 0;
-  width: 100%;
 }
 
 .topbar {
@@ -1704,7 +1697,7 @@ a { color: var(--blue); text-decoration: none; }
   .kpi-grid, .stat-strip { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 600px) {
-  .shell { grid-template-columns: 1fr; }
+  .shell { display: block; }
   .sidebar {
     position: fixed;
     top: 0;
@@ -1714,6 +1707,7 @@ a { color: var(--blue); text-decoration: none; }
     z-index: 150;
     box-shadow: 4px 0 24px rgba(15,40,65,0.25);
   }
+  .main { margin-left: 0; }
   .sidebar.open { left: 0; }
   .sidebar-backdrop {
     display: none;
