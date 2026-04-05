@@ -1934,13 +1934,47 @@ a { color: var(--blue); text-decoration: none; }
 }
 @media (max-width: 1000px) {
   .shell { grid-template-columns: 1fr; }
-  .sidebar { position: fixed; left: -240px; transition: left 0.3s; z-index: 100; }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -260px;
+    width: 240px;
+    transition: left 0.28s ease;
+    z-index: 150;
+    box-shadow: 4px 0 24px rgba(15,40,65,0.25);
+  }
   .sidebar.open { left: 0; }
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(14,40,65,0.5);
+    backdrop-filter: blur(2px);
+    z-index: 140;
+  }
+  .sidebar-backdrop.open { display: block; }
+  .hamburger {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text);
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+  }
+  .hamburger:hover { background: var(--bg-2); }
+  .hamburger svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   .two-col { grid-template-columns: 1fr; }
   .hero { flex-direction: column; align-items: flex-start; text-align: left; }
   .hero-actions { width: 100%; }
   .page-header { flex-direction: column; align-items: flex-start; }
 }
+.hamburger { display: none; }
 @media (max-width: 768px) {
   .page { padding: 1rem 1rem 2.5rem; }
   .topbar { padding: 0.75rem 1rem; }
@@ -2044,11 +2078,17 @@ a { color: var(--blue); text-decoration: none; }
     </div>
   </aside>
 
+  <!-- Mobile sidebar backdrop -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
   <!-- ============ MAIN ============ -->
   <main class="main">
 
     <!-- Top bar -->
     <div class="topbar">
+      <button class="hamburger" onclick="toggleSidebar()" aria-label="Open navigation">
+        <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
       <div class="topbar-search">
         <input type="text" placeholder="Search RFQs, shippers, carriers, or load numbers...">
       </div>
@@ -3507,6 +3547,18 @@ function showPage(id) {
   if (tab) tab.classList.add('active');
   document.getElementById(id).classList.add('active');
   document.querySelector('.main').scrollTo(0, 0);
+  closeSidebar();
+}
+
+/* ---------- MOBILE SIDEBAR ---------- */
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('sidebar-backdrop').classList.toggle('open');
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  const b = document.getElementById('sidebar-backdrop');
+  if (b) b.classList.remove('open');
 }
 
 /* ---------- TOASTS ---------- */
