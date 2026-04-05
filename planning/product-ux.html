@@ -1,0 +1,2097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Golteris — Broker Console (UX Prototype)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #0f172a;
+    --border: #334155;
+    --border-hi: #475569;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --text-dimmer: #64748b;
+    --text-hi: #f8fafc;
+    --accent: #38bdf8;
+    --accent-2: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --purple: #8b5cf6;
+  }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* ==================== TOP NAV ==================== */
+  .topnav {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 0.85rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .brand {
+    display: flex;
+    flex-direction: column;
+    line-height: 1;
+  }
+  .brand-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-hi);
+    letter-spacing: 0.02em;
+  }
+  .brand-name span { color: var(--accent-2); }
+  .brand-sub {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-style: italic;
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    margin-top: 0.2rem;
+  }
+  .nav-tabs { display: flex; gap: 0.25rem; }
+  .nav-tab {
+    padding: 0.5rem 0.9rem;
+    border: none;
+    background: none;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+  .nav-tab:hover { color: var(--text); background: rgba(148,163,184,0.1); }
+  .nav-tab.active { color: var(--text-hi); background: rgba(56,189,248,0.15); }
+  .user-chip {
+    display: flex; align-items: center; gap: 0.6rem;
+    font-size: 0.85rem; color: var(--text-dim);
+  }
+  .org-chip {
+    background: rgba(56,189,248,0.12);
+    border: 1px solid rgba(56,189,248,0.3);
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.3rem 0.65rem;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+  }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, #8b5cf6, #38bdf8);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.75rem; color: #fff;
+  }
+
+  /* ==================== HOME 3-COL LAYOUT ==================== */
+  .home {
+    display: grid;
+    grid-template-columns: 380px 1fr 360px;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    height: calc(100vh - 58px);
+  }
+  @media (max-width: 1200px) {
+    .home { grid-template-columns: 340px 1fr 320px; }
+  }
+  @media (max-width: 1000px) {
+    .home { grid-template-columns: 1fr; height: auto; }
+  }
+
+  .col {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .col-header {
+    padding: 1rem 1.1rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .col-header h2 {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+  .col-count {
+    background: rgba(56,189,248,0.15);
+    color: var(--accent);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border-radius: 10px;
+  }
+  .col-count.warn { background: rgba(245,158,11,0.15); color: var(--warn); }
+  .col-body {
+    padding: 0.75rem;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  /* ==================== NEEDS REVIEW CARDS ==================== */
+  .review-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--warn);
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 0.7rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .review-card:hover { border-color: var(--border-hi); transform: translateY(-1px); }
+  .review-card .headline {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-hi);
+    margin-bottom: 0.25rem;
+  }
+  .review-card .meta {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 0.35rem;
+  }
+  .review-card .meta strong { color: var(--accent); font-weight: 600; }
+  .review-card .reason {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    line-height: 1.45;
+    margin-bottom: 0.65rem;
+  }
+  .review-card .rec {
+    font-size: 0.72rem;
+    color: var(--text-dimmer);
+    font-style: italic;
+    margin-bottom: 0.7rem;
+  }
+  .btn-row { display: flex; gap: 0.4rem; }
+  .btn {
+    flex: 1;
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-hi);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--border); }
+  .btn-primary {
+    background: var(--accent-2);
+    border-color: var(--accent-2);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #059669; }
+  .btn-danger { color: #fca5a5; border-color: #7f1d1d; }
+  .btn-danger:hover { background: #7f1d1d; color: #fff; }
+
+  /* ==================== ACTIVE RFQs ==================== */
+  .rfq-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.6rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .rfq-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .rfq-card .rfq-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.35rem;
+  }
+  .rfq-card .rfq-id {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-hi);
+  }
+  .rfq-card .rfq-updated {
+    font-size: 0.7rem;
+    color: var(--text-dimmer);
+  }
+  .rfq-card .rfq-customer {
+    font-size: 0.78rem;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  .rfq-card .rfq-route {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin-bottom: 0.6rem;
+  }
+  .rfq-state {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.25rem 0.55rem;
+    border-radius: 4px;
+    margin-bottom: 0.45rem;
+  }
+  .state-clarify  { background: rgba(245,158,11,0.15); color: var(--warn); }
+  .state-ready    { background: rgba(56,189,248,0.15); color: var(--accent); }
+  .state-waiting  { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+  .state-received { background: rgba(16,185,129,0.15); color: var(--accent-2); }
+  .state-review   { background: rgba(245,158,11,0.15); color: var(--warn); }
+  .state-sent     { background: rgba(100,116,139,0.2); color: var(--text-dim); }
+  .rfq-next {
+    font-size: 0.72rem;
+    color: var(--text-dimmer);
+  }
+  .rfq-next strong { color: var(--text-dim); font-weight: 600; }
+
+  /* ==================== ACTIVITY FEED ==================== */
+  .activity-item {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.65rem 0.5rem;
+    border-bottom: 1px solid rgba(51,65,85,0.5);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .activity-item:hover { background: rgba(15,23,42,0.5); }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-icon {
+    font-size: 0.95rem;
+    flex-shrink: 0;
+    width: 22px;
+    text-align: center;
+  }
+  .activity-body { flex: 1; min-width: 0; }
+  .activity-time {
+    font-size: 0.68rem;
+    color: var(--text-dimmer);
+    margin-bottom: 0.15rem;
+    font-family: 'Consolas', monospace;
+  }
+  .activity-text {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+  .activity-text strong { color: var(--text); font-weight: 600; }
+
+  /* ==================== RFQ DETAIL DRAWER ==================== */
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(2px);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+  .drawer-overlay.open { display: flex; }
+  .drawer {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 860px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .drawer-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+    z-index: 1;
+  }
+  .drawer-header h2 {
+    font-size: 1.1rem;
+    color: var(--text-hi);
+  }
+  .close-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0 0.5rem;
+  }
+  .close-btn:hover { color: var(--text-hi); }
+  .drawer-body { padding: 1.25rem 1.5rem; }
+  .drawer-section { margin-bottom: 1.5rem; }
+  .drawer-section h3 {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin-bottom: 0.75rem;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+  .summary-grid dt { color: var(--text-dimmer); }
+  .summary-grid dd { color: var(--text); }
+
+  .message {
+    border-left: 3px solid var(--border-hi);
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 0.6rem;
+    background: var(--panel-2);
+    border-radius: 0 8px 8px 0;
+  }
+  .message.inbound { border-left-color: var(--accent); }
+  .message.outbound { border-left-color: var(--accent-2); }
+  .message-header {
+    font-size: 0.72rem;
+    color: var(--text-dimmer);
+    margin-bottom: 0.25rem;
+  }
+  .message-header strong { color: var(--text); }
+  .message-body {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.45;
+  }
+
+  .status-box {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+  }
+  .status-row { display: flex; gap: 0.75rem; margin-bottom: 0.4rem; font-size: 0.82rem; }
+  .status-row:last-child { margin-bottom: 0; }
+  .status-row dt { color: var(--text-dimmer); min-width: 110px; }
+  .status-row dd { color: var(--text); }
+
+  .timeline-item {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.45rem 0;
+    font-size: 0.82rem;
+    border-bottom: 1px solid rgba(51,65,85,0.4);
+  }
+  .timeline-item:last-child { border-bottom: none; }
+  .timeline-time {
+    color: var(--text-dimmer);
+    font-family: 'Consolas', monospace;
+    flex-shrink: 0;
+    width: 50px;
+  }
+  .timeline-text { color: var(--text-dim); }
+
+  /* ==================== APPROVAL MODAL ==================== */
+  .approval-block {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 0.85rem;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+    white-space: pre-line;
+  }
+  .approval-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dimmer);
+    margin-bottom: 0.35rem;
+  }
+  .approval-flag {
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 6px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.78rem;
+    color: var(--warn);
+    margin-bottom: 1rem;
+  }
+  .approval-buttons {
+    display: flex;
+    gap: 0.6rem;
+  }
+  .approval-buttons .btn { flex: 1; padding: 0.65rem; font-size: 0.82rem; }
+
+  .keyboard-hint {
+    text-align: center;
+    font-size: 0.7rem;
+    color: var(--text-dimmer);
+    margin-top: 0.85rem;
+  }
+  .keyboard-hint kbd {
+    background: var(--border);
+    border: 1px solid var(--border-hi);
+    border-radius: 3px;
+    padding: 0.1rem 0.4rem;
+    font-family: 'Consolas', monospace;
+    font-size: 0.68rem;
+    color: var(--text);
+  }
+
+  /* ==================== INBOX ROUTING VIEW ==================== */
+  .page { padding: 1.5rem; display: none; }
+  .page.active { display: block; }
+  .home.active { display: grid; }
+  .home { display: none; }
+
+  .page-title {
+    font-size: 1.25rem;
+    color: var(--text-hi);
+    margin-bottom: 0.25rem;
+  }
+  .page-sub {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .inbox-table {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .inbox-row {
+    display: grid;
+    grid-template-columns: 40px 180px 1fr 200px;
+    gap: 1rem;
+    padding: 0.9rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .inbox-row:hover { background: rgba(15,23,42,0.5); }
+  .inbox-row:last-child { border-bottom: none; }
+  .inbox-icon { font-size: 1rem; text-align: center; }
+  .inbox-sender { color: var(--text-hi); font-weight: 600; }
+  .inbox-subject { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .routing-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.3rem 0.6rem;
+    border-radius: 5px;
+    text-align: center;
+  }
+  .route-attached { background: rgba(56,189,248,0.15); color: var(--accent); }
+  .route-new      { background: rgba(16,185,129,0.15); color: var(--accent-2); }
+  .route-review   { background: rgba(245,158,11,0.15); color: var(--warn); }
+  .route-ignored  { background: rgba(100,116,139,0.2); color: var(--text-dimmer); }
+
+  /* ==================== SETTINGS ==================== */
+  .settings-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .settings-card h3 {
+    font-size: 0.95rem;
+    color: var(--text-hi);
+    margin-bottom: 0.35rem;
+  }
+  .settings-card p.desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 1rem;
+  }
+  .workflow-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(51,65,85,0.5);
+  }
+  .workflow-row:last-child { border-bottom: none; }
+  .workflow-info h4 { font-size: 0.88rem; color: var(--text); margin-bottom: 0.15rem; }
+  .workflow-info p { font-size: 0.75rem; color: var(--text-dimmer); }
+
+  .toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 20px; height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle.on { background: var(--accent-2); }
+  .toggle.on::after { transform: translateX(20px); }
+
+  /* ==================== RFQs / HISTORY TABLES ==================== */
+  .rfq-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .filter-group {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .filter-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.76rem;
+    font-weight: 600;
+    padding: 0.45rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .filter-btn:hover { border-color: var(--border-hi); color: var(--text); }
+  .filter-btn.active {
+    background: rgba(56,189,248,0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .filter-count {
+    background: rgba(148,163,184,0.15);
+    color: var(--text-dim);
+    font-size: 0.68rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 8px;
+    font-weight: 700;
+  }
+  .filter-btn.active .filter-count {
+    background: rgba(56,189,248,0.25);
+    color: var(--accent);
+  }
+  .search-box input {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.82rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: 6px;
+    min-width: 280px;
+    outline: none;
+    font-family: inherit;
+  }
+  .search-box input:focus { border-color: var(--accent); }
+  .search-box input::placeholder { color: var(--text-dimmer); }
+
+  .rfq-table {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .rfq-table-head,
+  .rfq-table-row {
+    display: grid;
+    grid-template-columns: 90px 1.4fr 1.8fr 1.1fr 1.4fr 1.6fr 110px;
+    gap: 1rem;
+    padding: 0.85rem 1.25rem;
+    align-items: center;
+    font-size: 0.82rem;
+  }
+  .rfq-table-head {
+    background: rgba(15,23,42,0.6);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dimmer);
+  }
+  .rfq-table-row {
+    border-bottom: 1px solid rgba(51,65,85,0.5);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .rfq-table-row:last-child { border-bottom: none; }
+  .rfq-table-row:hover { background: rgba(15,23,42,0.4); }
+  .cell-id { font-weight: 700; color: var(--text-hi); font-family: 'Consolas', monospace; }
+  .cell-cust { color: var(--accent); font-weight: 600; }
+  .cell-route { color: var(--text); }
+  .cell-next { color: var(--text-dim); font-size: 0.78rem; }
+  .cell-time { color: var(--text-dimmer); font-size: 0.75rem; }
+
+  /* Outcome states for history */
+  .state-won { background: rgba(16,185,129,0.15); color: var(--accent-2); }
+  .state-lost { background: rgba(239,68,68,0.12); color: #fca5a5; }
+  .state-cancelled { background: rgba(100,116,139,0.2); color: var(--text-dim); }
+
+  /* ==================== STAT STRIP ==================== */
+  .stat-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.1rem 1.3rem;
+  }
+  .stat-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dimmer);
+    margin-bottom: 0.4rem;
+  }
+  .stat-value {
+    font-size: 1.85rem;
+    font-weight: 700;
+    color: var(--text-hi);
+    line-height: 1;
+    margin-bottom: 0.4rem;
+  }
+  .stat-sub {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+
+  @media (max-width: 1200px) {
+    .rfq-table-head, .rfq-table-row {
+      grid-template-columns: 80px 1.2fr 1.5fr 1fr 1.3fr 1.4fr 100px;
+      font-size: 0.78rem;
+    }
+    .stat-strip { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ==================== MOBILE ==================== */
+  @media (max-width: 768px) {
+    .topnav { padding: 0.75rem 0.85rem; flex-wrap: wrap; gap: 0.5rem; }
+    .nav-tabs { order: 3; width: 100%; overflow-x: auto; padding-bottom: 0.25rem; }
+    .nav-tab { flex-shrink: 0; padding: 0.4rem 0.7rem; font-size: 0.78rem; }
+    .home { padding: 0.75rem; gap: 0.75rem; height: auto; }
+    .page { padding: 0.85rem; }
+    .inbox-row { grid-template-columns: 30px 1fr; gap: 0.5rem; padding: 0.75rem; }
+    .inbox-row .inbox-subject, .inbox-row .routing-badge { display: none; }
+    .drawer-body { padding: 1rem; }
+    .summary-grid { grid-template-columns: 90px 1fr; }
+
+    /* RFQs & History — collapse tables to card-style */
+    .rfq-toolbar { flex-direction: column; align-items: stretch; }
+    .search-box input { min-width: 0; width: 100%; }
+    .filter-group { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 0.25rem; }
+    .filter-btn { flex-shrink: 0; }
+
+    .rfq-table-head { display: none; }
+    .rfq-table-row {
+      grid-template-columns: 1fr;
+      gap: 0.4rem;
+      padding: 0.9rem 1rem;
+    }
+    .rfq-table-row > div { font-size: 0.8rem; }
+    .cell-id::before { content: 'Load '; color: var(--text-dimmer); font-weight: 400; }
+    .cell-next::before { content: 'Next: '; color: var(--text-dimmer); }
+    .cell-time::before { content: 'Updated '; color: var(--text-dimmer); }
+
+    .stat-strip { grid-template-columns: 1fr 1fr; }
+    .stat-value { font-size: 1.5rem; }
+  }
+
+  /* ==================== TOASTS ==================== */
+  #toast-stack {
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 300;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent-2);
+    border-radius: 10px;
+    padding: 0.85rem 1.1rem 0.85rem 1rem;
+    font-size: 0.82rem;
+    color: var(--text);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    min-width: 260px;
+    max-width: 360px;
+    animation: toast-in 0.25s ease-out;
+    pointer-events: auto;
+  }
+  .toast.success { border-left-color: var(--accent-2); }
+  .toast.warn    { border-left-color: var(--warn); }
+  .toast.danger  { border-left-color: var(--danger); }
+  .toast.info    { border-left-color: var(--accent); }
+  .toast .toast-title { font-weight: 700; color: var(--text-hi); margin-bottom: 0.15rem; font-size: 0.85rem; }
+  .toast .toast-body  { color: var(--text-dim); font-size: 0.78rem; line-height: 1.45; }
+  .toast.fading { animation: toast-out 0.3s ease-in forwards; }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes toast-out {
+    to { opacity: 0; transform: translateY(-8px); }
+  }
+
+  /* Row-removal animation */
+  .removing {
+    animation: row-remove 0.35s ease-in forwards;
+    pointer-events: none;
+  }
+  @keyframes row-remove {
+    to { opacity: 0; transform: translateX(32px); max-height: 0; padding-top: 0; padding-bottom: 0; margin: 0; }
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: var(--text-dimmer);
+    font-size: 0.85rem;
+  }
+  .empty-state .emoji { font-size: 2rem; margin-bottom: 0.5rem; display: block; }
+
+  /* Notification badge on nav */
+  .nav-badge {
+    display: inline-block;
+    background: var(--warn);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.1rem 0.4rem;
+    border-radius: 8px;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+  }
+
+  /* ==================== BANNER ==================== */
+  .proto-banner {
+    background: rgba(139,92,246,0.12);
+    border-bottom: 1px solid rgba(139,92,246,0.3);
+    color: #c4b5fd;
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 0.4rem;
+    letter-spacing: 0.03em;
+  }
+  .proto-banner strong { color: #ddd6fe; }
+</style>
+</head>
+<body>
+
+<div class="proto-banner"><strong>PROTOTYPE</strong> &nbsp;·&nbsp; Golteris Broker Console &nbsp;·&nbsp; Click cards, RFQs, or activity items to explore</div>
+
+<!-- ========== TOP NAV ========== -->
+<nav class="topnav">
+  <div class="brand">
+    <div class="brand-name">GOLTERIS<span>.</span></div>
+    <div class="brand-sub">Broker Console</div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('home')">Home</button>
+    <button class="nav-tab" onclick="showPage('inbox')">Inbox</button>
+    <button class="nav-tab" onclick="showPage('rfqs')">RFQs</button>
+    <button class="nav-tab" onclick="showPage('history')">History</button>
+    <button class="nav-tab" onclick="showPage('settings')">Settings</button>
+  </div>
+  <div class="user-chip">
+    <div class="org-chip">Beltmann Logistics</div>
+    <div class="avatar">JS</div>
+    <span>Jillian S.</span>
+  </div>
+</nav>
+
+<!-- ========== HOME ========== -->
+<div id="home" class="home active">
+
+  <!-- NEEDS REVIEW -->
+  <div class="col">
+    <div class="col-header">
+      <h2>Needs Review</h2>
+      <span class="col-count warn">3</span>
+    </div>
+    <div class="col-body">
+
+      <div class="review-card" onclick="openApproval()">
+        <div class="headline">Approve shipper follow-up</div>
+        <div class="meta"><strong>Atlas Steel Products</strong> · Load #4821</div>
+        <div class="reason">Missing equipment type and weight</div>
+        <div class="rec">Recommended: Send drafted clarification email</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="event.stopPropagation();openApproval()">Approve</button>
+          <button class="btn" onclick="event.stopPropagation();handleReviewCard(this,'edit','Atlas Steel follow-up')">Edit</button>
+          <button class="btn btn-danger" onclick="event.stopPropagation();handleReviewCard(this,'reject','Atlas Steel follow-up')">Reject</button>
+        </div>
+      </div>
+
+      <div class="review-card">
+        <div class="headline">Confirm destination</div>
+        <div class="meta"><strong>Horizon Manufacturing</strong> · Load #4822</div>
+        <div class="reason">Shipper wrote "ATL area" — likely Atlanta, GA</div>
+        <div class="rec">Recommended: Confirm Atlanta, GA</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="handleReviewCard(this,'confirm','Load #4822 destination')">Confirm Atlanta</button>
+          <button class="btn" onclick="handleReviewCard(this,'ask','Clarification question')">Ask Shipper</button>
+          <button class="btn btn-danger" onclick="handleReviewCard(this,'reject','Load #4822')">Reject</button>
+        </div>
+      </div>
+
+      <div class="review-card">
+        <div class="headline">Approve carrier RFQ</div>
+        <div class="meta"><strong>Horizon Manufacturing</strong> · Load #4815</div>
+        <div class="reason">12 carriers selected from your preferred list</div>
+        <div class="rec">Recommended: Send to all 12 carriers</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="handleReviewCard(this,'send','Carrier RFQ for Load #4815')">Send</button>
+          <button class="btn" onclick="handleReviewCard(this,'edit','Carrier list')">Edit List</button>
+          <button class="btn btn-danger" onclick="handleReviewCard(this,'reject','Carrier RFQ')">Reject</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ACTIVE RFQs -->
+  <div class="col">
+    <div class="col-header">
+      <h2>Active RFQs</h2>
+      <span class="col-count">6</span>
+    </div>
+    <div class="col-body">
+
+      <div class="rfq-card">
+        <div class="rfq-top">
+          <span class="rfq-id">Load #4822</span>
+          <span class="rfq-updated">8 min ago</span>
+        </div>
+        <div class="rfq-customer">Horizon Manufacturing</div>
+        <div class="rfq-route">Dallas, TX → Atlanta, GA · 3 flatbeds</div>
+        <span class="rfq-state state-clarify">Needs clarification</span>
+        <div class="rfq-next"><strong>Next:</strong> Send shipper follow-up</div>
+      </div>
+
+      <div class="rfq-card">
+        <div class="rfq-top">
+          <span class="rfq-id">Load #4815</span>
+          <span class="rfq-updated">22 min ago</span>
+        </div>
+        <div class="rfq-customer">Horizon Manufacturing</div>
+        <div class="rfq-route">Dallas, TX → Atlanta, GA · 3 flatbeds</div>
+        <span class="rfq-state state-waiting">Waiting on carriers</span>
+        <div class="rfq-next"><strong>Next:</strong> Nudge carriers in 3h</div>
+      </div>
+
+      <div class="rfq-card">
+        <div class="rfq-top">
+          <span class="rfq-id">Load #4810</span>
+          <span class="rfq-updated">1h ago</span>
+        </div>
+        <div class="rfq-customer">Acme Corp</div>
+        <div class="rfq-route">Chicago, IL → Memphis, TN · 2 reefers</div>
+        <span class="rfq-state state-received">Quotes received</span>
+        <div class="rfq-next"><strong>Next:</strong> Your review — 5 carrier quotes</div>
+      </div>
+
+      <div class="rfq-card">
+        <div class="rfq-top">
+          <span class="rfq-id">Load #4808</span>
+          <span class="rfq-updated">2h ago</span>
+        </div>
+        <div class="rfq-customer">Pacific Foods</div>
+        <div class="rfq-route">Phoenix, AZ → Denver, CO · 1 van</div>
+        <span class="rfq-state state-ready">Ready to quote</span>
+        <div class="rfq-next"><strong>Next:</strong> Generate carrier RFQ</div>
+      </div>
+
+      <div class="rfq-card">
+        <div class="rfq-top">
+          <span class="rfq-id">Load #4803</span>
+          <span class="rfq-updated">4h ago</span>
+        </div>
+        <div class="rfq-customer">Heartland Industries</div>
+        <div class="rfq-route">Cleveland, OH → Buffalo, NY · 1 flatbed</div>
+        <span class="rfq-state state-sent">Quote sent</span>
+        <div class="rfq-next"><strong>Next:</strong> Awaiting shipper decision</div>
+      </div>
+
+      <div class="rfq-card">
+        <div class="rfq-top">
+          <span class="rfq-id">Load #4799</span>
+          <span class="rfq-updated">5h ago</span>
+        </div>
+        <div class="rfq-customer">Acme Corp</div>
+        <div class="rfq-route">LA, CA → Seattle, WA · 2 reefers</div>
+        <span class="rfq-state state-review">Waiting on broker review</span>
+        <div class="rfq-next"><strong>Next:</strong> Review carrier quotes</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RECENT ACTIVITY -->
+  <div class="col">
+    <div class="col-header">
+      <h2>Recent Activity</h2>
+      <span class="col-count">Live</span>
+    </div>
+    <div class="col-body">
+
+      <div class="activity-item">
+        <div class="activity-icon">✍️</div>
+        <div class="activity-body">
+          <div class="activity-time">10:42</div>
+          <div class="activity-text">Draft reply prepared for <strong>Acme Corp</strong> on Load #4810</div>
+        </div>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-icon">📥</div>
+        <div class="activity-body">
+          <div class="activity-time">10:35</div>
+          <div class="activity-text">Shipper replied on <strong>Load #4810</strong></div>
+        </div>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-icon">⚠️</div>
+        <div class="activity-body">
+          <div class="activity-time">10:28</div>
+          <div class="activity-text"><strong>Load #4822</strong> flagged for destination clarification</div>
+        </div>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-icon">✅</div>
+        <div class="activity-body">
+          <div class="activity-time">10:22</div>
+          <div class="activity-text">You approved draft reply to <strong>Horizon Manufacturing</strong></div>
+        </div>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-icon">🆕</div>
+        <div class="activity-body">
+          <div class="activity-time">10:18</div>
+          <div class="activity-text">New RFQ created from <strong>Horizon Manufacturing</strong> email</div>
+        </div>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-icon">📤</div>
+        <div class="activity-body">
+          <div class="activity-time">09:54</div>
+          <div class="activity-text">Sent carrier RFQ to 12 carriers for <strong>Load #4815</strong></div>
+        </div>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-icon">📥</div>
+        <div class="activity-body">
+          <div class="activity-time">09:48</div>
+          <div class="activity-text">Carrier quote received from <strong>Johnson Trucking</strong> on Load #4810</div>
+        </div>
+      </div>
+
+      <div class="activity-item">
+        <div class="activity-icon">🆕</div>
+        <div class="activity-body">
+          <div class="activity-time">09:31</div>
+          <div class="activity-text">New RFQ created from <strong>Heartland Industries</strong> email</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== INBOX PAGE ========== -->
+<div id="inbox" class="page">
+  <h1 class="page-title">Inbox <span style="font-size:0.8rem;color:var(--text-dimmer);font-weight:400;">jillian@beltmann.com</span></h1>
+  <p class="page-sub">Inbound messages from shippers and carriers, and how Golteris routed them. Click any message to see its attached RFQ.</p>
+
+  <!-- Filter pills -->
+  <div class="rfq-toolbar">
+    <div class="filter-group">
+      <button class="filter-btn active">All <span class="filter-count">10</span></button>
+      <button class="filter-btn">From shippers <span class="filter-count">4</span></button>
+      <button class="filter-btn">From carriers <span class="filter-count">4</span></button>
+      <button class="filter-btn">Needs review <span class="filter-count">1</span></button>
+      <button class="filter-btn">Ignored <span class="filter-count">1</span></button>
+    </div>
+    <div class="search-box">
+      <input type="text" placeholder="Search sender or subject..." />
+    </div>
+  </div>
+
+  <div class="inbox-table">
+
+    <!-- Shipper messages -->
+    <div class="inbox-row" data-type="shipper">
+      <div class="inbox-icon">📨</div>
+      <div class="inbox-sender">Tom @ Horizon Manufacturing · 10:31</div>
+      <div class="inbox-subject">Re: Dallas to Atlanta — steel coils, 45k lbs, tarped</div>
+      <div class="routing-badge route-attached">Attached to RFQ #4815</div>
+    </div>
+
+    <div class="inbox-row" data-type="shipper">
+      <div class="inbox-icon">📨</div>
+      <div class="inbox-sender">Sarah @ Horizon Manufacturing · 10:14</div>
+      <div class="inbox-subject">New project: 3 flatbeds Dallas → "ATL area"</div>
+      <div class="routing-badge route-new">New RFQ created — #4822</div>
+    </div>
+
+    <!-- Carrier reply -->
+    <div class="inbox-row" data-type="carrier">
+      <div class="inbox-icon">🚚</div>
+      <div class="inbox-sender">dispatch@johnsontrucking.com · 10:08</div>
+      <div class="inbox-subject">Quote: Chicago → Memphis reefer × 2 — $2,840 all-in</div>
+      <div class="routing-badge route-attached">Attached to RFQ #4810</div>
+    </div>
+
+    <!-- Carrier reply -->
+    <div class="inbox-row" data-type="carrier">
+      <div class="inbox-icon">🚚</div>
+      <div class="inbox-sender">quotes@coolfreightcarriers.com · 10:02</div>
+      <div class="inbox-subject">Re: RFQ #4810 — reefer rate</div>
+      <div class="routing-badge route-attached">Attached to RFQ #4810</div>
+    </div>
+
+    <!-- Carrier reply -->
+    <div class="inbox-row" data-type="carrier">
+      <div class="inbox-icon">🚚</div>
+      <div class="inbox-sender">ops@heartlandhaulers.com · 09:48</div>
+      <div class="inbox-subject">RFQ #4810 — can do $2,950</div>
+      <div class="routing-badge route-attached">Attached to RFQ #4810</div>
+    </div>
+
+    <!-- Shipper new RFQ -->
+    <div class="inbox-row" data-type="shipper">
+      <div class="inbox-icon">📨</div>
+      <div class="inbox-sender">Jim @ Acme Corp · 09:15</div>
+      <div class="inbox-subject">LA → Seattle, 2 reefers end of week, produce</div>
+      <div class="routing-badge route-new">New RFQ created — #4799</div>
+    </div>
+
+    <!-- Shipper follow-up -->
+    <div class="inbox-row" data-type="shipper">
+      <div class="inbox-icon">📨</div>
+      <div class="inbox-sender">Mike @ Heartland Industries · 08:45</div>
+      <div class="inbox-subject">Quote for Cleveland → Buffalo flatbed?</div>
+      <div class="routing-badge route-attached">Attached to RFQ #4803</div>
+    </div>
+
+    <!-- Carrier follow-up -->
+    <div class="inbox-row" data-type="carrier">
+      <div class="inbox-icon">🚚</div>
+      <div class="inbox-sender">rates@skylinelogistics.com · 08:22</div>
+      <div class="inbox-subject">Quote: Phoenix → Denver van — $1,620</div>
+      <div class="routing-badge route-attached">Attached to RFQ #4808</div>
+    </div>
+
+    <!-- Ambiguous / needs review -->
+    <div class="inbox-row" data-type="review">
+      <div class="inbox-icon">❓</div>
+      <div class="inbox-sender">unknown@gmail.com · 09:47</div>
+      <div class="inbox-subject">Pricing question — what's your best rate?</div>
+      <div class="routing-badge route-review">Needs review</div>
+    </div>
+
+    <!-- Ignored noise -->
+    <div class="inbox-row" data-type="ignored">
+      <div class="inbox-icon">📭</div>
+      <div class="inbox-sender">newsletter@dat.com · 08:00</div>
+      <div class="inbox-subject">Weekly market rates digest</div>
+      <div class="routing-badge route-ignored">Ignored</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========== RFQs PAGE ========== -->
+<div id="rfqs" class="page">
+  <h1 class="page-title">RFQs</h1>
+  <p class="page-sub">All active RFQs. Click any row to open the full detail view.</p>
+
+  <div class="rfq-toolbar">
+    <div class="filter-group">
+      <button class="filter-btn active">All <span class="filter-count">14</span></button>
+      <button class="filter-btn">Needs clarification <span class="filter-count">2</span></button>
+      <button class="filter-btn">Ready to quote <span class="filter-count">1</span></button>
+      <button class="filter-btn">Waiting on carriers <span class="filter-count">3</span></button>
+      <button class="filter-btn">Quotes received <span class="filter-count">2</span></button>
+      <button class="filter-btn">Waiting on broker <span class="filter-count">2</span></button>
+      <button class="filter-btn">Quote sent <span class="filter-count">4</span></button>
+    </div>
+    <div class="search-box">
+      <input type="text" placeholder="Search by customer, route, or load #..." />
+    </div>
+  </div>
+
+  <div class="rfq-table">
+    <div class="rfq-table-head">
+      <div>Load</div>
+      <div>Customer</div>
+      <div>Route</div>
+      <div>Equipment</div>
+      <div>State</div>
+      <div>Next Action</div>
+      <div>Updated</div>
+    </div>
+
+    <div class="rfq-table-row" onclick="openRfq()">
+      <div class="cell-id">#4822</div>
+      <div class="cell-cust">Horizon Manufacturing</div>
+      <div class="cell-route">Dallas, TX → Atlanta, GA</div>
+      <div>3 × Flatbed</div>
+      <div><span class="rfq-state state-clarify">Needs clarification</span></div>
+      <div class="cell-next">Send customer follow-up</div>
+      <div class="cell-time">8 min ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4821</div>
+      <div class="cell-cust">Horizon Manufacturing</div>
+      <div class="cell-route">Houston, TX → Nashville, TN</div>
+      <div>2 × Flatbed</div>
+      <div><span class="rfq-state state-clarify">Needs clarification</span></div>
+      <div class="cell-next">Send customer follow-up</div>
+      <div class="cell-time">12 min ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4815</div>
+      <div class="cell-cust">Horizon Manufacturing</div>
+      <div class="cell-route">Dallas, TX → Atlanta, GA</div>
+      <div>3 × Flatbed</div>
+      <div><span class="rfq-state state-waiting">Waiting on carriers</span></div>
+      <div class="cell-next">Nudge in 3h (12 carriers)</div>
+      <div class="cell-time">22 min ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4812</div>
+      <div class="cell-cust">Acme Corp</div>
+      <div class="cell-route">Miami, FL → Charlotte, NC</div>
+      <div>1 × Reefer</div>
+      <div><span class="rfq-state state-waiting">Waiting on carriers</span></div>
+      <div class="cell-next">Nudge in 1h (8 carriers)</div>
+      <div class="cell-time">45 min ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4810</div>
+      <div class="cell-cust">Acme Corp</div>
+      <div class="cell-route">Chicago, IL → Memphis, TN</div>
+      <div>2 × Reefer</div>
+      <div><span class="rfq-state state-received">Quotes received</span></div>
+      <div class="cell-next">Your review — 5 quotes in</div>
+      <div class="cell-time">1h ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4808</div>
+      <div class="cell-cust">Horizon Manufacturing</div>
+      <div class="cell-route">Phoenix, AZ → Denver, CO</div>
+      <div>1 × Van</div>
+      <div><span class="rfq-state state-ready">Ready to quote</span></div>
+      <div class="cell-next">Generate carrier RFQ</div>
+      <div class="cell-time">2h ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4807</div>
+      <div class="cell-cust">Heartland Industries</div>
+      <div class="cell-route">Detroit, MI → Indianapolis, IN</div>
+      <div>2 × Van</div>
+      <div><span class="rfq-state state-waiting">Waiting on carriers</span></div>
+      <div class="cell-next">Nudge in 2h (10 carriers)</div>
+      <div class="cell-time">2h ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4805</div>
+      <div class="cell-cust">Acme Corp</div>
+      <div class="cell-route">Boston, MA → Baltimore, MD</div>
+      <div>1 × Reefer</div>
+      <div><span class="rfq-state state-received">Quotes received</span></div>
+      <div class="cell-next">Your review — 7 quotes in</div>
+      <div class="cell-time">3h ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4803</div>
+      <div class="cell-cust">Heartland Industries</div>
+      <div class="cell-route">Cleveland, OH → Buffalo, NY</div>
+      <div>1 × Flatbed</div>
+      <div><span class="rfq-state state-sent">Quote sent</span></div>
+      <div class="cell-next">Awaiting customer decision</div>
+      <div class="cell-time">4h ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4799</div>
+      <div class="cell-cust">Acme Corp</div>
+      <div class="cell-route">LA, CA → Seattle, WA</div>
+      <div>2 × Reefer</div>
+      <div><span class="rfq-state state-review">Waiting on broker review</span></div>
+      <div class="cell-next">Review carrier quotes (6)</div>
+      <div class="cell-time">5h ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4795</div>
+      <div class="cell-cust">Horizon Manufacturing</div>
+      <div class="cell-route">San Antonio, TX → Oklahoma City, OK</div>
+      <div>1 × Flatbed</div>
+      <div><span class="rfq-state state-sent">Quote sent</span></div>
+      <div class="cell-next">Awaiting customer decision</div>
+      <div class="cell-time">6h ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4790</div>
+      <div class="cell-cust">Acme Corp</div>
+      <div class="cell-route">Portland, OR → Boise, ID</div>
+      <div>1 × Van</div>
+      <div><span class="rfq-state state-review">Waiting on broker review</span></div>
+      <div class="cell-next">Review carrier quotes (4)</div>
+      <div class="cell-time">7h ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4787</div>
+      <div class="cell-cust">Heartland Industries</div>
+      <div class="cell-route">St. Louis, MO → Kansas City, MO</div>
+      <div>2 × Flatbed</div>
+      <div><span class="rfq-state state-sent">Quote sent</span></div>
+      <div class="cell-next">Awaiting customer decision</div>
+      <div class="cell-time">8h ago</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4783</div>
+      <div class="cell-cust">Horizon Manufacturing</div>
+      <div class="cell-route">Jacksonville, FL → Richmond, VA</div>
+      <div>1 × Reefer</div>
+      <div><span class="rfq-state state-sent">Quote sent</span></div>
+      <div class="cell-next">Awaiting customer decision</div>
+      <div class="cell-time">9h ago</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========== HISTORY PAGE ========== -->
+<div id="history" class="page">
+  <h1 class="page-title">History</h1>
+  <p class="page-sub">Completed RFQs and the full audit trail.</p>
+
+  <!-- Stat strip -->
+  <div class="stat-strip">
+    <div class="stat-card">
+      <div class="stat-label">Completed Today</div>
+      <div class="stat-value">12</div>
+      <div class="stat-sub" style="color:var(--accent-2);">↑ 33% vs. yesterday</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg Time to Quote</div>
+      <div class="stat-value">18m</div>
+      <div class="stat-sub" style="color:var(--accent-2);">↓ 4h 12m vs. manual</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Approvals This Week</div>
+      <div class="stat-value">147</div>
+      <div class="stat-sub">Avg 42s per approval</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Time Saved This Week</div>
+      <div class="stat-value">28h</div>
+      <div class="stat-sub" style="color:var(--accent-2);">vs. manual handling</div>
+    </div>
+  </div>
+
+  <!-- History filters -->
+  <div class="rfq-toolbar" style="margin-top:1.5rem;">
+    <div class="filter-group">
+      <button class="filter-btn active">All</button>
+      <button class="filter-btn">Won</button>
+      <button class="filter-btn">Lost</button>
+      <button class="filter-btn">Cancelled</button>
+      <button class="filter-btn">Today</button>
+      <button class="filter-btn">This week</button>
+      <button class="filter-btn">This month</button>
+    </div>
+    <div class="search-box">
+      <input type="text" placeholder="Search history..." />
+    </div>
+  </div>
+
+  <!-- History table -->
+  <div class="rfq-table">
+    <div class="rfq-table-head">
+      <div>Load</div>
+      <div>Customer</div>
+      <div>Route</div>
+      <div>Equipment</div>
+      <div>Outcome</div>
+      <div>Cycle Time</div>
+      <div>Closed</div>
+    </div>
+
+    <div class="rfq-table-row" onclick="openRfq()">
+      <div class="cell-id">#4780</div>
+      <div class="cell-cust">Horizon Manufacturing</div>
+      <div class="cell-route">Dallas, TX → Houston, TX</div>
+      <div>2 × Flatbed</div>
+      <div><span class="rfq-state state-won">Won · $3,240</span></div>
+      <div class="cell-time">14m</div>
+      <div class="cell-time">Today, 09:12</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4776</div>
+      <div class="cell-cust">Acme Corp</div>
+      <div class="cell-route">Chicago, IL → Detroit, MI</div>
+      <div>1 × Reefer</div>
+      <div><span class="rfq-state state-won">Won · $1,890</span></div>
+      <div class="cell-time">22m</div>
+      <div class="cell-time">Today, 08:45</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4774</div>
+      <div class="cell-cust">Heartland Industries</div>
+      <div class="cell-route">Milwaukee, WI → Minneapolis, MN</div>
+      <div>1 × Van</div>
+      <div><span class="rfq-state state-lost">Lost · competitor</span></div>
+      <div class="cell-time">31m</div>
+      <div class="cell-time">Yesterday, 17:22</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4770</div>
+      <div class="cell-cust">Horizon Manufacturing</div>
+      <div class="cell-route">Austin, TX → New Orleans, LA</div>
+      <div>3 × Flatbed</div>
+      <div><span class="rfq-state state-won">Won · $5,180</span></div>
+      <div class="cell-time">17m</div>
+      <div class="cell-time">Yesterday, 15:04</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4767</div>
+      <div class="cell-cust">Acme Corp</div>
+      <div class="cell-route">Atlanta, GA → Tampa, FL</div>
+      <div>2 × Reefer</div>
+      <div><span class="rfq-state state-won">Won · $2,940</span></div>
+      <div class="cell-time">19m</div>
+      <div class="cell-time">Yesterday, 13:38</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4764</div>
+      <div class="cell-cust">Horizon Manufacturing</div>
+      <div class="cell-route">Salt Lake City, UT → Boise, ID</div>
+      <div>1 × Flatbed</div>
+      <div><span class="rfq-state state-cancelled">Cancelled by customer</span></div>
+      <div class="cell-time">8m</div>
+      <div class="cell-time">Yesterday, 11:15</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4760</div>
+      <div class="cell-cust">Heartland Industries</div>
+      <div class="cell-route">Columbus, OH → Pittsburgh, PA</div>
+      <div>1 × Van</div>
+      <div><span class="rfq-state state-won">Won · $1,620</span></div>
+      <div class="cell-time">25m</div>
+      <div class="cell-time">Yesterday, 09:48</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4755</div>
+      <div class="cell-cust">Acme Corp</div>
+      <div class="cell-route">Denver, CO → Albuquerque, NM</div>
+      <div>2 × Reefer</div>
+      <div><span class="rfq-state state-lost">Lost · no response</span></div>
+      <div class="cell-time">2h 14m</div>
+      <div class="cell-time">Mar 30, 16:02</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4751</div>
+      <div class="cell-cust">Horizon Manufacturing</div>
+      <div class="cell-route">Memphis, TN → Birmingham, AL</div>
+      <div>1 × Flatbed</div>
+      <div><span class="rfq-state state-won">Won · $1,280</span></div>
+      <div class="cell-time">12m</div>
+      <div class="cell-time">Mar 30, 14:21</div>
+    </div>
+
+    <div class="rfq-table-row">
+      <div class="cell-id">#4748</div>
+      <div class="cell-cust">Heartland Industries</div>
+      <div class="cell-route">Louisville, KY → Cincinnati, OH</div>
+      <div>1 × Van</div>
+      <div><span class="rfq-state state-won">Won · $890</span></div>
+      <div class="cell-time">16m</div>
+      <div class="cell-time">Mar 30, 10:33</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========== SETTINGS PAGE ========== -->
+<div id="settings" class="page">
+  <h1 class="page-title">Settings</h1>
+  <p class="page-sub">Workflow toggles, mailbox connections, and approval policies.</p>
+
+  <div class="settings-card">
+    <h3>Workflows</h3>
+    <p class="desc">Turn workflows on or off. Nothing runs until you enable it.</p>
+
+    <div class="workflow-row">
+      <div class="workflow-info">
+        <h4>Inbound Quote Handler</h4>
+        <p>Monitors mailbox, extracts RFQs, drafts customer replies</p>
+      </div>
+      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+    </div>
+
+    <div class="workflow-row">
+      <div class="workflow-info">
+        <h4>Carrier Follow-ups</h4>
+        <p>Nudges carriers who haven't responded after 3 hours</p>
+      </div>
+      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+    </div>
+
+    <div class="workflow-row">
+      <div class="workflow-info">
+        <h4>Claims Intake</h4>
+        <p>Routes claims emails into a structured intake workflow</p>
+      </div>
+      <div class="toggle" onclick="this.classList.toggle('on')"></div>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <h3>Approval Policy</h3>
+    <p class="desc">What the agent can do on its own vs. what needs your approval.</p>
+
+    <div class="workflow-row">
+      <div class="workflow-info">
+        <h4>Require approval before sending customer replies</h4>
+        <p>Drafts are prepared, you click send</p>
+      </div>
+      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <div class="workflow-row">
+      <div class="workflow-info">
+        <h4>Require approval before sending carrier RFQs</h4>
+        <p>You review the carrier list before any outbound RFQ</p>
+      </div>
+      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <div class="workflow-row">
+      <div class="workflow-info">
+        <h4>Auto-extract RFQ fields from inbound email</h4>
+        <p>No approval needed — extraction only, no outbound action</p>
+      </div>
+      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <h3>Mailbox</h3>
+    <p class="desc">Connected mailboxes and their health.</p>
+    <div class="workflow-row">
+      <div class="workflow-info">
+        <h4>jillian@beltmann.com</h4>
+        <p style="color: var(--accent-2);">● Connected · Last checked 12s ago</p>
+      </div>
+      <button class="btn" style="max-width:110px;">Disconnect</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== RFQ DETAIL DRAWER ========== -->
+<div id="rfq-drawer" class="drawer-overlay" onclick="if(event.target===this)closeRfq()">
+  <div class="drawer">
+    <div class="drawer-header">
+      <h2 id="drawer-title">Load #4822 — Horizon Manufacturing</h2>
+      <button class="close-btn" onclick="closeRfq()">×</button>
+    </div>
+    <div class="drawer-body" id="drawer-body">
+      <!-- Populated dynamically by openRfq() -->
+    </div>
+  </div>
+</div>
+
+<!-- ========== APPROVAL MODAL ========== -->
+<div id="approval-modal" class="drawer-overlay" onclick="if(event.target===this)closeApproval()">
+  <div class="drawer" style="max-width:620px;">
+    <div class="drawer-header">
+      <h2>Approve Reply — Beltmann, Load #4821</h2>
+      <button class="close-btn" onclick="closeApproval()">×</button>
+    </div>
+    <div class="drawer-body">
+
+      <div class="approval-label">Customer said</div>
+      <div class="approval-block">"Can you give me a rate on 3 flatbeds Dallas to Atlanta for next Tuesday? Need them loaded by 8am."</div>
+
+      <div class="approval-label">Drafted reply</div>
+      <div class="approval-block">Hi Tom,
+
+Thanks for the request. To get you an accurate rate on the 3 flatbeds Dallas → Atlanta pickup April 10, I need to confirm:
+
+1. Commodity and weight?
+2. Any tarping required?
+3. Delivery appointment time?
+
+I'll have carriers lined up as soon as I hear back.
+
+— Jillian</div>
+
+      <div class="approval-flag">⚠️ Why flagged: Missing commodity info</div>
+
+      <div class="approval-buttons">
+        <button class="btn btn-primary" onclick="closeApproval()">Send As-Is</button>
+        <button class="btn">Edit</button>
+        <button class="btn btn-danger">Reject</button>
+        <button class="btn">Skip</button>
+      </div>
+
+      <div class="keyboard-hint">
+        <kbd>Enter</kbd> approve &nbsp;·&nbsp;
+        <kbd>E</kbd> edit &nbsp;·&nbsp;
+        <kbd>R</kbd> reject &nbsp;·&nbsp;
+        <kbd>S</kbd> skip &nbsp;·&nbsp;
+        <kbd>J</kbd>/<kbd>K</kbd> next / prev
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast stack -->
+<div id="toast-stack"></div>
+
+<script>
+/* =========================================================
+   GOLTERIS BROKER CONSOLE — Demo Interactivity
+   ========================================================= */
+
+/* ---------- RFQ DATA ---------- */
+const RFQ_DATA = {
+  '4822': {
+    title: 'Load #4822 — Horizon Manufacturing',
+    summary: { Route:'Dallas, TX → Atlanta, GA', Equipment:'Flatbed × 3', Pickup:'April 10, 2026, 8am', Delivery:'April 11, 2026', Customer:'Tom @ Horizon Manufacturing', Special:'Tarping likely, weight TBD' },
+    status: { state:['state-clarify','Needs clarification'], Why:'Customer didn\'t specify commodity or weight', Missing:'Commodity, weight, tarping confirmation', Recommended:'Send drafted clarification email' },
+    messages: [
+      { dir:'inbound', from:'Tom @ Beltmann', time:'10:14', body:'"Can you give me a rate on 3 flatbeds Dallas to Atlanta for next Tuesday? Need them loaded by 8am."' },
+      { dir:'outbound', from:'Draft pending your approval', time:'', body:'"Hi Tom, thanks for the request. To get you an accurate rate on the 3 flatbeds Dallas → Atlanta pickup April 10, I need to confirm: 1) Commodity and weight, 2) Any tarping required, 3) Delivery appointment time. — Jillian"' }
+    ],
+    timeline: [
+      ['10:14','📥 Email received from Beltmann'],
+      ['10:14','🆕 New RFQ created — Load #4822'],
+      ['10:15','✅ Route, equipment, and count extracted'],
+      ['10:15','⚠️ Missing commodity and weight — clarification needed'],
+      ['10:16','✍️ Draft follow-up prepared for your review'],
+      ['10:16','⏸ Paused — waiting on your approval']
+    ]
+  },
+  '4821': {
+    title: 'Load #4821 — Horizon Manufacturing',
+    summary: { Route:'Houston, TX → Nashville, TN', Equipment:'Flatbed × 2', Pickup:'April 9, 2026', Delivery:'April 10, 2026', Customer:'Tom @ Horizon Manufacturing', Special:'Needs equipment type confirmation' },
+    status: { state:['state-clarify','Needs clarification'], Why:'Equipment type ambiguous in request', Missing:'Flatbed vs. step-deck, weight', Recommended:'Send drafted clarification email' },
+    messages: [
+      { dir:'inbound', from:'Tom @ Beltmann', time:'09:58', body:'"Got 2 truckloads heading from Houston to Nashville next Thursday. What can you do on rate?"' },
+      { dir:'outbound', from:'Draft pending your approval', time:'', body:'"Hi Tom, happy to help. Can you confirm: 1) Flatbed or step-deck? 2) Commodity and total weight? 3) Any tarping? I\'ll line up carriers once I hear back."' }
+    ],
+    timeline: [
+      ['09:58','📥 Email received from Beltmann'],
+      ['09:58','🆕 New RFQ created'],
+      ['09:59','⚠️ Equipment type unclear'],
+      ['10:00','✍️ Draft follow-up prepared'],
+      ['10:00','⏸ Paused — waiting on your approval']
+    ]
+  },
+  '4815': {
+    title: 'Load #4815 — Horizon Manufacturing',
+    summary: { Route:'Dallas, TX → Atlanta, GA', Equipment:'Flatbed × 3', Pickup:'April 10, 2026, 8am', Delivery:'April 11, 2026', Customer:'Tom @ Horizon Manufacturing', Special:'Steel coils, 45k lbs, tarped' },
+    status: { state:['state-waiting','Waiting on carriers'], Why:'Carrier RFQ sent to 12 preferred carriers', Missing:'Nothing', Recommended:'Nudge carriers in 3h if no responses' },
+    messages: [
+      { dir:'inbound', from:'Tom @ Beltmann', time:'10:31', body:'"Steel coils, 45k lbs, tarped, delivery by noon Wed."' },
+      { dir:'outbound', from:'Jillian (approved)', time:'10:35', body:'"Flatbed load Dallas → Atlanta, 45k lbs steel coils, tarped. Pickup 4/10 8am, delivery 4/11 by noon. Best rate please — quotes due EOD."' }
+    ],
+    timeline: [
+      ['10:14','📥 Original RFQ received'],
+      ['10:22','✅ Clarification sent'],
+      ['10:31','📥 Customer replied with details'],
+      ['10:32','✅ All fields complete — ready to quote'],
+      ['10:35','✅ You approved carrier RFQ'],
+      ['10:35','📤 Sent to 12 carriers'],
+      ['10:35','⏳ Waiting on responses']
+    ]
+  },
+  '4812': {
+    title: 'Load #4812 — Acme Corp',
+    summary: { Route:'Miami, FL → Charlotte, NC', Equipment:'Reefer × 1', Pickup:'April 8, 2026', Delivery:'April 9, 2026', Customer:'Jim (Acme Corp)', Special:'Temp-controlled, 34°F' },
+    status: { state:['state-waiting','Waiting on carriers'], Why:'RFQ sent to 8 reefer carriers', Missing:'Nothing', Recommended:'Nudge carriers in 1h' },
+    messages: [
+      { dir:'inbound', from:'Jim @ Acme Corp', time:'09:12', body:'"Need a reefer Miami to Charlotte, pickup tomorrow. Produce, 34 degrees."' },
+      { dir:'outbound', from:'Jillian (approved)', time:'09:18', body:'"Reefer load Miami → Charlotte, produce, 34°F, pickup 4/8. Best rate please."' }
+    ],
+    timeline: [
+      ['09:12','📥 RFQ received from Acme'],
+      ['09:13','✅ Fields extracted'],
+      ['09:18','📤 Sent to 8 carriers'],
+      ['09:18','⏳ Waiting on responses']
+    ]
+  },
+  '4810': {
+    title: 'Load #4810 — Acme Corp',
+    summary: { Route:'Chicago, IL → Memphis, TN', Equipment:'Reefer × 2', Pickup:'April 7, 2026', Delivery:'April 8, 2026', Customer:'Jim (Acme Corp)', Special:'Frozen goods, -10°F' },
+    status: { state:['state-received','Quotes received'], Why:'5 carrier quotes received, awaiting your review', Missing:'Nothing', Recommended:'Review quotes and select winner' },
+    messages: [
+      { dir:'inbound', from:'Jim @ Acme Corp', time:'08:22', body:'"2 reefers Chicago to Memphis, frozen, pickup 4/7."' },
+      { dir:'outbound', from:'Jillian (approved)', time:'08:35', body:'"Reefer × 2 Chicago → Memphis, frozen -10°F, pickup 4/7."' },
+      { dir:'inbound', from:'5 carriers', time:'09:15-10:35', body:'Range: $2,840 – $3,420. Best: Johnson Trucking @ $2,840.' }
+    ],
+    timeline: [
+      ['08:22','📥 RFQ received'],
+      ['08:35','📤 Sent to 10 carriers'],
+      ['09:15','📥 First carrier response'],
+      ['10:35','📥 5th carrier responded'],
+      ['10:35','⏸ Paused — awaiting your review']
+    ]
+  },
+  '4808': {
+    title: 'Load #4808 — Horizon Manufacturing',
+    summary: { Route:'Phoenix, AZ → Denver, CO', Equipment:'Van × 1', Pickup:'April 9, 2026', Delivery:'April 10, 2026', Customer:'Sarah @ Horizon Manufacturing', Special:'General freight, 28k lbs' },
+    status: { state:['state-ready','Ready to quote'], Why:'All fields confirmed, ready to send carrier RFQ', Missing:'Nothing', Recommended:'Approve carrier RFQ send' },
+    messages: [
+      { dir:'inbound', from:'Sarah @ Beltmann', time:'08:45', body:'"Need a van Phoenix to Denver, general freight, 28k lbs, pickup 4/9."' }
+    ],
+    timeline: [
+      ['08:45','📥 RFQ received'],
+      ['08:46','✅ All fields extracted'],
+      ['08:46','⏸ Ready to send carrier RFQ — awaiting approval']
+    ]
+  },
+  '4807': {
+    title: 'Load #4807 — Heartland Industries',
+    summary: { Route:'Detroit, MI → Indianapolis, IN', Equipment:'Van × 2', Pickup:'April 8, 2026', Delivery:'April 9, 2026', Customer:'Mike (Heartland Industries)', Special:'Auto parts' },
+    status: { state:['state-waiting','Waiting on carriers'], Why:'RFQ sent to 10 carriers', Missing:'Nothing', Recommended:'Nudge carriers in 2h' },
+    messages: [{ dir:'outbound', from:'Jillian (approved)', time:'08:12', body:'"2 vans Detroit → Indianapolis, auto parts, pickup 4/8."' }],
+    timeline: [['08:10','📥 RFQ received'],['08:12','📤 Sent to 10 carriers'],['08:12','⏳ Waiting']]
+  },
+  '4805': {
+    title: 'Load #4805 — Acme Corp',
+    summary: { Route:'Boston, MA → Baltimore, MD', Equipment:'Reefer × 1', Pickup:'April 8, 2026', Delivery:'April 9, 2026', Customer:'Jim (Acme Corp)', Special:'Pharma, 36°F' },
+    status: { state:['state-received','Quotes received'], Why:'7 carrier quotes received', Missing:'Nothing', Recommended:'Review and select winner' },
+    messages: [{ dir:'inbound', from:'7 carriers', time:'Today', body:'Range: $1,920 – $2,400. Best: CoolFreight @ $1,920.' }],
+    timeline: [['07:30','📥 RFQ received'],['07:45','📤 Sent to 12 carriers'],['Now','⏸ Awaiting your review']]
+  },
+  '4803': {
+    title: 'Load #4803 — Heartland Industries',
+    summary: { Route:'Cleveland, OH → Buffalo, NY', Equipment:'Flatbed × 1', Pickup:'April 7, 2026', Delivery:'April 8, 2026', Customer:'Mike (Heartland Industries)', Special:'Machinery, 40k lbs' },
+    status: { state:['state-sent','Quote sent'], Why:'Quote sent to customer, awaiting decision', Missing:'Nothing', Recommended:'Follow up in 24h if no response' },
+    messages: [{ dir:'outbound', from:'Jillian (approved)', time:'Yesterday', body:'"Quote: $1,620 all-in, pickup 4/7, delivery 4/8."' }],
+    timeline: [['Yesterday','✅ Quote sent to customer'],['Now','⏳ Awaiting customer decision']]
+  },
+  '4799': {
+    title: 'Load #4799 — Acme Corp',
+    summary: { Route:'LA, CA → Seattle, WA', Equipment:'Reefer × 2', Pickup:'April 11, 2026', Delivery:'April 13, 2026', Customer:'Jim (Acme Corp)', Special:'Produce, 34°F' },
+    status: { state:['state-review','Waiting on broker review'], Why:'6 carrier quotes received, needs your selection', Missing:'Nothing', Recommended:'Review carrier quotes and approve winner' },
+    messages: [{ dir:'inbound', from:'6 carriers', time:'Today', body:'Range: $3,100 – $3,820. Best: West Coast Cold @ $3,100.' }],
+    timeline: [['Earlier','📥 RFQ received'],['Earlier','📤 Sent to carriers'],['Now','⏸ Awaiting your review']]
+  },
+  '4795': {
+    title: 'Load #4795 — Horizon Manufacturing',
+    summary: { Route:'San Antonio, TX → Oklahoma City, OK', Equipment:'Flatbed × 1', Pickup:'April 7, 2026', Delivery:'April 8, 2026', Customer:'Tom @ Horizon Manufacturing', Special:'Lumber' },
+    status: { state:['state-sent','Quote sent'], Why:'Quote sent, awaiting customer', Missing:'Nothing', Recommended:'Follow up tomorrow if no response' },
+    messages: [{ dir:'outbound', from:'Jillian (approved)', time:'6h ago', body:'"Quote: $980, flatbed, pickup 4/7."' }],
+    timeline: [['6h ago','✅ Quote sent'],['Now','⏳ Awaiting customer']]
+  },
+  '4790': {
+    title: 'Load #4790 — Acme Corp',
+    summary: { Route:'Portland, OR → Boise, ID', Equipment:'Van × 1', Pickup:'April 8, 2026', Delivery:'April 9, 2026', Customer:'Jim (Acme Corp)', Special:'General freight' },
+    status: { state:['state-review','Waiting on broker review'], Why:'4 carrier quotes received', Missing:'Nothing', Recommended:'Review and select' },
+    messages: [{ dir:'inbound', from:'4 carriers', time:'Today', body:'Range: $1,180 – $1,340. Best: PNW Express @ $1,180.' }],
+    timeline: [['Earlier','📥 RFQ received'],['Now','⏸ Awaiting your review']]
+  },
+  '4787': {
+    title: 'Load #4787 — Heartland Industries',
+    summary: { Route:'St. Louis, MO → Kansas City, MO', Equipment:'Flatbed × 2', Pickup:'April 7, 2026', Delivery:'April 7, 2026', Customer:'Mike (Heartland Industries)', Special:'Building materials' },
+    status: { state:['state-sent','Quote sent'], Why:'Quote sent', Missing:'Nothing', Recommended:'Follow up tomorrow' },
+    messages: [{ dir:'outbound', from:'Jillian (approved)', time:'8h ago', body:'"Quote: $1,450 for 2 flatbeds."' }],
+    timeline: [['8h ago','✅ Quote sent']]
+  },
+  '4783': {
+    title: 'Load #4783 — Horizon Manufacturing',
+    summary: { Route:'Jacksonville, FL → Richmond, VA', Equipment:'Reefer × 1', Pickup:'April 8, 2026', Delivery:'April 9, 2026', Customer:'Sarah @ Horizon Manufacturing', Special:'Seafood, 30°F' },
+    status: { state:['state-sent','Quote sent'], Why:'Quote sent', Missing:'Nothing', Recommended:'Follow up tomorrow' },
+    messages: [{ dir:'outbound', from:'Jillian (approved)', time:'9h ago', body:'"Quote: $2,150 reefer, 30°F."' }],
+    timeline: [['9h ago','✅ Quote sent']]
+  },
+  /* History entries */
+  '4780': { title:'Load #4780 — Horizon Manufacturing', summary:{Route:'Dallas, TX → Houston, TX', Equipment:'Flatbed × 2', Customer:'Tom (Beltmann)', Outcome:'Won @ $3,240', 'Cycle Time':'14 min'}, status:{state:['state-won','Won · $3,240'], Why:'Customer accepted quote', Recommended:'Dispatch confirmed'}, messages:[{dir:'outbound',from:'Final quote',time:'09:12',body:'"Quote: $3,240, 2 flatbeds, accepted by customer."'}], timeline:[['09:00','📥 RFQ received'],['09:08','📤 Carrier RFQ sent'],['09:12','✅ Won — customer accepted']] },
+  '4776': { title:'Load #4776 — Acme Corp', summary:{Route:'Chicago, IL → Detroit, MI', Equipment:'Reefer × 1', Customer:'Jim (Acme)', Outcome:'Won @ $1,890', 'Cycle Time':'22 min'}, status:{state:['state-won','Won · $1,890'], Why:'Customer accepted', Recommended:'Dispatch confirmed'}, messages:[], timeline:[['08:23','📥 RFQ received'],['08:45','✅ Won']] }
+};
+
+/* Default drawer data for anything not in the lookup */
+function defaultRfq(loadId, customerName, route, equipmentText, stateClass, stateText) {
+  return {
+    title: `Load #${loadId} — ${customerName || 'Customer'}`,
+    summary: { Route: route || '—', Equipment: equipmentText || '—', Customer: customerName || '—', 'Last Update':'Recent' },
+    status: { state:[stateClass || 'state-clarify', stateText || 'In progress'], Why:'See activity log for details', Recommended:'Review and take next action' },
+    messages: [{ dir:'inbound', from:'Customer', time:'Earlier', body:'(Full message history available in the production system)' }],
+    timeline: [['Earlier','📥 RFQ received'],['Earlier','✅ Fields extracted'],['Now','⏳ In current state']]
+  };
+}
+
+/* ---------- PAGE NAV ---------- */
+function showPage(id) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page, .home').forEach(p => p.classList.remove('active'));
+  const tab = document.querySelector(`.nav-tab[onclick="showPage('${id}')"]`);
+  if (tab) tab.classList.add('active');
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+/* ---------- TOAST ---------- */
+function toast(title, body, kind='success') {
+  const stack = document.getElementById('toast-stack');
+  const el = document.createElement('div');
+  el.className = `toast ${kind}`;
+  el.innerHTML = `<div class="toast-title">${title}</div>${body ? `<div class="toast-body">${body}</div>` : ''}`;
+  stack.appendChild(el);
+  setTimeout(() => { el.classList.add('fading'); setTimeout(() => el.remove(), 300); }, 3200);
+}
+
+/* ---------- RFQ DRAWER ---------- */
+function renderDrawer(rfq) {
+  const body = document.getElementById('drawer-body');
+  const stateClass = rfq.status.state[0];
+  const stateText = rfq.status.state[1];
+
+  const summaryHtml = Object.entries(rfq.summary).map(([k,v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+
+  const statusRows = Object.entries(rfq.status).filter(([k]) => k !== 'state').map(([k,v]) =>
+    `<div class="status-row"><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+
+  const messagesHtml = (rfq.messages || []).map(m =>
+    `<div class="message ${m.dir}"${m.from.includes('pending') ? ' style="opacity:0.6;"' : ''}>
+       <div class="message-header">${m.dir === 'inbound' ? '📨' : '📤'} <strong>${m.from}</strong>${m.time ? ' · ' + m.time : ''}</div>
+       <div class="message-body">${m.body}</div>
+     </div>`).join('') || '<p style="font-size:0.8rem;color:var(--text-dimmer);">No messages yet.</p>';
+
+  const timelineHtml = rfq.timeline.map(([time, text]) =>
+    `<div class="timeline-item"><div class="timeline-time">${time}</div><div class="timeline-text">${text}</div></div>`).join('');
+
+  body.innerHTML = `
+    <div class="drawer-section">
+      <h3>Summary</h3>
+      <dl class="summary-grid">${summaryHtml}</dl>
+    </div>
+    <div class="drawer-section">
+      <h3>Current Status</h3>
+      <div class="status-box">
+        <div class="status-row"><dt>State</dt><dd><span class="rfq-state ${stateClass}">${stateText}</span></dd></div>
+        ${statusRows}
+      </div>
+    </div>
+    <div class="drawer-section">
+      <h3>Messages</h3>
+      ${messagesHtml}
+    </div>
+    <div class="drawer-section">
+      <h3>Actions &amp; History</h3>
+      ${timelineHtml}
+      <p style="margin-top:0.85rem;font-size:0.75rem;color:var(--text-dimmer);">
+        <a href="#" onclick="event.preventDefault();toast('Raw emails','Would open the full email thread','info');" style="color:var(--accent);text-decoration:none;">View raw emails</a> &nbsp;·&nbsp;
+        <a href="#" onclick="event.preventDefault();toast('System reasoning','Would show the agent\\'s Claude prompts and extracted data','info');" style="color:var(--accent);text-decoration:none;">View system reasoning</a>
+      </p>
+    </div>
+  `;
+
+  document.getElementById('drawer-title').textContent = rfq.title;
+}
+
+function openRfq(loadId, fallbackCustomer, fallbackRoute, fallbackEquip, fallbackStateClass, fallbackStateText) {
+  const rfq = RFQ_DATA[loadId] || defaultRfq(loadId, fallbackCustomer, fallbackRoute, fallbackEquip, fallbackStateClass, fallbackStateText);
+  renderDrawer(rfq);
+  document.getElementById('rfq-drawer').classList.add('open');
+}
+function closeRfq() { document.getElementById('rfq-drawer').classList.remove('open'); }
+
+/* ---------- APPROVAL MODAL ---------- */
+function openApproval() { document.getElementById('approval-modal').classList.add('open'); }
+function closeApproval() { document.getElementById('approval-modal').classList.remove('open'); }
+
+function handleApproval(action) {
+  closeApproval();
+  if (action === 'approve') toast('Reply sent', 'Follow-up sent to Tom @ Beltmann for Load #4821', 'success');
+  if (action === 'reject')  toast('Reply rejected', 'Draft discarded', 'warn');
+  if (action === 'edit')    toast('Edit mode', 'Would open full editor', 'info');
+  if (action === 'skip')    toast('Skipped', 'Will re-appear in the review queue', 'info');
+}
+
+/* Handle review card actions */
+function handleReviewCard(btn, action, label) {
+  const card = btn.closest('.review-card');
+  if (!card) return;
+  card.classList.add('removing');
+
+  const messages = {
+    approve: ['Approved', `${label} — sent successfully`],
+    confirm: ['Confirmed', `${label} — updated`],
+    send:    ['Sent',     `${label} — message sent`],
+    edit:    ['Edit mode', 'Would open editor for this item'],
+    ask:     ['Question sent', 'Customer will be asked for clarification'],
+    reject:  ['Rejected', `${label} — dismissed`]
+  };
+  const [title, body] = messages[action] || ['Done', label];
+  toast(title, body, action === 'reject' ? 'warn' : 'success');
+
+  setTimeout(() => {
+    card.remove();
+    updateReviewCount();
+  }, 380);
+}
+
+function updateReviewCount() {
+  const remaining = document.querySelectorAll('#home .review-card').length;
+  const count = document.querySelector('#home .col-count.warn');
+  if (count) count.textContent = remaining;
+  const col = document.querySelector('#home .col .col-body');
+  if (remaining === 0 && col && !col.querySelector('.empty-state')) {
+    col.innerHTML = '<div class="empty-state"><span class="emoji">✅</span>All caught up<br><span style="color:var(--text-dimmer);font-size:0.78rem;">Nothing needs your review right now.</span></div>';
+  }
+}
+
+/* ---------- FILTER BUTTONS ---------- */
+function setupFilters() {
+  // Group filter buttons by their parent toolbar
+  document.querySelectorAll('.rfq-toolbar').forEach(toolbar => {
+    const buttons = toolbar.querySelectorAll('.filter-btn');
+    const table = toolbar.nextElementSibling; // the .rfq-table right after
+    if (!table) return;
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyFilters(toolbar, table);
+      });
+    });
+
+    // Search box live filter
+    const searchInput = toolbar.querySelector('.search-box input');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => applyFilters(toolbar, table));
+    }
+  });
+}
+
+function applyFilters(toolbar, table) {
+  const activeBtn = toolbar.querySelector('.filter-btn.active');
+  const filterText = activeBtn ? activeBtn.firstChild.textContent.trim().toLowerCase() : 'all';
+  const searchInput = toolbar.querySelector('.search-box input');
+  const searchText = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+  const rows = table.querySelectorAll('.rfq-table-row');
+  let visible = 0;
+
+  rows.forEach(row => {
+    let showForFilter = true;
+    if (filterText && filterText !== 'all') {
+      const rowText = row.textContent.toLowerCase();
+      // State filters
+      if (filterText.includes('needs clarification')) showForFilter = rowText.includes('needs clarification');
+      else if (filterText.includes('ready to quote')) showForFilter = rowText.includes('ready to quote');
+      else if (filterText.includes('waiting on carriers')) showForFilter = rowText.includes('waiting on carriers');
+      else if (filterText.includes('quotes received')) showForFilter = rowText.includes('quotes received');
+      else if (filterText.includes('waiting on broker')) showForFilter = rowText.includes('waiting on broker');
+      else if (filterText.includes('quote sent')) showForFilter = rowText.includes('quote sent');
+      // Outcome filters (history)
+      else if (filterText === 'won') showForFilter = rowText.includes('won');
+      else if (filterText === 'lost') showForFilter = rowText.includes('lost');
+      else if (filterText === 'cancelled') showForFilter = rowText.includes('cancelled');
+      else if (filterText === 'today') showForFilter = rowText.includes('today');
+      else if (filterText === 'this week') showForFilter = rowText.includes('today') || rowText.includes('yesterday');
+      else if (filterText === 'this month') showForFilter = rowText.includes('today') || rowText.includes('yesterday') || rowText.includes('mar');
+    }
+
+    let showForSearch = true;
+    if (searchText) {
+      showForSearch = row.textContent.toLowerCase().includes(searchText);
+    }
+
+    const show = showForFilter && showForSearch;
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  // Empty state
+  let emptyEl = table.querySelector('.empty-state');
+  if (visible === 0) {
+    if (!emptyEl) {
+      emptyEl = document.createElement('div');
+      emptyEl.className = 'empty-state';
+      emptyEl.innerHTML = '<span class="emoji">🔍</span>No RFQs match this filter<br><span style="color:var(--text-dimmer);font-size:0.78rem;">Try clearing the search or selecting a different filter.</span>';
+      table.appendChild(emptyEl);
+    }
+  } else if (emptyEl) {
+    emptyEl.remove();
+  }
+}
+
+/* ---------- ROW CLICK WIRING ---------- */
+function wireRowClicks() {
+  // Auto-wire RFQ table rows
+  document.querySelectorAll('.rfq-table-row').forEach(row => {
+    const idEl = row.querySelector('.cell-id');
+    if (!idEl) return;
+    const loadId = idEl.textContent.replace(/[^0-9]/g, '');
+    const cust = (row.querySelector('.cell-cust') || {}).textContent || '';
+    const route = (row.querySelector('.cell-route') || {}).textContent || '';
+    const equipCell = row.children[3];
+    const equip = equipCell ? equipCell.textContent : '';
+    const statePill = row.querySelector('.rfq-state');
+    const stateClass = statePill ? Array.from(statePill.classList).find(c => c.startsWith('state-')) : '';
+    const stateText = statePill ? statePill.textContent : '';
+    row.onclick = (e) => { if (e.target.closest('button')) return; openRfq(loadId, cust, route, equip, stateClass, stateText); };
+  });
+
+  // Auto-wire home RFQ cards
+  document.querySelectorAll('.rfq-card').forEach(card => {
+    const idEl = card.querySelector('.rfq-id');
+    if (!idEl) return;
+    const loadId = idEl.textContent.replace(/[^0-9]/g, '');
+    const cust = (card.querySelector('.rfq-customer') || {}).textContent || '';
+    const route = (card.querySelector('.rfq-route') || {}).textContent || '';
+    const statePill = card.querySelector('.rfq-state');
+    const stateClass = statePill ? Array.from(statePill.classList).find(c => c.startsWith('state-')) : '';
+    const stateText = statePill ? statePill.textContent : '';
+    card.onclick = (e) => { if (e.target.closest('button')) return; openRfq(loadId, cust, route, '', stateClass, stateText); };
+  });
+
+  // Auto-wire activity items to matching loads
+  document.querySelectorAll('.activity-item').forEach(item => {
+    const text = item.textContent;
+    const match = text.match(/#(\d{4})/);
+    if (match) {
+      const loadId = match[1];
+      item.onclick = () => openRfq(loadId);
+    } else {
+      item.onclick = () => toast('Activity', 'Details view would open here', 'info');
+    }
+  });
+
+  // Auto-wire inbox rows
+  document.querySelectorAll('.inbox-row').forEach(row => {
+    const badge = row.querySelector('.routing-badge');
+    if (!badge) return;
+    const text = badge.textContent;
+    const match = text.match(/#(\d{4})/);
+    if (match) {
+      const loadId = match[1];
+      row.onclick = () => openRfq(loadId);
+    } else if (text.toLowerCase().includes('review')) {
+      row.onclick = () => toast('Needs routing', 'This message needs manual routing to an RFQ', 'warn');
+    } else if (text.toLowerCase().includes('ignored')) {
+      row.onclick = () => toast('Ignored message', 'Filtered out by your inbox rules', 'info');
+    }
+  });
+}
+
+/* ---------- KEYBOARD SHORTCUTS ---------- */
+document.addEventListener('keydown', (e) => {
+  const approvalModal = document.getElementById('approval-modal');
+  const rfqDrawer = document.getElementById('rfq-drawer');
+
+  // Escape closes any open modal
+  if (e.key === 'Escape') {
+    if (approvalModal.classList.contains('open')) closeApproval();
+    else if (rfqDrawer.classList.contains('open')) closeRfq();
+    return;
+  }
+
+  // Don't intercept if user is typing in a search box
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  // Approval modal shortcuts
+  if (approvalModal.classList.contains('open')) {
+    if (e.key === 'Enter') { e.preventDefault(); handleApproval('approve'); }
+    if (e.key === 'e' || e.key === 'E') { e.preventDefault(); handleApproval('edit'); }
+    if (e.key === 'r' || e.key === 'R') { e.preventDefault(); handleApproval('reject'); }
+    if (e.key === 's' || e.key === 'S') { e.preventDefault(); handleApproval('skip'); }
+  }
+});
+
+/* ---------- INIT ---------- */
+document.addEventListener('DOMContentLoaded', () => {
+  setupFilters();
+  wireRowClicks();
+  toast('Prototype ready', 'Click any RFQ, review card, or filter to explore', 'info');
+});
+</script>
+
+</body>
+</html>

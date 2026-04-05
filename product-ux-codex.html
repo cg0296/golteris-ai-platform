@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Golteris Broker Console</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --surface-2: #f8fafc;
+    --sidebar: #122033;
+    --sidebar-2: #0d1828;
+    --border: #d9e1ea;
+    --border-2: #c5d0dc;
+    --text: #172635;
+    --text-2: #415468;
+    --text-3: #71849a;
+    --blue: #1f6fd1;
+    --blue-soft: #eaf3ff;
+    --green: #0f7b52;
+    --green-soft: #e8f7f0;
+    --amber: #a56a05;
+    --amber-soft: #fff3dc;
+    --shadow: 0 4px 12px rgba(18, 32, 51, 0.06);
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  button, input { font: inherit; }
+
+  .app { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; }
+  .sidebar {
+    background: linear-gradient(180deg, var(--sidebar) 0%, var(--sidebar-2) 100%);
+    color: #eef4fb;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .brand { padding: 8px 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .brand-kicker, .sidebar-label, .label, .review-kicker, .kicker {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .brand-kicker, .sidebar-label { color: rgba(238,244,251,0.54); margin-bottom: 6px; }
+  .brand-name { font-size: 20px; font-weight: 700; letter-spacing: 0.02em; margin-bottom: 6px; color: #fff; }
+  .brand-name span { color: #6fb1ff; }
+  .brand-sub { font-size: 12px; line-height: 1.45; color: rgba(238,244,251,0.7); }
+
+  .nav { display: grid; gap: 4px; }
+  .nav button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: rgba(238,244,251,0.78);
+    padding: 10px 12px;
+    text-align: left;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .nav button:hover, .nav button.active {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    border-color: rgba(255,255,255,0.08);
+  }
+
+  .sidebar-section { padding: 0 10px; }
+  .sidebar-stat {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .sidebar-stat strong { display: block; font-size: 18px; margin-bottom: 4px; }
+  .sidebar-stat span { font-size: 12px; line-height: 1.4; color: rgba(238,244,251,0.72); }
+
+  .main { display: flex; flex-direction: column; min-width: 0; }
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+  }
+  .topbar-title { display: grid; gap: 4px; }
+  .topbar-title strong { font-size: 18px; font-weight: 700; }
+  .topbar-title span { font-size: 13px; color: var(--text-3); }
+  .topbar-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .chip {
+    padding: 7px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-2);
+  }
+  .chip.good { background: var(--green-soft); border-color: #ccebdc; color: var(--green); font-weight: 700; }
+
+  .content { padding: 14px 18px 18px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .summary-row, .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(150px,1fr)); gap: 12px; margin-bottom: 14px; }
+  .summary-card, .panel, .table-shell, .settings-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .summary-card { padding: 12px 14px; }
+  .label { color: var(--text-3); margin-bottom: 8px; }
+  .value { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .note { font-size: 12px; color: var(--text-2); line-height: 1.4; }
+
+  .alert-bar {
+    background: var(--surface);
+    border: 1px solid #efcfb9;
+    border-left: 4px solid var(--amber);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .alert-copy { display: grid; gap: 4px; }
+  .alert-copy strong { font-size: 14px; }
+  .alert-copy span { font-size: 13px; color: var(--text-2); line-height: 1.4; }
+  .button-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    border: 1px solid var(--border-2);
+    background: #fff;
+    color: var(--text);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+  .workspace { display: grid; grid-template-columns: 360px minmax(460px,1fr) 320px; gap: 14px; }
+  .panel-header, .table-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .panel-title, .table-title { display: grid; gap: 4px; }
+  .panel-title strong, .table-title strong { font-size: 15px; font-weight: 700; }
+  .panel-title span, .table-title span { font-size: 12px; color: var(--text-3); }
+  .count {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text-2);
+  }
+  .count.warn { background: var(--amber-soft); color: var(--amber); }
+  .panel-body { padding: 12px; display: grid; gap: 10px; }
+
+  .review-card, .feed-item, .rfq-row-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+  }
+  .review-card { padding: 12px; display: grid; gap: 8px; }
+  .review-kicker { color: var(--amber); font-weight: 700; }
+  .review-title, .route-title { font-size: 14px; font-weight: 700; }
+  .review-meta, .review-copy, .review-rec, .route-meta, .next-step, .feed-item span {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-2);
+  }
+  .review-rec { color: var(--text-3); }
+
+  .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter {
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-2);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .filter.active { background: var(--blue-soft); border-color: #c7ddff; color: var(--blue); }
+  .search { min-width: 230px; flex: 1; max-width: 320px; }
+  .search input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text);
+    padding: 9px 10px;
+    outline: none;
+  }
+
+  .rfq-list { display: grid; gap: 8px; }
+  .rfq-row-card {
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 120px minmax(220px,1fr) 220px;
+    gap: 12px;
+    align-items: center;
+    cursor: pointer;
+  }
+  .rfq-id { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 4px; }
+  .rfq-customer { font-size: 15px; font-weight: 700; }
+  .rfq-status { display: grid; gap: 6px; justify-items: start; }
+  .state, .route-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+  .state::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .state.clarify { background: var(--amber-soft); color: var(--amber); }
+  .state.ready { background: var(--green-soft); color: var(--green); }
+  .state.waiting { background: #eef2f6; color: var(--text-2); }
+  .state.review { background: var(--blue-soft); color: var(--blue); }
+
+  .feed-item { padding: 12px; display: grid; gap: 6px; }
+  .feed-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+  }
+  .schedule { border-top: 1px solid var(--border); padding-top: 10px; display: grid; gap: 8px; }
+  .schedule-row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--text-2); }
+  .schedule-row strong { color: var(--text); }
+
+  .table { display: grid; }
+  .table-row {
+    display: grid;
+    grid-template-columns: 50px 190px minmax(220px,1fr) 170px;
+    gap: 14px;
+    align-items: center;
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+  }
+  .icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--surface-2);
+    display: grid;
+    place-items: center;
+    font-size: 15px;
+    color: var(--text-2);
+  }
+  .route-badge.attached { background: var(--green-soft); color: var(--green); }
+  .route-badge.new { background: #eef2f6; color: var(--text-2); }
+  .route-badge.review { background: var(--amber-soft); color: var(--amber); }
+
+  .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(280px,1fr)); gap: 14px; }
+  .settings-card { padding: 14px; }
+  .settings-card strong { display: block; font-size: 15px; margin-bottom: 4px; }
+  .settings-card p { font-size: 13px; color: var(--text-3); line-height: 1.45; margin-bottom: 12px; }
+  .settings-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+  }
+  .settings-item:first-of-type { border-top: none; padding-top: 0; }
+  .settings-copy strong { font-size: 14px; margin-bottom: 4px; }
+  .settings-copy span { font-size: 12px; line-height: 1.45; color: var(--text-3); }
+  .toggle {
+    width: 52px;
+    height: 30px;
+    border-radius: 999px;
+    border: none;
+    background: #d8e0e9;
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(18,32,51,0.16);
+    transition: transform 120ms ease;
+  }
+  .toggle.on { background: #8cc3af; }
+  .toggle.on::after { transform: translateX(22px); }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(18,32,51,0.34);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    z-index: 1000;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    width: min(920px, 100%);
+    max-height: 92vh;
+    overflow: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 18px 48px rgba(18,32,51,0.16);
+  }
+  .modal.compact { width: min(700px, 100%); }
+  .modal-header {
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .modal-title { display: grid; gap: 4px; }
+  .kicker { color: var(--text-3); }
+  .modal-title strong { font-size: 18px; }
+  .modal-title span { font-size: 13px; color: var(--text-3); }
+  .close {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .modal-body { padding: 14px 16px 16px; display: grid; gap: 12px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .detail-card, .message-card, .timeline-card, .draft-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .detail-card h3, .message-card h3, .timeline-card h3, .draft-card h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    margin-bottom: 10px;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 8px 10px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .summary-grid dt { color: var(--text-3); }
+  .status-list, .status-row { display: grid; gap: 8px; }
+  .status-row strong { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); }
+  .message-block { border-left: 3px solid var(--border-2); padding-left: 10px; margin-bottom: 12px; }
+  .message-block:last-child { margin-bottom: 0; }
+  .message-block.inbound { border-left-color: var(--blue); }
+  .message-block.outbound { border-left-color: var(--green); }
+  .message-head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 6px; }
+  .message-text, .draft-body { font-size: 13px; line-height: 1.55; color: var(--text-2); white-space: pre-line; }
+  .timeline-row {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 10px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-2);
+  }
+  .timeline-row:first-of-type { border-top: none; padding-top: 0; }
+  .timeline-time { color: var(--text-3); font-weight: 700; }
+  .draft-flag {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--amber-soft);
+    color: var(--amber);
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  @media (max-width: 1280px) {
+    .app { grid-template-columns: 1fr; }
+    .workspace { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 980px) {
+    .summary-row, .stats-grid, .settings-grid, .detail-grid { grid-template-columns: 1fr 1fr; }
+    .rfq-row-card, .table-row { grid-template-columns: 1fr; align-items: start; }
+  }
+  @media (max-width: 720px) {
+    .topbar, .alert-bar { flex-direction: column; align-items: flex-start; }
+    .summary-row, .stats-grid, .settings-grid, .detail-grid { grid-template-columns: 1fr; }
+    .summary-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-kicker">Broker operating console</div>
+        <div class="brand-name">GOLTERIS <span>CONTROL</span></div>
+        <div class="brand-sub">Inbox for a brokerage team handling customer quote requests and carrier responses.</div>
+      </div>
+
+      <div class="nav">
+        <button class="active" data-page="home">Home</button>
+        <button data-page="inbox">Inbox</button>
+        <button data-page="rfqs">RFQs</button>
+        <button data-page="history">History</button>
+        <button data-page="settings">Settings</button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Today</div>
+        <div class="sidebar-stat">
+          <strong>3</strong>
+          <span>Items require broker review right now.</span>
+        </div>
+        <div class="sidebar-stat">
+          <strong>17</strong>
+          <span>RFQs currently active across customer and carrier stages.</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Inbound mix</div>
+        <div class="sidebar-stat">
+          <strong>24 customers</strong>
+          <span>New quote requests, clarifications, schedule updates.</span>
+        </div>
+        <div class="sidebar-stat">
+          <strong>13 carriers</strong>
+          <span>Bid sheets, quote replies, and follow-up responses.</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="topbar-title">
+          <strong>Broker quote operations</strong>
+          <span>Beltmann is the brokerage. The inbox combines customer RFQs and carrier responses into one working queue.</span>
+        </div>
+        <div class="topbar-meta">
+          <div class="chip good">All workflows healthy</div>
+          <div class="chip">Operator Jillian</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <section id="home" class="page active">
+          <div class="summary-row">
+            <article class="summary-card">
+              <div class="label">Needs review</div>
+              <div class="value">3</div>
+              <div class="note">2 customer drafts and 1 message-routing decision.</div>
+            </article>
+            <article class="summary-card">
+              <div class="label">Customer RFQs</div>
+              <div class="value">11</div>
+              <div class="note">Open requests waiting on clarification or pricing.</div>
+            </article>
+            <article class="summary-card">
+              <div class="label">Carrier responses</div>
+              <div class="value">6</div>
+              <div class="note">Quotes and spreadsheet replies still in play.</div>
+            </article>
+            <article class="summary-card">
+              <div class="label">Average quote time</div>
+              <div class="value">18m</div>
+              <div class="note">Down materially from manual handling.</div>
+            </article>
+          </div>
+
+          <div class="alert-bar">
+            <div class="alert-copy">
+              <strong>Urgent: Beltmann Load #4822 is waiting on missing customer information.</strong>
+              <span>The customer RFQ is complete enough to identify the lane and equipment, but commodity and weight are still missing. A clarification draft is queued for approval.</span>
+            </div>
+            <div class="button-row">
+              <button class="btn btn-primary" onclick="openApproval()">Review draft</button>
+              <button class="btn" onclick="openRfq()">Open load</button>
+            </div>
+          </div>
+
+          <div class="workspace">
+            <article class="panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <strong>Needs Review</strong>
+                  <span>Items that actually require broker judgment.</span>
+                </div>
+                <div class="count warn">3 waiting</div>
+              </div>
+              <div class="panel-body">
+                <div class="review-card" onclick="openApproval()">
+                  <div class="review-kicker">Customer clarification</div>
+                  <div class="review-title">Beltmann | Load #4822</div>
+                  <div class="review-meta">Customer RFQ missing commodity and weight.</div>
+                  <div class="review-copy">Draft follow-up is ready so the broker can request the missing details without rewriting the email by hand.</div>
+                  <div class="review-rec">Recommended action: Send the drafted clarification email.</div>
+                  <div class="button-row">
+                    <button class="btn btn-primary">Approve</button>
+                    <button class="btn">Edit</button>
+                    <button class="btn">Reject</button>
+                  </div>
+                </div>
+
+                <div class="review-card">
+                  <div class="review-kicker">Message routing</div>
+                  <div class="review-title">Carrier reply needs attachment</div>
+                  <div class="review-meta">A carrier sent a quote response in a new thread with no reply headers.</div>
+                  <div class="review-copy">The message likely belongs to Load #4815, but auto-attachment was held because the thread did not match deterministically.</div>
+                  <div class="review-rec">Recommended action: Attach this carrier response to Load #4815.</div>
+                  <div class="button-row">
+                    <button class="btn btn-primary">Attach to #4815</button>
+                    <button class="btn">Hold</button>
+                  </div>
+                </div>
+
+                <div class="review-card">
+                  <div class="review-kicker">Customer pricing release</div>
+                  <div class="review-title">Acme | Load #4810</div>
+                  <div class="review-meta">Carrier quotes have been reviewed and markup is ready.</div>
+                  <div class="review-copy">Final customer price is prepared and waiting on broker approval before sending.</div>
+                  <div class="review-rec">Recommended action: Approve outbound customer quote.</div>
+                  <div class="button-row">
+                    <button class="btn btn-primary">Review quote</button>
+                    <button class="btn">Hold</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <strong>Active RFQs</strong>
+                  <span>Loads in motion across customer intake, carrier bidding, and broker review.</span>
+                </div>
+                <div class="count">17 active</div>
+              </div>
+              <div class="panel-body">
+                <div class="toolbar">
+                  <div class="filters">
+                    <button class="filter active">All</button>
+                    <button class="filter">Customer intake</button>
+                    <button class="filter">Waiting on carriers</button>
+                    <button class="filter">Broker review</button>
+                  </div>
+                  <div class="search">
+                    <input type="text" placeholder="Search customer, lane, or load" />
+                  </div>
+                </div>
+
+                <div class="rfq-list">
+                  <div class="rfq-row-card" onclick="openRfq()">
+                    <div>
+                      <div class="rfq-id">Load #4822</div>
+                      <div class="rfq-customer">Beltmann customer RFQ</div>
+                    </div>
+                    <div>
+                      <div class="route-title">Dallas, TX to Atlanta, GA</div>
+                      <div class="route-meta">3 flatbeds | Pickup Apr 10 | Customer info incomplete</div>
+                    </div>
+                    <div class="rfq-status">
+                      <div class="state clarify">Needs clarification</div>
+                      <div class="next-step">Next: Ask customer for missing commodity and weight</div>
+                    </div>
+                  </div>
+
+                  <div class="rfq-row-card">
+                    <div>
+                      <div class="rfq-id">Load #4815</div>
+                      <div class="rfq-customer">Acme customer RFQ</div>
+                    </div>
+                    <div>
+                      <div class="route-title">Houston, TX to Nashville, TN</div>
+                      <div class="route-meta">4 vans | 12 carriers contacted | Carrier reply pending attach</div>
+                    </div>
+                    <div class="rfq-status">
+                      <div class="state waiting">Waiting on carriers</div>
+                      <div class="next-step">Next: Attach latest carrier response and compare bids</div>
+                    </div>
+                  </div>
+
+                  <div class="rfq-row-card">
+                    <div>
+                      <div class="rfq-id">Load #4810</div>
+                      <div class="rfq-customer">Acme customer RFQ</div>
+                    </div>
+                    <div>
+                      <div class="route-title">Chicago, IL to Memphis, TN</div>
+                      <div class="route-meta">2 reefers | 5 carrier quotes received | Markup prepared</div>
+                    </div>
+                    <div class="rfq-status">
+                      <div class="state review">Broker review</div>
+                      <div class="next-step">Next: Approve final customer quote</div>
+                    </div>
+                  </div>
+
+                  <div class="rfq-row-card">
+                    <div>
+                      <div class="rfq-id">Load #4808</div>
+                      <div class="rfq-customer">Beltmann customer RFQ</div>
+                    </div>
+                    <div>
+                      <div class="route-title">Phoenix, AZ to Denver, CO</div>
+                      <div class="route-meta">1 van | Clean intake | Ready for carrier outreach</div>
+                    </div>
+                    <div class="rfq-status">
+                      <div class="state ready">Ready to send</div>
+                      <div class="next-step">Next: Release carrier RFQ sheet</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <strong>Recent Activity</strong>
+                  <span>High-signal events from customers and carriers.</span>
+                </div>
+                <div class="count">Live</div>
+              </div>
+              <div class="panel-body">
+                <div class="feed-item">
+                  <div class="feed-top"><span>10:42</span><span>Customer follow-up drafted</span></div>
+                  <span>Clarification email prepared for Beltmann Load #4822 requesting commodity, weight, and tarping confirmation.</span>
+                </div>
+                <div class="feed-item">
+                  <div class="feed-top"><span>10:35</span><span>Carrier response received</span></div>
+                  <span>New carrier quote email arrived for the Houston to Nashville lane but did not match an existing thread cleanly.</span>
+                </div>
+                <div class="feed-item">
+                  <div class="feed-top"><span>10:28</span><span>Quote package prepared</span></div>
+                  <span>Customer pricing package for Acme Load #4810 is ready for broker approval after carrier comparison and markup.</span>
+                </div>
+
+                <div class="schedule">
+                  <div class="schedule-row"><strong>In 1h</strong><span>Nudge non-responsive carriers on Load #4815</span></div>
+                  <div class="schedule-row"><strong>In 2h</strong><span>Follow up with Beltmann customer if Load #4822 stays incomplete</span></div>
+                  <div class="schedule-row"><strong>Today 5pm</strong><span>Send daily broker summary to Jillian</span></div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="inbox" class="page">
+          <div class="table-shell">
+            <div class="table-header">
+              <div class="table-title">
+                <strong>Inbox Routing</strong>
+                <span>One broker inbox with inbound from customers and carriers. The system decides whether the message creates work, updates an RFQ, or needs human review.</span>
+              </div>
+            </div>
+            <div class="table">
+              <div class="table-row" onclick="openRfq()">
+                <div class="icon">C</div>
+                <div>
+                  <div class="route-title">Customer | Tom at Beltmann client account</div>
+                  <div class="route-meta">10:14 AM | New RFQ email</div>
+                </div>
+                <div>
+                  <div class="route-title">Dallas to Atlanta project for next Tuesday</div>
+                  <div class="route-meta">Created Load #4822 with route, equipment, count, and missing-info flag.</div>
+                </div>
+                <div class="route-badge new">New RFQ</div>
+              </div>
+
+              <div class="table-row">
+                <div class="icon">K</div>
+                <div>
+                  <div class="route-title">Carrier | Southern Fleet</div>
+                  <div class="route-meta">10:35 AM | Quote reply in new thread</div>
+                </div>
+                <div>
+                  <div class="route-title">Rate for Houston to Nashville</div>
+                  <div class="route-meta">Likely belongs to Load #4815 but thread metadata did not match deterministically.</div>
+                </div>
+                <div class="route-badge review">Needs review</div>
+              </div>
+
+              <div class="table-row">
+                <div class="icon">C</div>
+                <div>
+                  <div class="route-title">Customer | Acme Corp</div>
+                  <div class="route-meta">10:41 AM | Clarification response</div>
+                </div>
+                <div>
+                  <div class="route-title">Added appointment details for Chicago to Memphis</div>
+                  <div class="route-meta">Attached automatically to Load #4810 and advanced the RFQ for final pricing review.</div>
+                </div>
+                <div class="route-badge attached">Attached</div>
+              </div>
+
+              <div class="table-row">
+                <div class="icon">K</div>
+                <div>
+                  <div class="route-title">Carrier | Blue Ridge Transport</div>
+                  <div class="route-meta">10:49 AM | Spreadsheet attachment</div>
+                </div>
+                <div>
+                  <div class="route-title">Carrier bid returned for Phoenix to Denver</div>
+                  <div class="route-meta">Attached to Load #4808 and stored as a carrier quote record.</div>
+                </div>
+                <div class="route-badge attached">Attached</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="rfqs" class="page">
+          <div class="stats-grid">
+            <article class="summary-card">
+              <div class="label">Open RFQs</div>
+              <div class="value">17</div>
+              <div class="note">11 customer-driven and 6 in carrier-response stages.</div>
+            </article>
+            <article class="summary-card">
+              <div class="label">Waiting on carriers</div>
+              <div class="value">6</div>
+              <div class="note">Next follow-up in 58 minutes.</div>
+            </article>
+            <article class="summary-card">
+              <div class="label">Ready for customer quote</div>
+              <div class="value">2</div>
+              <div class="note">Carrier bids compared and markup prepared.</div>
+            </article>
+            <article class="summary-card">
+              <div class="label">Stalled</div>
+              <div class="value">1</div>
+              <div class="note">Waiting on customer clarification.</div>
+            </article>
+          </div>
+
+          <div class="table-shell">
+            <div class="table-header">
+              <div class="table-title">
+                <strong>RFQ Index</strong>
+                <span>Scan every lane by stage, inbound source, and next broker action.</span>
+              </div>
+            </div>
+            <div class="table">
+              <div class="table-row" onclick="openRfq()">
+                <div>
+                  <div class="route-title">#4822</div>
+                  <div class="route-meta">Customer RFQ</div>
+                </div>
+                <div>
+                  <div class="route-title">Dallas, TX to Atlanta, GA</div>
+                  <div class="route-meta">3 flatbeds | Intake incomplete</div>
+                </div>
+                <div class="route-badge review">Needs clarification</div>
+                <div class="route-meta">Next: Ask customer for commodity and weight</div>
+              </div>
+
+              <div class="table-row">
+                <div>
+                  <div class="route-title">#4815</div>
+                  <div class="route-meta">Carrier bidding</div>
+                </div>
+                <div>
+                  <div class="route-title">Houston, TX to Nashville, TN</div>
+                  <div class="route-meta">4 vans | Carrier response pending attach</div>
+                </div>
+                <div class="route-badge new">Waiting on carriers</div>
+                <div class="route-meta">Next: Attach carrier quote and compare bids</div>
+              </div>
+
+              <div class="table-row">
+                <div>
+                  <div class="route-title">#4810</div>
+                  <div class="route-meta">Final pricing</div>
+                </div>
+                <div>
+                  <div class="route-title">Chicago, IL to Memphis, TN</div>
+                  <div class="route-meta">2 reefers | 5 carrier quotes received</div>
+                </div>
+                <div class="route-badge attached">Ready for customer quote</div>
+                <div class="route-meta">Next: Approve outbound customer price</div>
+              </div>
+
+              <div class="table-row">
+                <div>
+                  <div class="route-title">#4808</div>
+                  <div class="route-meta">Carrier outreach</div>
+                </div>
+                <div>
+                  <div class="route-title">Phoenix, AZ to Denver, CO</div>
+                  <div class="route-meta">1 van | Clean intake | First carrier bids arriving</div>
+                </div>
+                <div class="route-badge new">Waiting on carriers</div>
+                <div class="route-meta">Next: Continue collecting bids</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="history" class="page">
+          <div class="stats-grid">
+            <article class="summary-card">
+              <div class="label">Completed today</div>
+              <div class="value">12</div>
+              <div class="note">Closed brokered loads and delivered quotes.</div>
+            </article>
+            <article class="summary-card">
+              <div class="label">Average time to quote</div>
+              <div class="value">18m</div>
+              <div class="note">Down 4h 12m versus manual handling.</div>
+            </article>
+            <article class="summary-card">
+              <div class="label">Approvals this week</div>
+              <div class="value">147</div>
+              <div class="note">Average clearance time: 42 seconds.</div>
+            </article>
+            <article class="summary-card">
+              <div class="label">Estimated time saved</div>
+              <div class="value">28h</div>
+              <div class="note">Visible proof of value for the brokerage team.</div>
+            </article>
+          </div>
+
+          <div class="table-shell">
+            <div class="table-header">
+              <div class="table-title">
+                <strong>History</strong>
+                <span>Closed RFQs and outcome records for broker reporting and customer follow-up.</span>
+              </div>
+            </div>
+            <div class="table">
+              <div class="table-row">
+                <div>
+                  <div class="route-title">#4780</div>
+                  <div class="route-meta">Customer quote won</div>
+                </div>
+                <div>
+                  <div class="route-title">Dallas, TX to Houston, TX</div>
+                  <div class="route-meta">2 flatbeds | Same-day turnaround</div>
+                </div>
+                <div class="route-badge attached">Won | $3,240</div>
+                <div class="route-meta">Closed today 9:12 AM</div>
+              </div>
+
+              <div class="table-row">
+                <div>
+                  <div class="route-title">#4774</div>
+                  <div class="route-meta">Customer quote lost</div>
+                </div>
+                <div>
+                  <div class="route-title">Milwaukee, WI to Minneapolis, MN</div>
+                  <div class="route-meta">1 van | Lost to competitor response</div>
+                </div>
+                <div class="route-badge review">Lost</div>
+                <div class="route-meta">Closed yesterday 5:22 PM</div>
+              </div>
+
+              <div class="table-row">
+                <div>
+                  <div class="route-title">#4764</div>
+                  <div class="route-meta">Customer canceled</div>
+                </div>
+                <div>
+                  <div class="route-title">Salt Lake City, UT to Boise, ID</div>
+                  <div class="route-meta">1 flatbed | Canceled after clarification</div>
+                </div>
+                <div class="route-badge new">Canceled</div>
+                <div class="route-meta">Closed yesterday 11:15 AM</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="settings" class="page">
+          <div class="settings-grid">
+            <article class="settings-card">
+              <strong>Workflow controls</strong>
+              <p>Control what the broker inbox can do automatically across both customer and carrier communications.</p>
+
+              <div class="settings-item">
+                <div class="settings-copy">
+                  <strong>Customer RFQ intake</strong>
+                  <span>Reads customer requests, extracts lane data, and drafts clarification emails.</span>
+                </div>
+                <button class="toggle on" onclick="this.classList.toggle('on')"></button>
+              </div>
+
+              <div class="settings-item">
+                <div class="settings-copy">
+                  <strong>Carrier response parsing</strong>
+                  <span>Reads carrier emails and spreadsheet replies and attaches bids to active RFQs.</span>
+                </div>
+                <button class="toggle on" onclick="this.classList.toggle('on')"></button>
+              </div>
+
+              <div class="settings-item">
+                <div class="settings-copy">
+                  <strong>Carrier follow-ups</strong>
+                  <span>Queues nudges for non-responsive carriers after the configured wait window.</span>
+                </div>
+                <button class="toggle on" onclick="this.classList.toggle('on')"></button>
+              </div>
+            </article>
+
+            <article class="settings-card">
+              <strong>Approval policy</strong>
+              <p>Make it obvious what can run automatically and what always stops for broker review.</p>
+
+              <div class="settings-item">
+                <div class="settings-copy">
+                  <strong>Customer replies require approval</strong>
+                  <span>Drafts are prepared but never sent without broker review.</span>
+                </div>
+                <button class="toggle on" onclick="this.classList.toggle('on')"></button>
+              </div>
+
+              <div class="settings-item">
+                <div class="settings-copy">
+                  <strong>Carrier RFQs require approval</strong>
+                  <span>The broker confirms outbound carrier outreach before any send occurs.</span>
+                </div>
+                <button class="toggle on" onclick="this.classList.toggle('on')"></button>
+              </div>
+
+              <div class="settings-item">
+                <div class="settings-copy">
+                  <strong>Field extraction runs automatically</strong>
+                  <span>Read-only extraction can proceed without creating outbound action.</span>
+                </div>
+                <button class="toggle on" onclick="this.classList.toggle('on')"></button>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="rfq-modal" class="overlay" onclick="overlayClose(event, 'rfq-modal')">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">
+          <div class="kicker">RFQ detail</div>
+          <strong>Load #4822 | Beltmann customer RFQ</strong>
+          <span>This RFQ originated from a customer email and is waiting on additional details before carrier outreach.</span>
+        </div>
+        <button class="close" onclick="closeModal('rfq-modal')">X</button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-grid">
+          <section class="detail-card">
+            <h3>Summary</h3>
+            <dl class="summary-grid">
+              <dt>Route</dt><dd>Dallas, TX to Atlanta, GA</dd>
+              <dt>Equipment</dt><dd>3 flatbeds</dd>
+              <dt>Pickup</dt><dd>April 10, 2026 at 8:00 AM</dd>
+              <dt>Delivery</dt><dd>April 11, 2026</dd>
+              <dt>Customer</dt><dd>Beltmann client account contact: Tom</dd>
+              <dt>Special</dt><dd>Tarping likely, commodity and weight still missing</dd>
+            </dl>
+          </section>
+
+          <section class="detail-card">
+            <h3>Current status</h3>
+            <div class="status-list">
+              <div class="status-row">
+                <strong>State</strong>
+                <span class="state clarify">Needs clarification</span>
+              </div>
+              <div class="status-row">
+                <strong>Why</strong>
+                <span>The customer RFQ is missing commodity and weight.</span>
+              </div>
+              <div class="status-row">
+                <strong>Missing</strong>
+                <span>Commodity, weight, and tarping confirmation.</span>
+              </div>
+              <div class="status-row">
+                <strong>Recommended next action</strong>
+                <span>Send the drafted customer clarification email.</span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="message-card">
+          <h3>Messages</h3>
+          <div class="message-block inbound">
+            <div class="message-head">Customer inbound | 10:14 AM | Tom</div>
+            <div class="message-text">Can you give me a rate on 3 flatbeds Dallas to Atlanta for next Tuesday? Need them loaded by 8am.</div>
+          </div>
+          <div class="message-block outbound">
+            <div class="message-head">Draft pending broker approval</div>
+            <div class="message-text">Hi Tom,
+
+Thanks for the request. To get you an accurate rate on the 3 flatbeds Dallas to Atlanta pickup on April 10, I need to confirm:
+
+1. Commodity and weight
+2. Whether tarping is required
+3. Delivery appointment time
+
+Once I have that, I can send this lane to carriers for pricing.
+
+Jillian</div>
+          </div>
+        </section>
+
+        <section class="timeline-card">
+          <h3>Actions and history</h3>
+          <div class="timeline-row"><div class="timeline-time">10:14</div><div>Customer RFQ received in broker inbox.</div></div>
+          <div class="timeline-row"><div class="timeline-time">10:14</div><div>New RFQ created as Load #4822.</div></div>
+          <div class="timeline-row"><div class="timeline-time">10:15</div><div>Lane, equipment, count, and pickup date extracted successfully.</div></div>
+          <div class="timeline-row"><div class="timeline-time">10:15</div><div>Required intake fields missing. RFQ stopped before carrier outreach.</div></div>
+          <div class="timeline-row"><div class="timeline-time">10:16</div><div>Clarification draft prepared for broker review.</div></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div id="approval-modal" class="overlay" onclick="overlayClose(event, 'approval-modal')">
+    <div class="modal compact">
+      <div class="modal-header">
+        <div class="modal-title">
+          <div class="kicker">Approval flow</div>
+          <strong>Approve customer clarification | Load #4822</strong>
+          <span>Fast broker review before sending a clarification request back to the customer.</span>
+        </div>
+        <button class="close" onclick="closeModal('approval-modal')">X</button>
+      </div>
+      <div class="modal-body">
+        <section class="draft-card">
+          <h3>Customer said</h3>
+          <div class="draft-body">Can you give me a rate on 3 flatbeds Dallas to Atlanta for next Tuesday? Need them loaded by 8am.</div>
+        </section>
+
+        <section class="draft-card">
+          <h3>Drafted reply</h3>
+          <div class="draft-flag">Why flagged: the original RFQ is missing commodity and weight, so pricing cannot move to carriers yet.</div>
+          <div class="draft-body">Hi Tom,
+
+Thanks for the request. To get you an accurate rate on the 3 flatbeds Dallas to Atlanta pickup on April 10, I need to confirm:
+
+1. Commodity and weight
+2. Whether tarping is required
+3. Delivery appointment time
+
+Once I have that, I can send the lane to carriers for pricing.
+
+Jillian</div>
+        </section>
+
+        <div class="button-row">
+          <button class="btn btn-primary" onclick="closeModal('approval-modal')">Send as-is</button>
+          <button class="btn">Edit draft</button>
+          <button class="btn">Reject</button>
+          <button class="btn" onclick="closeModal('approval-modal')">Skip</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const navButtons = Array.from(document.querySelectorAll(".nav button"));
+  const pages = Array.from(document.querySelectorAll(".page"));
+
+  navButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const pageId = button.dataset.page;
+      navButtons.forEach((item) => item.classList.remove("active"));
+      pages.forEach((page) => page.classList.remove("active"));
+      button.classList.add("active");
+      document.getElementById(pageId).classList.add("active");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
+  function openRfq() {
+    document.getElementById("rfq-modal").classList.add("open");
+  }
+
+  function openApproval() {
+    document.getElementById("approval-modal").classList.add("open");
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove("open");
+  }
+
+  function overlayClose(event, id) {
+    if (event.target.id === id) {
+      closeModal(id);
+    }
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeModal("rfq-modal");
+      closeModal("approval-modal");
+    }
+  });
+</script>
+</body>
+</html>
