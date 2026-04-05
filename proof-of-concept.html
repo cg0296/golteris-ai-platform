@@ -83,7 +83,7 @@ a { color: var(--blue); text-decoration: none; }
 /* ============ LAYOUT SHELL ============ */
 .shell {
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: 232px 1fr;
   min-height: 100vh;
 }
 
@@ -1288,7 +1288,7 @@ a { color: var(--blue); text-decoration: none; }
   position: relative;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 2rem;
   align-items: center;
 }
@@ -1299,7 +1299,7 @@ a { color: var(--blue); text-decoration: none; }
   background-image: radial-gradient(circle at 90% 50%, rgba(30,142,62,0.25) 0%, transparent 55%);
   pointer-events: none;
 }
-.agent-hero-left { position: relative; z-index: 1; }
+.agent-hero-left { position: relative; z-index: 1; min-width: 0; }
 .agent-hero h1 {
   font-size: 1.45rem;
   font-weight: 700;
@@ -1308,6 +1308,7 @@ a { color: var(--blue); text-decoration: none; }
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  flex-wrap: wrap;
 }
 .agent-hero h1 .agent-live {
   display: inline-flex;
@@ -1361,7 +1362,6 @@ a { color: var(--blue); text-decoration: none; }
 .agent-ctrl.stop:hover { background: #B01E15; border-color: #B01E15; }
 .agent-ctrl svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2.5; fill: none; }
 
-/* Agent sub-tabs */
 .subtabs {
   display: flex;
   gap: 0;
@@ -1399,21 +1399,18 @@ a { color: var(--blue); text-decoration: none; }
   border-radius: 10px;
 }
 .subtab.active .subtab-count { background: var(--blue-soft); color: var(--blue-dark); }
-
 .subpanel { display: none; }
 .subpanel.active { display: block; animation: page-in 0.3s ease-out; }
 
-/* Agent KPIs (cost, tokens) */
 .agent-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
-@media (max-width: 1200px) { .agent-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 768px)  { .agent-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1200px) { .agent-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 768px)  { .agent-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-/* Decision timeline */
 .decision-card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -1426,7 +1423,7 @@ a { color: var(--blue); text-decoration: none; }
 .decision-head {
   padding: 0.95rem 1.25rem;
   display: grid;
-  grid-template-columns: 36px 1fr auto auto;
+  grid-template-columns: 36px minmax(0, 1fr) auto auto;
   gap: 0.85rem;
   align-items: center;
   cursor: pointer;
@@ -1446,35 +1443,12 @@ a { color: var(--blue); text-decoration: none; }
 .decision-icon.green  { background: var(--green-soft);  color: var(--green); }
 .decision-icon.purple { background: var(--purple-soft); color: var(--purple); }
 .decision-icon.amber  { background: var(--amber-soft);  color: var(--amber); }
-
-.decision-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 0.2rem;
-}
-.decision-sub {
-  font-size: 0.75rem;
-  color: var(--text-3);
-}
+.decision-title { font-size: 0.9rem; font-weight: 600; color: var(--text); margin-bottom: 0.2rem; }
+.decision-sub { font-size: 0.75rem; color: var(--text-3); }
 .decision-sub strong { color: var(--blue); font-weight: 600; }
-.decision-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.15rem;
-}
-.decision-tokens {
-  font-size: 0.72rem;
-  color: var(--text-3);
-  font-variant-numeric: tabular-nums;
-}
-.decision-cost {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
+.decision-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; }
+.decision-tokens { font-size: 0.72rem; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.decision-cost { font-size: 0.82rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 .decision-toggle {
   width: 28px;
   height: 28px;
@@ -1492,7 +1466,6 @@ a { color: var(--blue); text-decoration: none; }
   padding: 0 1.25rem 1.25rem 4.2rem;
   border-top: 1px solid var(--border);
   padding-top: 1.1rem;
-  margin-top: 0;
 }
 .decision-card.expanded .decision-body { display: block; }
 .decision-body h4 {
@@ -1515,23 +1488,16 @@ a { color: var(--blue); text-decoration: none; }
   line-height: 1.55;
   white-space: pre-wrap;
   overflow-x: auto;
+  max-width: 100%;
 }
 .code-block .c-system { color: #94a3b8; }
 .code-block .c-key { color: #38bdf8; font-weight: 600; }
 .code-block .c-str { color: #a3e635; }
 .code-block .c-num { color: #fbbf24; }
-.decision-result {
-  background: var(--green-soft);
-  color: var(--green);
-  padding: 0.7rem 0.95rem;
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-weight: 500;
-}
+.decision-result { background: var(--green-soft); color: var(--green); padding: 0.7rem 0.95rem; border-radius: 8px; font-size: 0.82rem; font-weight: 500; }
 .decision-result.warn { background: var(--amber-soft); color: #92660b; }
 .decision-result.red  { background: var(--red-soft);   color: var(--red); }
 
-/* Tasks (todos) */
 .task-card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -1539,15 +1505,14 @@ a { color: var(--blue); text-decoration: none; }
   padding: 0.95rem 1.2rem;
   margin-bottom: 0.6rem;
   display: grid;
-  grid-template-columns: 22px 1fr auto;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
   gap: 0.85rem;
   align-items: center;
   transition: all 0.15s;
 }
 .task-card:hover { border-color: var(--border-hi); }
 .task-check {
-  width: 20px;
-  height: 20px;
+  width: 20px; height: 20px;
   border: 2px solid var(--border-hi);
   border-radius: 50%;
   cursor: pointer;
@@ -1566,32 +1531,15 @@ a { color: var(--blue); text-decoration: none; }
   border-bottom: 2px solid #fff;
   transform: rotate(-45deg) translate(1px,-1px);
 }
-.task-check.running {
-  background: var(--amber);
-  border-color: var(--amber);
-  animation: pulse 1.5s infinite;
-}
-.task-text h4 {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 0.2rem;
-}
+.task-check.running { background: var(--amber); border-color: var(--amber); animation: pulse 1.5s infinite; }
+.task-text h4 { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 0.2rem; }
 .task-card.done .task-text h4 { color: var(--text-3); text-decoration: line-through; }
 .task-text p { font-size: 0.76rem; color: var(--text-3); }
-.task-pill {
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.3rem 0.6rem;
-  border-radius: 12px;
-}
+.task-pill { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.3rem 0.6rem; border-radius: 12px; }
 .task-pill.running { background: var(--amber-soft); color: #92660b; }
 .task-pill.queued  { background: var(--bg-2); color: var(--text-2); }
 .task-pill.done    { background: var(--green-soft); color: var(--green); }
 
-/* Memory cards */
 .memory-card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -1603,34 +1551,15 @@ a { color: var(--blue); text-decoration: none; }
 .memory-card.facts   { border-left-color: var(--blue); }
 .memory-card.prefs   { border-left-color: var(--orange); }
 .memory-card.rules   { border-left-color: var(--amber); }
-.memory-card .mem-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.4rem;
-}
+.memory-card .mem-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; gap: 0.5rem; }
 .memory-card h4 { font-size: 0.88rem; font-weight: 700; color: var(--text); }
-.memory-card .mem-tag {
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 0.2rem 0.55rem;
-  border-radius: 10px;
-  background: var(--purple-soft);
-  color: #7029b8;
-}
+.memory-card .mem-tag { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.2rem 0.55rem; border-radius: 10px; background: var(--purple-soft); color: #7029b8; white-space: nowrap; }
 .memory-card.facts .mem-tag { background: var(--blue-soft);   color: var(--blue-dark); }
 .memory-card.prefs .mem-tag { background: var(--orange-soft); color: var(--orange-dark); }
 .memory-card.rules .mem-tag { background: var(--amber-soft);  color: #92660b; }
 .memory-card p { font-size: 0.82rem; color: var(--text-2); line-height: 1.5; }
-.memory-card .mem-source {
-  font-size: 0.7rem;
-  color: var(--text-3);
-  margin-top: 0.5rem;
-}
+.memory-card .mem-source { font-size: 0.7rem; color: var(--text-3); margin-top: 0.5rem; }
 
-/* Schedule */
 .schedule-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
 .schedule-table th { text-align: left; padding: 0.75rem 1.25rem; font-size: 0.68rem; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; background: var(--bg-2); border-bottom: 1px solid var(--border); }
 .schedule-table td { padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
@@ -1639,293 +1568,66 @@ a { color: var(--blue); text-decoration: none; }
 .schedule-job-name { font-weight: 600; color: var(--text); }
 .schedule-cron { font-family: ui-monospace, 'Consolas', monospace; font-size: 0.72rem; color: var(--text-3); margin-top: 0.15rem; }
 .schedule-next { font-size: 0.78rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.schedule-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 0.25rem 0.6rem;
-  border-radius: 12px;
-}
+.schedule-status { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.7rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 12px; }
 .schedule-status::before { content:''; width:6px;height:6px;border-radius:50%; }
 .schedule-status.running { background: var(--green-soft); color: var(--green); }
 .schedule-status.running::before { background: var(--green); }
 .schedule-status.paused  { background: var(--bg-2); color: var(--text-2); }
 .schedule-status.paused::before  { background: var(--text-3); }
 
-/* Chat / instruct interface */
-.chat-layout {
-  display: grid;
-  grid-template-columns: 1fr 320px;
-  gap: 1.25rem;
-}
-@media (max-width: 1100px) { .chat-layout { grid-template-columns: 1fr; } }
-
-.chat-wrap {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  height: 600px;
-  overflow: hidden;
-}
-.chat-head {
-  padding: 0.95rem 1.25rem;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.chat-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; }
+@media (max-width: 1100px) { .chat-layout { grid-template-columns: minmax(0, 1fr); } }
+.chat-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; height: 600px; overflow: hidden; min-width: 0; }
+.chat-head { padding: 0.95rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
 .chat-head h3 { font-size: 0.95rem; font-weight: 700; }
 .chat-messages { flex: 1; overflow-y: auto; padding: 1.25rem; }
-.chat-msg {
-  display: grid;
-  grid-template-columns: 32px 1fr;
-  gap: 0.75rem;
-  margin-bottom: 1.2rem;
-}
-.chat-msg-avatar {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.72rem;
-  flex-shrink: 0;
-}
-.chat-msg.user .chat-msg-avatar {
-  background: linear-gradient(135deg, var(--blue) 0%, var(--orange) 100%);
-  color: #fff;
-}
-.chat-msg.agent .chat-msg-avatar {
-  background: var(--navy);
-  color: var(--blue);
-}
-.chat-msg-content { padding-top: 0.2rem; }
-.chat-msg-name {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 0.25rem;
-}
+.chat-msg { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 0.75rem; margin-bottom: 1.2rem; }
+.chat-msg-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.72rem; flex-shrink: 0; }
+.chat-msg.user .chat-msg-avatar { background: linear-gradient(135deg, var(--blue) 0%, var(--orange) 100%); color: #fff; }
+.chat-msg.agent .chat-msg-avatar { background: var(--navy); color: var(--blue); }
+.chat-msg-content { padding-top: 0.2rem; min-width: 0; }
+.chat-msg-name { font-size: 0.75rem; font-weight: 700; color: var(--text); margin-bottom: 0.25rem; }
 .chat-msg-name .chat-msg-time { color: var(--text-3); font-weight: 400; margin-left: 0.5rem; }
-.chat-msg-body {
-  font-size: 0.85rem;
-  color: var(--text);
-  line-height: 1.55;
-  background: var(--bg);
-  padding: 0.8rem 1rem;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-}
+.chat-msg-body { font-size: 0.85rem; color: var(--text); line-height: 1.55; background: var(--bg); padding: 0.8rem 1rem; border-radius: 10px; border: 1px solid var(--border); }
 .chat-msg.user .chat-msg-body { background: var(--blue-soft); border-color: rgba(15,158,213,0.2); }
 .chat-msg-body strong { font-weight: 600; }
-.chat-msg-body ul { margin-left: 1.2rem; margin-top: 0.4rem; }
-.chat-msg-body li { margin-bottom: 0.25rem; }
-.chat-attach {
-  margin-top: 0.5rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--card);
-  border: 1px solid var(--border);
-  padding: 0.5rem 0.85rem;
-  border-radius: 8px;
-  font-size: 0.78rem;
-  color: var(--text);
-}
-.chat-attach .file-icon {
-  width: 24px; height: 24px;
-  background: var(--blue-soft);
-  color: var(--blue);
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+.chat-attach { margin-top: 0.5rem; display: inline-flex; align-items: center; gap: 0.5rem; background: var(--card); border: 1px solid var(--border); padding: 0.5rem 0.85rem; border-radius: 8px; font-size: 0.78rem; color: var(--text); }
+.chat-attach .file-icon { width: 24px; height: 24px; background: var(--blue-soft); color: var(--blue); border-radius: 5px; display: flex; align-items: center; justify-content: center; }
 .chat-attach .file-icon svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; fill: none; }
 .chat-attach-name { font-weight: 600; }
 .chat-attach-size { color: var(--text-3); margin-left: 0.3rem; }
-
-.chat-input-wrap {
-  padding: 0.85rem 1rem;
-  border-top: 1px solid var(--border);
-  background: var(--bg);
-}
-.chat-input-inner {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.5rem;
-  align-items: end;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 0.5rem 0.5rem 0.5rem 0.9rem;
-}
+.chat-input-wrap { padding: 0.85rem 1rem; border-top: 1px solid var(--border); background: var(--bg); }
+.chat-input-inner { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem; align-items: end; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.5rem 0.5rem 0.9rem; }
 .chat-input-inner:focus-within { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(15,158,213,0.1); }
-.chat-input-inner textarea {
-  border: none;
-  outline: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: 0.88rem;
-  color: var(--text);
-  resize: none;
-  padding: 0.45rem 0;
-  min-height: 22px;
-  max-height: 120px;
-}
+.chat-input-inner textarea { border: none; outline: none; background: transparent; font-family: inherit; font-size: 0.88rem; color: var(--text); resize: none; padding: 0.45rem 0; min-height: 22px; max-height: 120px; }
 .chat-input-inner textarea::placeholder { color: var(--text-3); }
-.chat-send {
-  background: var(--blue);
-  color: #fff;
-  border: none;
-  padding: 0.55rem 1.1rem;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 0.82rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
+.chat-send { background: var(--blue); color: #fff; border: none; padding: 0.55rem 1.1rem; border-radius: 8px; font-family: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
 .chat-send:hover { background: var(--blue-dark); }
-.chat-chips {
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-  margin-top: 0.6rem;
-}
-.chat-chip {
-  background: var(--card);
-  border: 1px solid var(--border);
-  color: var(--text-2);
-  padding: 0.35rem 0.7rem;
-  border-radius: 14px;
-  font-size: 0.72rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-}
+.chat-chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.6rem; }
+.chat-chip { background: var(--card); border: 1px solid var(--border); color: var(--text-2); padding: 0.35rem 0.7rem; border-radius: 14px; font-size: 0.72rem; font-weight: 500; cursor: pointer; transition: all 0.15s; }
 .chat-chip:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
-
-/* Chat sidebar (context panel) */
-.chat-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-.chat-side-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1rem 1.15rem;
-}
-.chat-side-card h4 {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-3);
-  margin-bottom: 0.65rem;
-}
+.chat-sidebar { display: flex; flex-direction: column; gap: 0.85rem; min-width: 0; }
+.chat-side-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.15rem; }
+.chat-side-card h4 { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 0.65rem; }
 .chat-side-card ul { list-style: none; padding: 0; }
-.chat-side-card li {
-  font-size: 0.8rem;
-  color: var(--text);
-  padding: 0.4rem 0;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.chat-side-card li { font-size: 0.8rem; color: var(--text); padding: 0.4rem 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
 .chat-side-card li:last-child { border-bottom: none; }
 .chat-side-card li .li-meta { font-size: 0.7rem; color: var(--text-3); }
 
-/* Guidance editor */
-.guidance-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.5rem 1.75rem;
-  margin-bottom: 1rem;
-}
+.guidance-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem 1.75rem; margin-bottom: 1rem; }
 .guidance-card h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; }
 .guidance-card .section-sub { color: var(--text-2); font-size: 0.84rem; margin-bottom: 1.1rem; }
-.guidance-textarea {
-  width: 100%;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1rem 1.15rem;
-  font-family: inherit;
-  font-size: 0.86rem;
-  color: var(--text);
-  line-height: 1.55;
-  resize: vertical;
-  outline: none;
-  min-height: 160px;
-}
+.guidance-textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.15rem; font-family: inherit; font-size: 0.86rem; color: var(--text); line-height: 1.55; resize: vertical; outline: none; min-height: 160px; }
 .guidance-textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(15,158,213,0.1); }
-.guidance-rules {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  margin-bottom: 1rem;
-}
-.guidance-rule {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--blue);
-  border-radius: 8px;
-  padding: 0.75rem 0.95rem;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.75rem;
-  align-items: center;
-}
-.guidance-rule .rule-text {
-  font-size: 0.85rem;
-  color: var(--text);
-}
-.guidance-rule .rule-del {
-  background: none;
-  border: none;
-  color: var(--text-3);
-  cursor: pointer;
-  font-size: 1.05rem;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  transition: all 0.15s;
-}
+.guidance-rules { display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 1rem; }
+.guidance-rule { background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--blue); border-radius: 8px; padding: 0.75rem 0.95rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; }
+.guidance-rule .rule-text { font-size: 0.85rem; color: var(--text); }
+.guidance-rule .rule-del { background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 1.05rem; width: 24px; height: 24px; border-radius: 4px; transition: all 0.15s; }
 .guidance-rule .rule-del:hover { background: var(--red-soft); color: var(--red); }
-.guidance-add {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.5rem;
-  margin-top: 0.85rem;
-}
-.guidance-add input {
-  background: var(--card);
-  border: 1px solid var(--border);
-  padding: 0.6rem 0.9rem;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 0.85rem;
-  color: var(--text);
-  outline: none;
-}
+.guidance-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem; margin-top: 0.85rem; }
+.guidance-add input { background: var(--card); border: 1px solid var(--border); padding: 0.6rem 0.9rem; border-radius: 8px; font-family: inherit; font-size: 0.85rem; color: var(--text); outline: none; min-width: 0; }
 .guidance-add input:focus { border-color: var(--blue); }
-.guidance-save-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
+.guidance-save-row { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
 
 /* ============ RESPONSIVE ============ */
 @media (max-width: 1280px) {
@@ -2050,22 +1752,10 @@ a { color: var(--blue); text-decoration: none; }
         <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
         History
       </button>
-      <button class="nav-item" onclick="showPage('agent')">
-        <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>
-        Agent
-        <span class="nav-badge" style="background:var(--green);">LIVE</span>
-      </button>
       <button class="nav-item" onclick="showPage('settings')">
         <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
         Settings
       </button>
-    </div>
-
-    <div style="padding: 0.85rem 0.85rem 0; border-top: 1px solid var(--nav-border);">
-      <a href="workflow-visual.html" style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.85rem;background:rgba(255,255,255,0.04);border:1px solid var(--nav-border);border-radius:6px;color:var(--nav-text-hi);font-size:0.78rem;font-weight:600;text-decoration:none;transition:all 0.15s;" onmouseover="this.style.background='var(--blue)';this.style.borderColor='var(--blue)';" onmouseout="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='var(--nav-border)';">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        <span>Platform Overview</span>
-      </a>
     </div>
 
     <div class="nav-footer">
@@ -2078,17 +1768,11 @@ a { color: var(--blue); text-decoration: none; }
     </div>
   </aside>
 
-  <!-- Mobile sidebar backdrop -->
-  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
-
   <!-- ============ MAIN ============ -->
   <main class="main">
 
     <!-- Top bar -->
     <div class="topbar">
-      <button class="hamburger" onclick="toggleSidebar()" aria-label="Open navigation">
-        <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
       <div class="topbar-search">
         <input type="text" placeholder="Search RFQs, shippers, carriers, or load numbers...">
       </div>
@@ -2597,743 +2281,6 @@ a { color: var(--blue); text-decoration: none; }
       </div>
     </div>
 
-    <!-- ============ AGENT ============ -->
-    <div id="agent" class="page">
-
-      <!-- Hero with controls -->
-      <div class="agent-hero">
-        <div class="agent-hero-left">
-          <h1>Golteris Agent <span class="agent-live">Running</span></h1>
-          <p>Your autonomous broker assistant is actively monitoring your mailbox and processing RFQs. Nothing runs without your approval. Every decision, prompt, and dollar is logged below.</p>
-        </div>
-        <div class="agent-hero-controls">
-          <button class="agent-ctrl" onclick="toast('Agent Paused','No new triggers will fire until resumed','warn')">
-            <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-            Pause
-          </button>
-          <button class="agent-ctrl stop" onclick="toast('Agent Stopped','All in-flight runs will finish cleanly','danger')">
-            <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-            Stop
-          </button>
-        </div>
-      </div>
-
-      <!-- Agent KPIs -->
-      <div class="agent-kpi-grid">
-        <div class="kpi">
-          <div class="kpi-top">
-            <div class="kpi-label">Tokens Today</div>
-            <div class="kpi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
-          </div>
-          <div class="kpi-value">184.2K</div>
-          <div class="kpi-sub"><span class="kpi-delta neutral">142K in</span>· 42.2K out</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-top">
-            <div class="kpi-label">Cost Today</div>
-            <div class="kpi-icon green"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-          </div>
-          <div class="kpi-value">$2.47</div>
-          <div class="kpi-sub"><span class="kpi-delta up">↓ 12%</span>vs. avg</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-top">
-            <div class="kpi-label">Actions Taken</div>
-            <div class="kpi-icon orange"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-          </div>
-          <div class="kpi-value">47</div>
-          <div class="kpi-sub">38 auto · 9 HITL</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-top">
-            <div class="kpi-label">Cost This Month</div>
-            <div class="kpi-icon amber"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
-          </div>
-          <div class="kpi-value">$41.82</div>
-          <div class="kpi-sub"><span class="kpi-delta up">↓ 8%</span>budget: $200</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi-top">
-            <div class="kpi-label">Avg Latency</div>
-            <div class="kpi-icon purple"><svg viewBox="0 0 24 24"><path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 4v4l3 3"/></svg></div>
-          </div>
-          <div class="kpi-value">1.8s</div>
-          <div class="kpi-sub">Per decision</div>
-        </div>
-      </div>
-
-      <!-- Sub-tabs -->
-      <div class="subtabs">
-        <button class="subtab active" onclick="showSubtab('agent-overview')">Decisions <span class="subtab-count">47</span></button>
-        <button class="subtab" onclick="showSubtab('agent-tasks')">Tasks <span class="subtab-count">6</span></button>
-        <button class="subtab" onclick="showSubtab('agent-memory')">Memory <span class="subtab-count">12</span></button>
-        <button class="subtab" onclick="showSubtab('agent-schedule')">Schedule <span class="subtab-count">5</span></button>
-        <button class="subtab" onclick="showSubtab('agent-chat')">Chat &amp; Instruct</button>
-        <button class="subtab" onclick="showSubtab('agent-guidance')">Guidance</button>
-        <button class="subtab" onclick="showSubtab('agent-controls')">Controls</button>
-      </div>
-
-      <!-- ============ SUBPANEL: DECISIONS ============ -->
-      <div id="agent-overview" class="subpanel active">
-
-        <div class="decision-card expanded" onclick="toggleDecision(this,event)">
-          <div class="decision-head">
-            <div class="decision-icon orange"><svg viewBox="0 0 24 24"><path d="M11 5h10M11 12h10M11 19h10M3 5h3v3H3zM3 12h3v3H3zM3 19h3v3H3z"/></svg></div>
-            <div>
-              <div class="decision-title">Drafted customer reply · Load #4822 — Horizon Manufacturing</div>
-              <div class="decision-sub"><strong>draft_reply</strong> · extraction flagged destination · 14:28</div>
-            </div>
-            <div class="decision-meta">
-              <div class="decision-tokens">3,247 tokens</div>
-              <div class="decision-cost">$0.048</div>
-            </div>
-            <div class="decision-toggle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
-          </div>
-          <div class="decision-body">
-            <h4>Trigger</h4>
-            <div class="decision-result warn">Extraction agent flagged destination confidence 84% on "ATL area" → Atlanta, GA</div>
-
-            <h4>Prompt Used (system)</h4>
-            <div class="code-block"><span class="c-system">You are a freight brokerage assistant at Beltmann Logistics.</span>
-<span class="c-system">Your job is to draft a clarifying email back to a shipper when</span>
-<span class="c-system">key RFQ details are missing or ambiguous.</span>
-
-<span class="c-key">Style guide:</span>
-  - Sign as "Jillian"
-  - Reference shipper by first name if known
-  - Keep under 150 words
-  - Number multiple questions
-  - End with a forward-looking close
-
-<span class="c-key">Required confirmations:</span> destination, commodity, weight, tarping
-<span class="c-key">Context:</span> shipper=<span class="c-str">"Sarah @ Horizon Mfg"</span>, origin=<span class="c-str">"Dallas, TX"</span>,
-           dest_raw=<span class="c-str">"ATL area"</span>, dest_inferred=<span class="c-str">"Atlanta, GA"</span>,
-           confidence=<span class="c-num">0.84</span></div>
-
-            <h4>Model &amp; Cost</h4>
-            <div class="code-block">model:           claude-sonnet-4-6
-input tokens:    2,184
-output tokens:   1,063
-total tokens:    3,247
-cost:            $0.048 USD  ($0.015 in + $0.033 out)
-latency:         1.94s</div>
-
-            <h4>Action Taken</h4>
-            <div class="decision-result">✓ Drafted clarification email, flagged for human approval, queued in "Needs Review"</div>
-          </div>
-        </div>
-
-        <div class="decision-card" onclick="toggleDecision(this,event)">
-          <div class="decision-head">
-            <div class="decision-icon purple"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
-            <div>
-              <div class="decision-title">Extracted RFQ fields · Load #4822 — Horizon Manufacturing</div>
-              <div class="decision-sub"><strong>extract_rfq</strong> · from inbound email · 14:18</div>
-            </div>
-            <div class="decision-meta">
-              <div class="decision-tokens">4,812 tokens</div>
-              <div class="decision-cost">$0.072</div>
-            </div>
-            <div class="decision-toggle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
-          </div>
-          <div class="decision-body">
-            <h4>Trigger</h4>
-            <div class="decision-result">New inbound email from sarah@horizon-mfg.com at 14:14</div>
-
-            <h4>Prompt Used (system)</h4>
-            <div class="code-block"><span class="c-system">Extract freight RFQ fields from this email.</span>
-<span class="c-system">Return structured JSON with these fields:</span>
-  <span class="c-key">origin</span>, <span class="c-key">destination</span>, <span class="c-key">equipment_type</span>, <span class="c-key">truck_count</span>,
-  <span class="c-key">pickup_date</span>, <span class="c-key">delivery_date</span>, <span class="c-key">commodity</span>, <span class="c-key">weight_lbs</span>,
-  <span class="c-key">special_requirements</span>, <span class="c-key">contact_name</span>, <span class="c-key">contact_email</span>
-
-<span class="c-system">For each field, also return confidence (0-1).</span>
-<span class="c-system">Flag anything below 0.9 for human review.</span></div>
-
-            <h4>Extracted Data</h4>
-            <div class="code-block">{
-  <span class="c-key">"origin"</span>:           <span class="c-str">"Dallas, TX"</span>         <span class="c-system">// conf 0.98</span>
-  <span class="c-key">"destination"</span>:      <span class="c-str">"Atlanta, GA"</span>        <span class="c-system">// conf 0.84 ⚠</span>
-  <span class="c-key">"equipment_type"</span>:   <span class="c-str">"flatbed"</span>            <span class="c-system">// conf 0.96</span>
-  <span class="c-key">"truck_count"</span>:      <span class="c-num">3</span>                     <span class="c-system">// conf 0.99</span>
-  <span class="c-key">"commodity"</span>:        <span class="c-str">"steel coils"</span>        <span class="c-system">// conf 0.92</span>
-  <span class="c-key">"pickup_date"</span>:      <span class="c-str">"2026-04-10"</span>         <span class="c-system">// conf 0.88</span>
-}</div>
-
-            <h4>Model &amp; Cost</h4>
-            <div class="code-block">model:         claude-sonnet-4-6
-input tokens:  3,921
-output tokens: 891
-cost:          $0.072 USD
-latency:       2.11s</div>
-
-            <h4>Action Taken</h4>
-            <div class="decision-result">✓ Created RFQ #4822, wrote to database, enqueued validation agent</div>
-          </div>
-        </div>
-
-        <div class="decision-card" onclick="toggleDecision(this,event)">
-          <div class="decision-head">
-            <div class="decision-icon green"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
-            <div>
-              <div class="decision-title">Classified inbound email as carrier quote</div>
-              <div class="decision-sub"><strong>classify_inbound</strong> · Johnson Trucking → RFQ #4810 · 14:08</div>
-            </div>
-            <div class="decision-meta">
-              <div class="decision-tokens">1,342 tokens</div>
-              <div class="decision-cost">$0.018</div>
-            </div>
-            <div class="decision-toggle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
-          </div>
-          <div class="decision-body">
-            <h4>Input</h4>
-            <div class="code-block">From:    dispatch@johnsontrucking.com
-Subject: Quote: Chicago → Memphis reefer × 2 — $2,840 all-in
-Body:    "We can do $2,840 for the reefer load..."</div>
-            <h4>Classification</h4>
-            <div class="code-block">type:        carrier_quote_response
-rfq_match:   <span class="c-key">#4810</span> (conf 0.97)
-rate:        <span class="c-num">$2840</span>
-carrier:     <span class="c-str">"Johnson Trucking"</span>
-terms:       <span class="c-str">"all-in"</span></div>
-            <h4>Action Taken</h4>
-            <div class="decision-result">✓ Attached to RFQ #4810, added to quote comparison table</div>
-          </div>
-        </div>
-
-        <div class="decision-card" onclick="toggleDecision(this,event)">
-          <div class="decision-head">
-            <div class="decision-icon"><svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
-            <div>
-              <div class="decision-title">Sent carrier RFQ to 12 carriers · Load #4815</div>
-              <div class="decision-sub"><strong>send_carrier_rfq</strong> · approved by Jillian · 13:54</div>
-            </div>
-            <div class="decision-meta">
-              <div class="decision-tokens">2,108 tokens</div>
-              <div class="decision-cost">$0.031</div>
-            </div>
-            <div class="decision-toggle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
-          </div>
-          <div class="decision-body">
-            <h4>Trigger</h4>
-            <div class="decision-result">Human approval received from jillian@beltmann.com at 13:53:58</div>
-            <h4>Action Taken</h4>
-            <div class="decision-result">✓ Email sent to 12 preferred flatbed carriers · delivery confirmed · timer set for 3h nudge</div>
-          </div>
-        </div>
-
-        <div class="decision-card" onclick="toggleDecision(this,event)">
-          <div class="decision-head">
-            <div class="decision-icon amber"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div>
-            <div>
-              <div class="decision-title">Flagged low-confidence extraction · Load #4822</div>
-              <div class="decision-sub"><strong>escalate_hitl</strong> · destination confidence below 90% · 13:48</div>
-            </div>
-            <div class="decision-meta">
-              <div class="decision-tokens">892 tokens</div>
-              <div class="decision-cost">$0.011</div>
-            </div>
-            <div class="decision-toggle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>
-          </div>
-          <div class="decision-body">
-            <h4>Trigger</h4>
-            <div class="decision-result warn">"ATL area" mapped to Atlanta, GA with 0.84 confidence — below threshold 0.90</div>
-            <h4>Action Taken</h4>
-            <div class="decision-result">✓ Paused workflow, created review card in "Needs Review" queue</div>
-          </div>
-        </div>
-
-        <div style="text-align:center;padding:1.25rem 0;">
-          <button class="btn" onclick="toast('Load more','Would load 42 more decision logs','info')">Load 42 more decisions</button>
-        </div>
-      </div>
-
-      <!-- ============ SUBPANEL: TASKS ============ -->
-      <div id="agent-tasks" class="subpanel">
-        <div style="margin-bottom:1rem;">
-          <p style="color:var(--text-2);font-size:0.88rem;">Tasks the agent is working on right now, queued for later, or has completed. You can reorder priorities or cancel anything at any time.</p>
-        </div>
-
-        <div class="task-card">
-          <div class="task-check running"></div>
-          <div class="task-text">
-            <h4>Extract fields from 3 new shipper emails</h4>
-            <p>Horizon Mfg · Atlas Steel · Acme Corp — running extraction agent in parallel</p>
-          </div>
-          <span class="task-pill running">Running</span>
-        </div>
-
-        <div class="task-card">
-          <div class="task-check"></div>
-          <div class="task-text">
-            <h4>Nudge 12 carriers on Load #4815</h4>
-            <p>No responses after 3h · drafting reminder email</p>
-          </div>
-          <span class="task-pill queued">Queued · in 42m</span>
-        </div>
-
-        <div class="task-card">
-          <div class="task-check"></div>
-          <div class="task-text">
-            <h4>Compare 5 carrier quotes on Load #4810</h4>
-            <p>Pending broker review of quote selection</p>
-          </div>
-          <span class="task-pill queued">Waiting · HITL</span>
-        </div>
-
-        <div class="task-card">
-          <div class="task-check"></div>
-          <div class="task-text">
-            <h4>Generate end-of-day summary for Jillian</h4>
-            <p>Scheduled for 17:00 CDT · 2h 18m from now</p>
-          </div>
-          <span class="task-pill queued">Scheduled</span>
-        </div>
-
-        <div class="task-card done">
-          <div class="task-check done"></div>
-          <div class="task-text">
-            <h4>Send carrier RFQ to 12 carriers · Load #4815</h4>
-            <p>Approved 13:54 · Delivered 13:54:32</p>
-          </div>
-          <span class="task-pill done">Done</span>
-        </div>
-
-        <div class="task-card done">
-          <div class="task-check done"></div>
-          <div class="task-text">
-            <h4>Route 8 inbound messages</h4>
-            <p>4 shipper · 4 carrier · 0 needs review · 0 ignored</p>
-          </div>
-          <span class="task-pill done">Done</span>
-        </div>
-      </div>
-
-      <!-- ============ SUBPANEL: MEMORY ============ -->
-      <div id="agent-memory" class="subpanel">
-        <div style="margin-bottom:1rem;">
-          <p style="color:var(--text-2);font-size:0.88rem;">What the agent knows about your business, your preferences, and your customers. These memories persist across every conversation and decision.</p>
-        </div>
-
-        <div class="memory-card facts">
-          <div class="mem-head">
-            <h4>Beltmann Logistics</h4>
-            <span class="mem-tag">Organization</span>
-          </div>
-          <p>Freight brokerage based in Dallas, TX. Operates primarily on flatbed, reefer, and dry van loads. Primary shippers: Horizon Manufacturing, Atlas Steel, Acme Corp, Heartland Industries, Pacific Foods. Preferred carrier list: 84 active carriers.</p>
-          <div class="mem-source">Learned from settings · Updated 3d ago</div>
-        </div>
-
-        <div class="memory-card prefs">
-          <div class="mem-head">
-            <h4>Jillian's writing style</h4>
-            <span class="mem-tag">Preference</span>
-          </div>
-          <p>Signs emails as "Jillian" (not "Jillian S." or "Jillian Smith"). Uses numbered lists for clarification questions. Keeps emails under 150 words. Addresses shippers by first name. Always ends with forward-looking close ("I'll have carriers lined up...").</p>
-          <div class="mem-source">Learned from 47 approved drafts · Updated 2h ago</div>
-        </div>
-
-        <div class="memory-card rules">
-          <div class="mem-head">
-            <h4>Horizon Manufacturing — special handling</h4>
-            <span class="mem-tag">Rule</span>
-          </div>
-          <p>Tom (primary contact) prefers rate quotes broken into linehaul + fuel surcharge. Sarah (secondary contact) sends "ATL area" loads that always mean Atlanta, GA. Horizon pays net-30 and requires BOL within 24h of delivery.</p>
-          <div class="mem-source">Learned from 12 completed RFQs · Set manually by Jillian</div>
-        </div>
-
-        <div class="memory-card facts">
-          <div class="mem-head">
-            <h4>Carrier quote format</h4>
-            <span class="mem-tag">Pattern</span>
-          </div>
-          <p>Carriers typically respond with format: "$X,XXX all-in" or "$X,XXX + FSC". Rate should be extracted as number, terms as string. Johnson Trucking always quotes in increments of $20. CoolFreight requires 48h notice.</p>
-          <div class="mem-source">Pattern learned from 230 carrier replies</div>
-        </div>
-
-        <div class="memory-card">
-          <div class="mem-head">
-            <h4>Escalation thresholds</h4>
-            <span class="mem-tag">Policy</span>
-          </div>
-          <p>Escalate to Jillian when: extraction confidence &lt;90%, carrier rate 15%+ above last week's avg, new shipper not in customer list, ambiguous destination, weight estimate exceeds equipment capacity, or delivery window under 24h.</p>
-          <div class="mem-source">Configured in Settings · Last modified 1w ago</div>
-        </div>
-
-        <div class="memory-card prefs">
-          <div class="mem-head">
-            <h4>Acme Corp contact pattern</h4>
-            <span class="mem-tag">Preference</span>
-          </div>
-          <p>Jim Chen handles all reefer loads. Emails come from jim@acmecorp.com, sometimes from jchen@acmecorp.com (secondary). Prefers text replies over formal emails. Accepts quotes within 2h or moves on. Last 10 loads all paid on time.</p>
-          <div class="mem-source">Learned from 18 completed RFQs · Updated yesterday</div>
-        </div>
-      </div>
-
-      <!-- ============ SUBPANEL: SCHEDULE ============ -->
-      <div id="agent-schedule" class="subpanel">
-        <div style="margin-bottom:1rem;">
-          <p style="color:var(--text-2);font-size:0.88rem;">Scheduled jobs and recurring triggers the agent runs on its own. Each one can be paused independently.</p>
-        </div>
-
-        <table class="schedule-table">
-          <thead>
-            <tr>
-              <th>Job</th>
-              <th>Schedule</th>
-              <th>Next Run</th>
-              <th>Last Run</th>
-              <th>Status</th>
-              <th style="width:80px;"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <div class="schedule-job-name">Mailbox Poller</div>
-                <div class="schedule-cron">*/1 * * * *</div>
-              </td>
-              <td class="schedule-next">Every 60 seconds</td>
-              <td class="schedule-next">in 14s</td>
-              <td class="schedule-next">46s ago · ✓</td>
-              <td><span class="schedule-status running">Running</span></td>
-              <td><button class="btn sm" onclick="toast('Paused','Mailbox poller paused','warn')">Pause</button></td>
-            </tr>
-            <tr>
-              <td>
-                <div class="schedule-job-name">Carrier Nudge Timer</div>
-                <div class="schedule-cron">every 5 min (check loads)</div>
-              </td>
-              <td class="schedule-next">Every 5 minutes</td>
-              <td class="schedule-next">in 2m 14s</td>
-              <td class="schedule-next">2m 46s ago · ✓</td>
-              <td><span class="schedule-status running">Running</span></td>
-              <td><button class="btn sm" onclick="toast('Paused','Nudge timer paused','warn')">Pause</button></td>
-            </tr>
-            <tr>
-              <td>
-                <div class="schedule-job-name">Daily Summary Email</div>
-                <div class="schedule-cron">0 17 * * 1-5</div>
-              </td>
-              <td class="schedule-next">Weekdays 5:00 PM CDT</td>
-              <td class="schedule-next">in 2h 18m</td>
-              <td class="schedule-next">Yesterday · ✓</td>
-              <td><span class="schedule-status running">Running</span></td>
-              <td><button class="btn sm" onclick="toast('Paused','Daily summary paused','warn')">Pause</button></td>
-            </tr>
-            <tr>
-              <td>
-                <div class="schedule-job-name">Memory Consolidation</div>
-                <div class="schedule-cron">0 2 * * *</div>
-              </td>
-              <td class="schedule-next">Daily 2:00 AM CDT</td>
-              <td class="schedule-next">in 11h 18m</td>
-              <td class="schedule-next">12h ago · ✓</td>
-              <td><span class="schedule-status running">Running</span></td>
-              <td><button class="btn sm" onclick="toast('Paused','Memory job paused','warn')">Pause</button></td>
-            </tr>
-            <tr>
-              <td>
-                <div class="schedule-job-name">Stale RFQ Cleanup</div>
-                <div class="schedule-cron">0 0 * * 0</div>
-              </td>
-              <td class="schedule-next">Sundays 12:00 AM</td>
-              <td class="schedule-next">in 3d 9h</td>
-              <td class="schedule-next">4d ago · ✓</td>
-              <td><span class="schedule-status paused">Paused</span></td>
-              <td><button class="btn sm" onclick="toast('Resumed','Cleanup job resumed','success')">Resume</button></td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div style="margin-top:1rem;">
-          <button class="btn primary" onclick="toast('New Job','Would open job scheduler','info')">+ Schedule a new job</button>
-        </div>
-      </div>
-
-      <!-- ============ SUBPANEL: CHAT ============ -->
-      <div id="agent-chat" class="subpanel">
-        <div class="chat-layout">
-          <div class="chat-wrap">
-            <div class="chat-head">
-              <h3>Ask Golteris</h3>
-              <span style="font-size:0.7rem;color:var(--text-3);">Agent has full context of your workflows, RFQs, and memory</span>
-            </div>
-            <div class="chat-messages" id="chat-messages">
-
-              <div class="chat-msg agent">
-                <div class="chat-msg-avatar">G</div>
-                <div class="chat-msg-content">
-                  <div class="chat-msg-name">Golteris <span class="chat-msg-time">14:42</span></div>
-                  <div class="chat-msg-body">Hi Jillian. I'm watching your inbox and have 6 RFQs in motion right now. 3 are waiting on your approval. You can ask me anything, or instruct me to generate a quote sheet, draft an email, create a report, or take any action on an RFQ. What do you need?</div>
-                </div>
-              </div>
-
-              <div class="chat-msg user">
-                <div class="chat-msg-avatar">JS</div>
-                <div class="chat-msg-content">
-                  <div class="chat-msg-name">Jillian <span class="chat-msg-time">14:44</span></div>
-                  <div class="chat-msg-body">Generate a quote sheet for Horizon Manufacturing's Dallas to Atlanta flatbed load — the one with steel coils.</div>
-                </div>
-              </div>
-
-              <div class="chat-msg agent">
-                <div class="chat-msg-avatar">G</div>
-                <div class="chat-msg-content">
-                  <div class="chat-msg-name">Golteris <span class="chat-msg-time">14:44</span></div>
-                  <div class="chat-msg-body">
-                    That's Load #4815. I pulled the 5 carrier quotes that came in. Here's the sheet:
-                    <div class="chat-attach">
-                      <div class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-                      <div>
-                        <div class="chat-attach-name">Load_4815_Quote_Sheet.xlsx</div>
-                        <span class="chat-attach-size">42 KB · 5 quotes · avg $2,912</span>
-                      </div>
-                    </div>
-                    Best rate: Johnson Trucking at $2,840 all-in. Want me to draft the customer quote email?
-                  </div>
-                </div>
-              </div>
-
-              <div class="chat-msg user">
-                <div class="chat-msg-avatar">JS</div>
-                <div class="chat-msg-content">
-                  <div class="chat-msg-name">Jillian <span class="chat-msg-time">14:45</span></div>
-                  <div class="chat-msg-body">Yes, draft the email. Quote $3,150 — I want margin on this one.</div>
-                </div>
-              </div>
-
-              <div class="chat-msg agent">
-                <div class="chat-msg-avatar">G</div>
-                <div class="chat-msg-content">
-                  <div class="chat-msg-name">Golteris <span class="chat-msg-time">14:45</span></div>
-                  <div class="chat-msg-body">
-                    Draft ready — I've added it to your Needs Review queue with the $3,150 rate and Tom as recipient. You should see it at the top of your home screen. Approval takes about 10 seconds. Should I also pre-book Johnson Trucking at $2,840 contingent on customer acceptance?
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            <div class="chat-input-wrap">
-              <div class="chat-input-inner">
-                <textarea placeholder="Ask Golteris to do something, or generate a file, email, or report..." id="chat-input" rows="1"></textarea>
-                <button class="chat-send" onclick="sendChat()">Send</button>
-              </div>
-              <div class="chat-chips">
-                <button class="chat-chip" onclick="quickChat('Generate a daily summary of today\\'s activity')">📊 Daily summary</button>
-                <button class="chat-chip" onclick="quickChat('Draft a follow-up to all shippers waiting on quotes')">✉️ Follow up all waiting</button>
-                <button class="chat-chip" onclick="quickChat('Create a quote sheet for Load #4810')">📄 Quote sheet</button>
-                <button class="chat-chip" onclick="quickChat('Show me which carriers have been slow to respond this week')">🐢 Slow carriers</button>
-                <button class="chat-chip" onclick="quickChat('Nudge all carriers with open RFQs older than 2 hours')">⏰ Nudge carriers</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="chat-sidebar">
-            <div class="chat-side-card">
-              <h4>Session Context</h4>
-              <ul>
-                <li>Tokens used <span class="li-meta">18,342</span></li>
-                <li>Cost <span class="li-meta">$0.27</span></li>
-                <li>Files created <span class="li-meta">1</span></li>
-                <li>Actions taken <span class="li-meta">3</span></li>
-              </ul>
-            </div>
-            <div class="chat-side-card">
-              <h4>Recently Generated</h4>
-              <ul>
-                <li>Load_4815_Quote_Sheet.xlsx <span class="li-meta">1m ago</span></li>
-                <li>Draft_Reply_4821.msg <span class="li-meta">14m ago</span></li>
-                <li>Carrier_RFQ_4815.msg <span class="li-meta">50m ago</span></li>
-                <li>Daily_Summary_2026-04-03.pdf <span class="li-meta">Yesterday</span></li>
-              </ul>
-            </div>
-            <div class="chat-side-card">
-              <h4>Agent Can Access</h4>
-              <ul>
-                <li>📬 Your inbox <span class="li-meta">✓</span></li>
-                <li>📊 All 14 active RFQs <span class="li-meta">✓</span></li>
-                <li>🧠 Your memory &amp; rules <span class="li-meta">✓</span></li>
-                <li>📝 Workflow configs <span class="li-meta">✓</span></li>
-                <li>🚛 Carrier list (84) <span class="li-meta">✓</span></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ============ SUBPANEL: GUIDANCE ============ -->
-      <div id="agent-guidance" class="subpanel">
-
-        <div class="guidance-card">
-          <h3>System Instructions</h3>
-          <p class="section-sub">The top-level prompt that governs every decision the agent makes. This is the agent's personality, mission, and rules.</p>
-          <textarea class="guidance-textarea" id="guidance-system">You are Golteris, an AI assistant operating for Beltmann Logistics — a freight brokerage.
-
-Your job is to reduce Jillian's manual email work by:
-1. Reading inbound messages from shippers and carriers
-2. Extracting structured RFQ data
-3. Drafting clarification emails when information is missing
-4. Distributing RFQs to carriers and collecting responses
-5. Preparing quote comparisons for Jillian's review
-
-You ALWAYS pause for human approval before sending any outbound email. You never make up data — if you can't extract a field with 90%+ confidence, flag it. Speak in Jillian's voice when drafting emails. Be concise, professional, and forward-looking.</textarea>
-          <div class="guidance-save-row">
-            <button class="btn">Cancel</button>
-            <button class="btn primary" onclick="toast('Saved','System instructions updated','success')">Save Instructions</button>
-          </div>
-        </div>
-
-        <div class="guidance-card">
-          <h3>Active Rules</h3>
-          <p class="section-sub">Specific constraints and behaviors. The agent will follow these in every decision. Add, remove, or reorder freely.</p>
-
-          <div class="guidance-rules">
-            <div class="guidance-rule">
-              <div class="rule-text">Always sign emails as "Jillian" — never "Jillian S." or full name.</div>
-              <button class="rule-del" onclick="this.closest('.guidance-rule').remove();toast('Rule removed','Guidance rule deleted','info')">×</button>
-            </div>
-            <div class="guidance-rule">
-              <div class="rule-text">Flag any extraction with confidence below 90% for human review.</div>
-              <button class="rule-del" onclick="this.closest('.guidance-rule').remove();toast('Rule removed','Guidance rule deleted','info')">×</button>
-            </div>
-            <div class="guidance-rule">
-              <div class="rule-text">For Horizon Manufacturing, "ATL area" always means Atlanta, GA.</div>
-              <button class="rule-del" onclick="this.closest('.guidance-rule').remove();toast('Rule removed','Guidance rule deleted','info')">×</button>
-            </div>
-            <div class="guidance-rule">
-              <div class="rule-text">Never send outbound emails without explicit human approval.</div>
-              <button class="rule-del" onclick="this.closest('.guidance-rule').remove();toast('Rule removed','Guidance rule deleted','info')">×</button>
-            </div>
-            <div class="guidance-rule">
-              <div class="rule-text">Quote margin target: 8-12% above best carrier rate unless Jillian specifies otherwise.</div>
-              <button class="rule-del" onclick="this.closest('.guidance-rule').remove();toast('Rule removed','Guidance rule deleted','info')">×</button>
-            </div>
-            <div class="guidance-rule">
-              <div class="rule-text">When escalating, summarize the issue in under 25 words.</div>
-              <button class="rule-del" onclick="this.closest('.guidance-rule').remove();toast('Rule removed','Guidance rule deleted','info')">×</button>
-            </div>
-          </div>
-
-          <div class="guidance-add">
-            <input type="text" id="new-rule" placeholder="Add a new rule — e.g., 'Never quote loads with delivery under 24 hours out'">
-            <button class="btn primary" onclick="addRule()">Add Rule</button>
-          </div>
-        </div>
-
-        <div class="guidance-card">
-          <h3>Voice &amp; Tone Examples</h3>
-          <p class="section-sub">The agent learns your voice from approved drafts. You can also paste examples here to teach specific styles.</p>
-          <textarea class="guidance-textarea" style="min-height:100px;" placeholder="Paste a sample email you like, or describe your preferred voice..."></textarea>
-          <div class="guidance-save-row">
-            <button class="btn primary" onclick="toast('Voice updated','Agent will learn from this example','success')">Save Example</button>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- ============ SUBPANEL: CONTROLS ============ -->
-      <div id="agent-controls" class="subpanel">
-        <div class="settings-card">
-          <h3>Agent Functionality</h3>
-          <p class="section-sub">Fine-grained control over what the agent can and cannot do. These are hard limits that override any guidance or chat instruction.</p>
-
-          <div class="workflow-row">
-            <div class="workflow-info">
-              <h4>Read inbound email</h4>
-              <p>Allows agent to access mailbox and process new messages</p>
-            </div>
-            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-          </div>
-          <div class="workflow-row">
-            <div class="workflow-info">
-              <h4>Extract RFQ fields</h4>
-              <p>Allows agent to parse shipper emails into structured data</p>
-            </div>
-            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-          </div>
-          <div class="workflow-row">
-            <div class="workflow-info">
-              <h4>Draft shipper replies</h4>
-              <p>Allows agent to draft emails · does NOT send without approval</p>
-            </div>
-            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-          </div>
-          <div class="workflow-row">
-            <div class="workflow-info">
-              <h4>Send outbound emails</h4>
-              <p>Requires human approval for every send · no auto-send</p>
-            </div>
-            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-          </div>
-          <div class="workflow-row">
-            <div class="workflow-info">
-              <h4>Generate files (Excel, PDF, Word)</h4>
-              <p>Allows agent to create files through chat or automated workflows</p>
-            </div>
-            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-          </div>
-          <div class="workflow-row">
-            <div class="workflow-info">
-              <h4>Access historical data</h4>
-              <p>Allows agent to use prior RFQs and memory for context</p>
-            </div>
-            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-          </div>
-          <div class="workflow-row">
-            <div class="workflow-info">
-              <h4>Auto-nudge carriers</h4>
-              <p>Allows agent to send reminder emails to silent carriers</p>
-            </div>
-            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-          </div>
-          <div class="workflow-row">
-            <div class="workflow-info">
-              <h4>Learn from approved drafts</h4>
-              <p>Allows agent to update memory and voice from your approvals</p>
-            </div>
-            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-          </div>
-        </div>
-
-        <div class="settings-card">
-          <h3>Cost &amp; Rate Limits</h3>
-          <p class="section-sub">Hard caps on agent spending and API usage. The agent will stop before exceeding these.</p>
-
-          <div class="workflow-row">
-            <div class="workflow-info">
-              <h4>Daily cost cap</h4>
-              <p>Currently set to $25/day · used $2.47 today</p>
-            </div>
-            <button class="btn sm">Edit</button>
-          </div>
-          <div class="workflow-row">
-            <div class="workflow-info">
-              <h4>Monthly budget</h4>
-              <p>Currently set to $200/month · used $41.82 this month</p>
-            </div>
-            <button class="btn sm">Edit</button>
-          </div>
-          <div class="workflow-row">
-            <div class="workflow-info">
-              <h4>Max tokens per decision</h4>
-              <p>Currently 8,000 tokens · prevents runaway prompts</p>
-            </div>
-            <button class="btn sm">Edit</button>
-          </div>
-          <div class="workflow-row">
-            <div class="workflow-info">
-              <h4>Model</h4>
-              <p>claude-sonnet-4-6 · switch to opus for complex extractions</p>
-            </div>
-            <button class="btn sm">Change</button>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
     <!-- ============ SETTINGS ============ -->
     <div id="settings" class="page">
       <div class="page-header">
@@ -3547,18 +2494,6 @@ function showPage(id) {
   if (tab) tab.classList.add('active');
   document.getElementById(id).classList.add('active');
   document.querySelector('.main').scrollTo(0, 0);
-  closeSidebar();
-}
-
-/* ---------- MOBILE SIDEBAR ---------- */
-function toggleSidebar() {
-  document.querySelector('.sidebar').classList.toggle('open');
-  document.getElementById('sidebar-backdrop').classList.toggle('open');
-}
-function closeSidebar() {
-  document.querySelector('.sidebar').classList.remove('open');
-  const b = document.getElementById('sidebar-backdrop');
-  if (b) b.classList.remove('open');
 }
 
 /* ---------- TOASTS ---------- */
@@ -3787,88 +2722,6 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 's' || e.key === 'S') { e.preventDefault(); handleApproval('skip'); }
   }
 });
-
-/* ---------- AGENT SUB-TABS ---------- */
-function showSubtab(id) {
-  document.querySelectorAll('.subtab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.subpanel').forEach(p => p.classList.remove('active'));
-  const btn = document.querySelector(`.subtab[onclick="showSubtab('${id}')"]`);
-  if (btn) btn.classList.add('active');
-  document.getElementById(id).classList.add('active');
-}
-
-/* ---------- DECISION EXPAND ---------- */
-function toggleDecision(card, e) {
-  if (e && e.target.closest('.decision-body')) return;
-  card.classList.toggle('expanded');
-}
-
-/* ---------- CHAT ---------- */
-function sendChat() {
-  const input = document.getElementById('chat-input');
-  const text = input.value.trim();
-  if (!text) return;
-
-  const messages = document.getElementById('chat-messages');
-  const userMsg = document.createElement('div');
-  userMsg.className = 'chat-msg user';
-  userMsg.innerHTML = `
-    <div class="chat-msg-avatar">JS</div>
-    <div class="chat-msg-content">
-      <div class="chat-msg-name">Jillian <span class="chat-msg-time">Now</span></div>
-      <div class="chat-msg-body">${text.replace(/</g,'&lt;')}</div>
-    </div>
-  `;
-  messages.appendChild(userMsg);
-  input.value = '';
-  messages.scrollTop = messages.scrollHeight;
-
-  setTimeout(() => {
-    const agentMsg = document.createElement('div');
-    agentMsg.className = 'chat-msg agent';
-    agentMsg.innerHTML = `
-      <div class="chat-msg-avatar">G</div>
-      <div class="chat-msg-content">
-        <div class="chat-msg-name">Golteris <span class="chat-msg-time">Now</span></div>
-        <div class="chat-msg-body">On it. In the production system, I'd interpret your request, pull the relevant context from the database, generate any files or drafts needed, and queue anything sensitive for your approval. This is a prototype preview — in the real version, you'd see the action happen live.</div>
-      </div>
-    `;
-    messages.appendChild(agentMsg);
-    messages.scrollTop = messages.scrollHeight;
-  }, 600);
-}
-
-function quickChat(text) {
-  document.getElementById('chat-input').value = text;
-  sendChat();
-}
-
-/* Enter to send in chat */
-document.addEventListener('DOMContentLoaded', () => {
-  const chatInput = document.getElementById('chat-input');
-  if (chatInput) {
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendChat();
-      }
-    });
-  }
-});
-
-/* ---------- ADD GUIDANCE RULE ---------- */
-function addRule() {
-  const input = document.getElementById('new-rule');
-  const text = input.value.trim();
-  if (!text) return;
-  const list = document.querySelector('.guidance-rules');
-  const el = document.createElement('div');
-  el.className = 'guidance-rule';
-  el.innerHTML = `<div class="rule-text">${text.replace(/</g,'&lt;')}</div><button class="rule-del" onclick="this.closest('.guidance-rule').remove();toast('Rule removed','Guidance rule deleted','info')">×</button>`;
-  list.appendChild(el);
-  input.value = '';
-  toast('Rule added', 'Agent will apply this on its next decision', 'success');
-}
 
 /* ---------- INIT ---------- */
 document.addEventListener('DOMContentLoaded', () => {
