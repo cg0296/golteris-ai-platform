@@ -134,6 +134,8 @@ html, body {
   font-size: 14px;
   line-height: 1.5;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 a { color: var(--blue); text-decoration: none; }
@@ -143,6 +145,11 @@ a { color: var(--blue); text-decoration: none; }
   display: grid;
   grid-template-columns: 232px 1fr;
   min-height: 100vh;
+  width: 100%;
+}
+
+.sidebar-backdrop {
+  display: none;
 }
 
 /* ============ SIDEBAR ============ */
@@ -155,6 +162,8 @@ a { color: var(--blue); text-decoration: none; }
   position: sticky;
   top: 0;
   height: 100vh;
+  align-self: start;
+  z-index: 20;
 }
 
 .brand {
@@ -299,6 +308,8 @@ a { color: var(--blue); text-decoration: none; }
   overflow-x: hidden;
   position: relative;
   min-height: 100vh;
+  min-width: 0;
+  width: 100%;
 }
 
 .topbar {
@@ -400,7 +411,7 @@ a { color: var(--blue); text-decoration: none; }
 }
 
 /* ============ PAGE ============ */
-.page { display: none; padding: 1.75rem 1.75rem 3rem; max-width: 1500px; }
+.page { display: none; padding: 1.75rem 1.75rem 3rem; max-width: none; width: 100%; }
 .page.active { display: block; animation: page-in 0.3s ease-out; }
 @keyframes page-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -1692,7 +1703,7 @@ a { color: var(--blue); text-decoration: none; }
   .two-col { grid-template-columns: 1fr 340px; }
   .kpi-grid, .stat-strip { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 1000px) {
+@media (max-width: 600px) {
   .shell { grid-template-columns: 1fr; }
   .sidebar {
     position: fixed;
@@ -1735,7 +1746,7 @@ a { color: var(--blue); text-decoration: none; }
   .page-header { flex-direction: column; align-items: flex-start; }
 }
 .hamburger { display: none; }
-@media (max-width: 768px) {
+@media (max-width: 560px) {
   .page { padding: 1rem 1rem 2.5rem; }
   .topbar { padding: 0.75rem 1rem; }
   .topbar-search { display: none; }
@@ -1764,7 +1775,7 @@ a { color: var(--blue); text-decoration: none; }
 }
 
 /* Hide data table on narrow mobile — show as cards instead */
-@media (max-width: 680px) {
+@media (max-width: 480px) {
   .data-table thead { display: none; }
   .data-table tbody tr {
     display: grid;
