@@ -1,0 +1,19 @@
+# Golteris backend Python dependencies.
+# Install with: pip install -r backend/requirements.txt
+#
+# See REQUIREMENTS.md §2 for tech stack decisions.
+
+# Web framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+alembic>=1.14.0
+
+# Anthropic SDK — Claude API access
+anthropic>=0.42.0
+
+# Environment variable loading for local dev
+python-dotenv>=1.0.0
