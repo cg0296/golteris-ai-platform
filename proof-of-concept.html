@@ -1,4 +1,62 @@
 <!DOCTYPE html>
+<!--
+  ================================================================
+  GOLTERIS — BROKER CONSOLE (Proof of Concept)
+  ================================================================
+
+  Single-file HTML prototype of the Golteris AI broker console for
+  Beltmann Logistics. No build step, no frameworks, no runtime
+  dependencies beyond Google Fonts (Inter).
+
+  WHAT THIS FILE IS
+  -----------------
+  A click-through visual demo of what the production product will
+  look and feel like. Every button, filter, modal, and toggle is
+  wired up with vanilla JavaScript so it behaves like a real app,
+  but the data is all static seed content — no backend calls.
+
+  USE IT FOR
+  ----------
+  - Live demos with prospects (Beltmann and beyond)
+  - Design reference for the real frontend build
+  - Showing non-technical stakeholders what the product feels like
+  - A visual spec for engineers rebuilding this with a real backend
+
+  FILE MAP
+  --------
+  1. <head> + <style>  — all CSS (variables, components, responsive)
+  2. <body>            — markup for sidebar, topbar, and 6 pages:
+       - Home        (#home)       — KPIs, urgent actions, RFQs, activity
+       - Inbox       (#inbox)      — inbound message routing
+       - RFQs        (#rfqs)       — active lane registry
+       - History     (#history)    — completed RFQs + stat strip
+       - Agent       (#agent)      — 7 sub-tabs for monitoring the AI
+       - Settings    (#settings)   — workflow toggles, policies, mailbox
+     Plus two modals: #rfq-drawer (lane detail) and #approval-modal
+  3. <script>          — all interactivity (page nav, filters, clicks,
+                         drawer, approval, chat, toasts)
+
+  ARCHITECTURE
+  ------------
+  - All state lives in the DOM (class toggles, style updates)
+  - Page switching = show/hide <div class="page"> elements
+  - Filters = show/hide rows based on data-attrs + text matching
+  - RFQ data for the detail drawer lives in RFQ_DATA at top of script
+  - Toasts are appended to #toasts and auto-expire after 3.5s
+
+  COLOR PALETTE (CSS VARIABLES, DEFINED IN :root)
+  -----------------------------------------------
+    Sidebar:  #0E2841 (navy)   Accents: #0F9ED5 (blue), #E97132 (orange)
+    Main bg:  #F5F7FA (gray)   States:  #1E8E3E (green), #F2A900 (amber),
+    Cards:    #FFFFFF (white)            #D93025 (red), #9334E9 (purple)
+
+  WHAT IS NOT HERE
+  ----------------
+  - No real API calls (everything is seed data)
+  - No authentication (any visitor sees the same view)
+  - No persistence (refreshing the page resets all state)
+  - No build step (open the file in a browser and it works)
+================================================================ -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1721,8 +1779,27 @@ a { color: var(--blue); text-decoration: none; }
 </head>
 <body>
 
+<!--
+  =============================================================
+  MAIN LAYOUT
+  =============================================================
+  The whole app is a CSS grid with two columns:
+    .shell = [ .sidebar (232px)  |  .main (flexible) ]
+
+  On mobile (<1000px), the grid collapses to one column and
+  the sidebar slides in from the left via the hamburger button
+  in the topbar (.hamburger → toggleSidebar()).
+-->
 <div class="shell">
 
+  <!--
+    =============================================================
+    SIDEBAR — Persistent left nav (desktop) / slide-in (mobile)
+    =============================================================
+    Contains: brand mark, 6 nav buttons (one per page), and user
+    footer card. Each nav button calls showPage('<id>') which
+    hides every .page and activates the one with the matching id.
+  -->
   <!-- ============ SIDEBAR ============ -->
   <aside class="sidebar">
     <div class="brand">
@@ -1799,6 +1876,19 @@ a { color: var(--blue); text-decoration: none; }
       </div>
     </div>
 
+    <!--
+      ===========================================================
+      HOME PAGE (default active on load)
+      ===========================================================
+      The broker's daily landing page. Structure:
+        1. Hero banner — "Welcome back, Jillian" with CTAs
+        2. KPI grid    — 4 cards: Needs Review, Active RFQs,
+                         Quotes Received, Time Saved Today
+        3. Urgent Actions block — 3 items with inline approve
+                         buttons (opens approval modal)
+        4. Two-column: Active RFQs table + Recent Activity feed
+      All rows/cards are clickable and open the RFQ drawer.
+    -->
     <!-- ============ HOME ============ -->
     <div id="home" class="page active">
 
@@ -2048,6 +2138,17 @@ a { color: var(--blue); text-decoration: none; }
       </div>
     </div>
 
+    <!--
+      ===========================================================
+      INBOX PAGE
+      ===========================================================
+      Shows every inbound message and how Golteris routed it.
+      Messages are tagged as Shipper, Carrier, Review, or Ignored
+      via data-type="..." on the row — this drives the filter
+      buttons at the top of the page (see applyFilters).
+      Clicking a row with a #load number in the badge opens the
+      attached RFQ drawer.
+    -->
     <!-- ============ INBOX ============ -->
     <div id="inbox" class="page">
       <div class="page-header">
@@ -2139,6 +2240,17 @@ a { color: var(--blue); text-decoration: none; }
       </div>
     </div>
 
+    <!--
+      ===========================================================
+      RFQs PAGE — Full lane registry
+      ===========================================================
+      Every live RFQ the broker is working. Filter pills switch
+      by state (Needs clarification, Ready to quote, Waiting on
+      carriers, Quotes received, Waiting on broker, Quote sent).
+      Search box does live text match across all cells. Each row
+      is clickable and opens the drawer with the full lane detail
+      (summary, status, messages, timeline).
+    -->
     <!-- ============ RFQs PAGE ============ -->
     <div id="rfqs" class="page">
       <div class="page-header">
@@ -2200,6 +2312,16 @@ a { color: var(--blue); text-decoration: none; }
       </div>
     </div>
 
+    <!--
+      ===========================================================
+      HISTORY PAGE — Completed RFQs + Performance stats
+      ===========================================================
+      The renewal lever. Opens with a 4-card stat strip showing
+      Completed Today, Avg Time to Quote, Approvals This Week,
+      and Time Saved This Week. Below the strip: filter pills
+      (Won, Lost, Cancelled, Today, This week, This month) and
+      a table of closed RFQs with outcome pills and cycle times.
+    -->
     <!-- ============ HISTORY ============ -->
     <div id="history" class="page">
       <div class="page-header">
@@ -2292,6 +2414,34 @@ a { color: var(--blue); text-decoration: none; }
       </div>
     </div>
 
+    <!--
+      ===========================================================
+      AGENT PAGE — Full AI monitoring and control surface
+      ===========================================================
+      The most complex page in the app. Structure:
+
+        1. Hero banner (.agent-hero)
+           - Pulsing "Running" status badge
+           - Pause / Stop buttons
+
+        2. KPI strip (.agent-kpi-grid, 5 cards)
+           - Tokens Today, Cost Today, Actions Taken,
+             Cost This Month, Avg Latency
+
+        3. Sub-tab nav (.subtabs) — 7 sub-panels:
+           a. #agent-overview  Decisions — expandable audit cards
+                               with full prompts, tokens, cost
+           b. #agent-tasks     Tasks — live to-do list with status
+           c. #agent-memory    Memory — persistent facts/rules
+           d. #agent-schedule  Schedule — cron jobs with pause
+           e. #agent-chat      Chat & Instruct — chat UI for
+                               ad-hoc agent instructions
+           f. #agent-guidance  Guidance — system prompt + rules
+           g. #agent-controls  Controls — permissions + cost caps
+
+      Sub-tab switching is handled by showSubtab(id) at the
+      bottom of the file — it toggles .active on .subpanel divs.
+    -->
     <!-- ============ AGENT ============ -->
     <div id="agent" class="page">
 
@@ -2983,6 +3133,15 @@ You ALWAYS pause for human approval before sending any outbound email. You never
 
     </div>
 
+    <!--
+      ===========================================================
+      SETTINGS PAGE
+      ===========================================================
+      Workflow on/off toggles, approval policy toggles, and
+      mailbox connection status. Each .toggle element is
+      clickable and flips .on via inline onclick.
+      (Real product would persist this to the backend.)
+    -->
     <!-- ============ SETTINGS ============ -->
     <div id="settings" class="page">
       <div class="page-header">
@@ -3060,12 +3219,30 @@ You ALWAYS pause for human approval before sending any outbound email. You never
   </main>
 </div>
 
+<!--
+  =============================================================
+  FLOATING ASK GOLTERIS BUTTON (FAB)
+  =============================================================
+  Fixed-position pill in the bottom-right that's visible on
+  every page. Clicking it currently just fires a toast — in
+  the real app it would open a global chat panel.
+-->
 <!-- FAB -->
 <button class="fab" onclick="toast('Ask Golteris','AI assistant would open here','info')">
   <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
   Ask Golteris
 </button>
 
+<!--
+  =============================================================
+  RFQ DETAIL DRAWER (modal)
+  =============================================================
+  Shared modal that opens when any RFQ row/card is clicked.
+  Content is populated dynamically by renderDrawer(rfq), which
+  looks up the load id in RFQ_DATA (top of <script>) or falls
+  back to defaultRfq() for loads that aren't seeded.
+  Sections: Summary, Current Status, Messages, Actions & History
+-->
 <!-- RFQ Drawer -->
 <div id="rfq-drawer" class="drawer-overlay" onclick="if(event.target===this)closeRfq()">
   <div class="drawer">
@@ -3080,6 +3257,16 @@ You ALWAYS pause for human approval before sending any outbound email. You never
   </div>
 </div>
 
+<!--
+  =============================================================
+  APPROVAL MODAL
+  =============================================================
+  Opens when the broker clicks "Approve & Send" on an urgent
+  action. Shows the original shipper message, the agent's
+  drafted reply, the reason it was flagged, and action buttons
+  (Send As-Is / Edit / Reject / Skip). Keyboard shortcuts:
+  Enter=approve, E=edit, R=reject, S=skip, Esc=close.
+-->
 <!-- Approval Modal -->
 <div id="approval-modal" class="drawer-overlay" onclick="if(event.target===this)closeApproval()">
   <div class="drawer approval-drawer">
@@ -3131,10 +3318,53 @@ I'll have carriers lined up as soon as I hear back.
 <div id="toasts"></div>
 
 <script>
-/* ============================================================
+/* ================================================================
    GOLTERIS BROKER CONSOLE — Interactivity
-============================================================ */
+   ================================================================
 
+   Everything in this <script> block is vanilla JavaScript — no
+   libraries, no bundler, no frameworks. It handles:
+
+     - Page navigation           showPage(id)
+     - Mobile sidebar toggling   toggleSidebar(), closeSidebar()
+     - Agent sub-tabs            showSubtab(id)
+     - Decision card expansion   toggleDecision(card, e)
+     - Chat send + quick chips   sendChat(), quickChat(text)
+     - Guidance rule add         addRule()
+     - Toast notifications       toast(title, body, kind)
+     - RFQ detail drawer         renderDrawer(rfq), openRfq(), closeRfq()
+     - Approval modal            openApproval(), closeApproval(),
+                                 handleApproval(action)
+     - Urgent item actions       handleReviewCard(btn, action, label),
+                                 updateUrgentCount()
+     - Filters + search          setupFilters(), applyFilters(...)
+     - Click wiring (rows/cards) wireClicks()
+     - Keyboard shortcuts        (global keydown listener)
+
+   The `RFQ_DATA` object below is the seed content that powers
+   the RFQ detail drawer. Each key is a load number and the value
+   has title, summary, status, messages, and timeline fields.
+================================================================ */
+
+/*
+  RFQ_DATA — Seed content for the RFQ detail drawer
+  -------------------------------------------------
+  Keyed by load number (string). Each entry drives renderDrawer().
+  Fields:
+    title    : [idString, customerName]
+    summary  : { label: value } — rendered as a two-column <dl>
+    status   : {
+                 state: [stateClassName, stateText],
+                 Why / Missing / Next / etc. — extra status rows
+               }
+    messages : [{ dir, from, time, body }]
+                 dir = 'inbound' | 'outbound' | 'draft'
+    timeline : [[timeLabel, eventText], ...]
+
+  If a load id is clicked that isn't in RFQ_DATA, defaultRfq()
+  generates a minimal stub from whatever row/card data is
+  available in the DOM.
+*/
 const RFQ_DATA = {
   '4822': {
     title: ['#4822','Horizon Manufacturing'],
@@ -3188,7 +3418,12 @@ function defaultRfq(id, cust, route, equip, stateClass, stateText) {
   };
 }
 
-/* ---------- NAV ---------- */
+/* ----------------------------------------------------------------
+   PAGE NAVIGATION
+   showPage(id) — switches the visible .page by id
+   Also clears .active on every nav-item and sets it on the matching
+   button. Called from sidebar onclick attributes.
+---------------------------------------------------------------- */
 function showPage(id) {
   document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -3199,7 +3434,12 @@ function showPage(id) {
   closeSidebar();
 }
 
-/* ---------- MOBILE SIDEBAR ---------- */
+/* ----------------------------------------------------------------
+   MOBILE SIDEBAR
+   Hamburger button in the topbar flips .open on .sidebar and the
+   backdrop. closeSidebar() is also called automatically from
+   showPage() so tapping a nav item dismisses the sidebar.
+---------------------------------------------------------------- */
 function toggleSidebar() {
   document.querySelector('.sidebar').classList.toggle('open');
   const b = document.getElementById('sidebar-backdrop');
@@ -3211,7 +3451,12 @@ function closeSidebar() {
   if (b) b.classList.remove('open');
 }
 
-/* ---------- AGENT SUB-TABS ---------- */
+/* ----------------------------------------------------------------
+   AGENT SUB-TABS
+   The Agent page has 7 sub-panels (Decisions, Tasks, Memory,
+   Schedule, Chat, Guidance, Controls). This swaps which one
+   has the .active class based on the sub-tab button clicked.
+---------------------------------------------------------------- */
 function showSubtab(id) {
   document.querySelectorAll('.subtab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.subpanel').forEach(p => p.classList.remove('active'));
@@ -3220,13 +3465,27 @@ function showSubtab(id) {
   document.getElementById(id).classList.add('active');
 }
 
-/* ---------- DECISION EXPAND ---------- */
+/* ----------------------------------------------------------------
+   DECISION CARD EXPAND / COLLAPSE
+   Each row in the Agent → Decisions tab is clickable to reveal
+   the full prompt, model/cost breakdown, and action taken.
+   The `e.target.closest('.decision-body')` guard prevents clicks
+   inside the expanded body from collapsing the card.
+---------------------------------------------------------------- */
 function toggleDecision(card, e) {
   if (e && e.target.closest('.decision-body')) return;
   card.classList.toggle('expanded');
 }
 
-/* ---------- CHAT ---------- */
+/* ----------------------------------------------------------------
+   CHAT — Ask Golteris (Agent sub-tab)
+   sendChat()   — appends the user's message to the chat feed,
+                  then fakes an agent reply after 600ms.
+   quickChat(t) — fills the input with a preset prompt and sends
+                  (used by the chip buttons below the chat input).
+   In the production build, sendChat() would POST to a backend
+   and stream the response.
+---------------------------------------------------------------- */
 function sendChat() {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
@@ -3264,7 +3523,13 @@ function quickChat(text) {
   if (input) { input.value = text; sendChat(); }
 }
 
-/* ---------- ADD GUIDANCE RULE ---------- */
+/* ----------------------------------------------------------------
+   GUIDANCE RULES
+   addRule() appends a new rule pill to the Agent → Guidance tab.
+   Existing rules have inline onclick handlers for removal.
+   Rules would persist to the backend in production; here they
+   only live until page refresh.
+---------------------------------------------------------------- */
 function addRule() {
   const input = document.getElementById('new-rule');
   const text = input.value.trim();
@@ -3278,7 +3543,12 @@ function addRule() {
   toast('Rule added', 'Agent will apply this on its next decision', 'success');
 }
 
-/* ---------- TOASTS ---------- */
+/* ----------------------------------------------------------------
+   TOAST NOTIFICATIONS
+   toast(title, body, kind) — appends a card to #toasts and auto-
+   dismisses after 3.5s. `kind` controls the left-border color:
+   'success' (green) | 'warn' (amber) | 'danger' (red) | 'info' (blue)
+---------------------------------------------------------------- */
 function toast(title, body, kind='success') {
   const el = document.createElement('div');
   el.className = `toast ${kind}`;
@@ -3287,7 +3557,14 @@ function toast(title, body, kind='success') {
   setTimeout(() => { el.classList.add('fade'); setTimeout(() => el.remove(), 300); }, 3500);
 }
 
-/* ---------- DRAWER ---------- */
+/* ----------------------------------------------------------------
+   RFQ DETAIL DRAWER
+   renderDrawer(rfq) — writes HTML into #drawer-body for a given
+                       RFQ data object (from RFQ_DATA).
+   openRfq(loadId,...) — resolves loadId to an RFQ (or falls back
+                       to a stub) and opens the drawer.
+   closeRfq()          — dismisses the drawer.
+---------------------------------------------------------------- */
 function renderDrawer(rfq) {
   const body = document.getElementById('drawer-body');
   const [stateClass, stateText] = rfq.status.state;
@@ -3346,7 +3623,14 @@ function openRfq(loadId, cust, route, equip, stateClass, stateText) {
 }
 function closeRfq() { document.getElementById('rfq-drawer').classList.remove('open'); }
 
-/* ---------- APPROVAL ---------- */
+/* ----------------------------------------------------------------
+   APPROVAL MODAL
+   Opens when the broker clicks "Approve & Send" on an urgent item.
+   handleApproval(action) — dispatches 'approve'/'reject'/'edit'/
+   'skip' and fires the matching toast. In production this would
+   POST to the backend and update the RFQ state.
+   Keyboard shortcuts are wired in the global keydown listener.
+---------------------------------------------------------------- */
 function openApproval() { document.getElementById('approval-modal').classList.add('open'); }
 function closeApproval() { document.getElementById('approval-modal').classList.remove('open'); }
 function handleApproval(action) {
@@ -3361,7 +3645,13 @@ function handleApproval(action) {
   toast(t, b, k);
 }
 
-/* ---------- URGENT ITEM ACTIONS ---------- */
+/* ----------------------------------------------------------------
+   URGENT ACTION ITEMS (home page)
+   handleReviewCard() — animates the clicked card off-screen, fires
+   a toast, and updates the count badge in the section header.
+   updateUrgentCount() — if the list becomes empty, replaces it
+   with an "All caught up" state.
+---------------------------------------------------------------- */
 function handleReviewCard(btn, action, label) {
   const item = btn.closest('.urgent-item');
   if (!item) return;
@@ -3389,7 +3679,15 @@ function updateUrgentCount() {
   }
 }
 
-/* ---------- FILTERS ---------- */
+/* ----------------------------------------------------------------
+   FILTERS + SEARCH (Inbox, RFQs, History pages)
+   setupFilters() — wires every .toolbar to the table that follows
+   it. Filter buttons toggle .active and call applyFilters(); the
+   search input also calls applyFilters() on every keystroke.
+   applyFilters() — hides rows that don't match the active filter
+   pill or the search text. Works for both the inbox table (keyed
+   by data-type) and the RFQ/History tables (keyed by row text).
+---------------------------------------------------------------- */
 function setupFilters() {
   document.querySelectorAll('.toolbar').forEach(toolbar => {
     const next = toolbar.nextElementSibling;
@@ -3452,7 +3750,16 @@ function applyFilters(toolbar, container, isInbox) {
   });
 }
 
-/* ---------- WIRE CLICKS ---------- */
+/* ----------------------------------------------------------------
+   CLICK WIRING
+   wireClicks() runs once on DOM ready and attaches handlers to:
+     - every .rfq-table-row (opens drawer by load id)
+     - every .activity-row (opens drawer if it references #NNNN)
+     - every .inbox-row (opens the attached RFQ or fires a toast
+                         for 'needs review' / 'filtered' items)
+   Done in JS instead of inline onclick so we don't have to edit
+   every row markup when extracting data.
+---------------------------------------------------------------- */
 function wireClicks() {
   document.querySelectorAll('.data-table tbody tr').forEach(row => {
     const idCell = row.querySelector('.cell-id');
@@ -3486,6 +3793,13 @@ function wireClicks() {
   });
 }
 
+/* ----------------------------------------------------------------
+   KEYBOARD SHORTCUTS (global)
+   Escape        — closes any open modal (drawer or approval)
+   Approval open — Enter=approve, E=edit, R=reject, S=skip
+   Input focus   — shortcuts are skipped when the target is an
+                   <input> or <textarea> so typing works normally.
+---------------------------------------------------------------- */
 /* ---------- KEYBOARD ---------- */
 document.addEventListener('keydown', (e) => {
   const approvalOpen = document.getElementById('approval-modal').classList.contains('open');
@@ -3505,6 +3819,12 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+/* ----------------------------------------------------------------
+   INIT — runs once when the DOM is ready
+   Wires up filters, click handlers, and the chat input's
+   Enter-to-send keybinding. Everything else sits idle until the
+   user interacts with it.
+---------------------------------------------------------------- */
 /* ---------- INIT ---------- */
 document.addEventListener('DOMContentLoaded', () => {
   setupFilters();
