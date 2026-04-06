@@ -105,7 +105,7 @@ The following stack is locked in. AI dev agents must use these technologies — 
 **Golteris is being built primarily by AI coding agents, supervised by a human operator (Curt).** This is not incidental — it is a first-class constraint on how this document and the work it governs are structured.
 
 **IMPORTANT — Workflow documents:** Two companion documents define the full lifecycle. Read the one that matches your role:
-- **[DEVELOPMENT-WORKFLOW.md](DEVELOPMENT-WORKFLOW.md)** — For dev agents. How to find work (only `Agent Work` status), post your plan as a comment before coding, post completion comments with testing instructions, and move the issue to `Testing` when done.
+- **[DEVELOPMENT-WORKFLOW.md](DEVELOPMENT-WORKFLOW.md)** — For dev agents. How to find work (only `Agent Work` status), move it to `Agent WIP` when starting, post your plan as a comment before coding, post completion comments with testing instructions, move the issue to `Testing` when done, and suggest the next task (move one issue to `Suggested Next` with reasoning).
 - **[TESTING-WORKFLOW.md](TESTING-WORKFLOW.md)** — For testing agents. How to find work (only `Testing` status), verify acceptance criteria and cross-cutting constraints, check code quality and comments, report results, and move the issue to `Done` (pass) or `Human Work` (fail).
 
 ### 3.1 This document is the AI's context packet
@@ -252,10 +252,11 @@ These govern every feature. They are non-negotiable and override any conflicting
 
 ### C7 — Human control over dev-time AI agents (parallel to C1)
 - **AI coding agents never merge to `main` without an explicit human-approved PR.** Direct pushes to `main` are disallowed.
-- **The human operator can see, pause, and stop any dev-agent session in progress.** This parallels C1 for product-time agents — if C1 applies to agents that talk to customers, it applies just as strongly to agents that write the code.
+- **The human operator can see, pause, and stop any dev-agent session in progress.** Dev agents move issues to `Agent WIP` when starting work, making active sessions visible on the project board. This parallels C1 for product-time agents — if C1 applies to agents that talk to customers, it applies just as strongly to agents that write the code.
 - **Every agent-authored commit references the GitHub issue** it implements so traceability is preserved automatically.
 - **Dev agents must update REQUIREMENTS.md in the same commit** that changes scope or introduces a new constraint. Requirements drift is not allowed to accumulate.
 - **Dev agents must never weaken a cross-cutting constraint (C1–C7) to make a task easier.** If a constraint blocks progress, stop and escalate to the human.
+- **Dev agents suggest the next task when completing work.** After finishing, the agent evaluates remaining issues and moves the best candidate to `Suggested Next` with a reasoning comment. The human reviews and promotes to `Agent Work` or overrides.
 
 ---
 
