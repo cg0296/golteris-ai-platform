@@ -12,8 +12,9 @@ sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.0
 alembic>=1.14.0
 
-# Anthropic SDK — Claude API access
+# LLM provider SDKs — system is provider-agnostic (see REQUIREMENTS.md §2.5)
 anthropic>=0.42.0
+openai>=1.60.0
 
 # Environment variable loading for local dev
 python-dotenv>=1.0.0
