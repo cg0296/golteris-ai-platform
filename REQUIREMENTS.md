@@ -63,7 +63,7 @@ The following stack is locked in. AI dev agents must use these technologies — 
 - **Auto-deploy from `main`** — every merged PR deploys to the staging environment
 - **Custom subdomain** pointed at the Render service
 - **Environment variables** managed via Render dashboard; documented in `.env.example` in the repo
-- **Secrets** (LLM provider API keys, Gmail credentials) stored in Render's secret manager, never in source
+- **Secrets** (LLM provider API keys, email provider credentials) stored in Render's secret manager, never in source
 
 ### 2.5 AI / LLM
 - **LLM-agnostic architecture** — the system must support swapping between LLM providers (Anthropic Claude, OpenAI GPT, Google Gemini, open-source models) without changing agent logic. All LLM calls go through a provider abstraction layer.
@@ -79,10 +79,17 @@ The following stack is locked in. AI dev agents must use these technologies — 
 - Model is configurable **per-agent** and **per-provider** via Settings (`#44`)
 - Every call wrapped with: prompt logging, token counting, cost calculation, duration timing → `agent_calls` table (`#21`)
 
-### 2.6 Email (v1 / demo)
-- **Seeded folder** of sample `.eml` or JSON files for the demo — no live Gmail integration required for April 8
-- **Gmail API** (OAuth) as the post-demo replacement (`#48`)
-- Outbound email via **Gmail API** or **SMTP** — gated by approval (`#25`)
+### 2.6 Email
+- **Email-provider-agnostic architecture** — the system must support connecting to any inbox (Gmail, Outlook/Microsoft 365, Yahoo, IMAP, etc.) without changing agent logic. All email operations go through a provider abstraction layer (`backend/email/`).
+- **Supported providers (v1):** IMAP (universal), Gmail API (OAuth), Microsoft Graph (OAuth) — additional providers can be added by implementing the provider interface
+- **Provider abstraction layer** — a wrapper module that exposes:
+  - `fetch_new_messages(mailbox_config)` — polls for new inbound messages
+  - `send_message(to, subject, body, mailbox_config)` — sends outbound (after approval per C2)
+  - `get_thread(thread_id, mailbox_config)` — retrieves a message thread
+- **IMAP as the universal fallback** — any email provider that supports IMAP can be connected without a custom integration. Gmail and Microsoft Graph are optimized paths for push notifications and richer metadata.
+- **Per-mailbox configuration** — each connected mailbox stores: provider type, credentials (encrypted), polling interval, and scope rules. Stored in the `workflows` config JSONB or a dedicated `mailboxes` table.
+- **For the demo:** seeded folder of sample `.eml` or JSON files — no live email provider required for April 8
+- **Outbound email** via the configured provider's send method — gated by approval (`#25`)
 
 ### 2.7 Dev tooling
 - **pytest** for backend tests
@@ -128,7 +135,7 @@ The following stack is locked in. AI dev agents must use these technologies — 
 - Dev agents must read REQUIREMENTS.md before starting and update it before finishing if scope changed.
 
 ### 3.5 Repeatable seed data is the test bed
-- Because AI dev agents cannot run against live Gmail during development, the **seed dataset (`#45`) is the primary test fixture**, not an afterthought. Seed data must exist before the agents that consume it.
+- Because AI dev agents cannot run against live email providers during development, the **seed dataset (`#45`) is the primary test fixture**, not an afterthought. Seed data must exist before the agents that consume it.
 - Every extraction/parsing/comparison agent ships with its seed inputs and expected outputs checked into the repo.
 
 ### 3.6 Code commenting standard
@@ -181,7 +188,7 @@ The following stack is locked in. AI dev agents must use these technologies — 
 - Carrier RFQ distribution, parsing, comparison, pricing, customer quote — `#32 #33 #34 #35 #36`
 
 ### 4.2 Post-demo (still v1)
-- Real Gmail OAuth integration — `#48`
+- Live email provider integration (Gmail, Outlook, IMAP) — `#48`
 - Agent memory / learning from approved drafts — `#49`
 - Daily summary email (proof-of-value lever) — `#50`
 - Error handling, retries, dead-letter queue — `#51`
@@ -261,7 +268,7 @@ Each requirement is `FR-<area>-<n>` with the issue(s) that implement it.
 | ID | Requirement | Issues |
 |---|---|---|
 | FR-EI-1 | Ingest messages from one mailbox provider; persist sender, recipients, subject, body, timestamps, thread metadata, and raw content. | `#12` |
-| FR-EI-2 | For the demo, a seeded folder of sample emails is an acceptable source. Real Gmail OAuth is a post-demo replacement. | `#12 #48` |
+| FR-EI-2 | For the demo, a seeded folder of sample emails is an acceptable source. Live email provider integration (Gmail, Outlook, IMAP) is a post-demo replacement. The system is email-provider-agnostic — see §2.6. | `#12 #48` |
 | FR-EI-3 | Every inbound message is attached to an RFQ via deterministic thread/reply matching first, context scoring second. | `#13` |
 | FR-EI-4 | Ambiguous matches do NOT auto-attach; they enter a "Needs review" routing queue visible in the Inbox view. | `#13 #28` |
 | FR-EI-5 | Inbox view shows every routed message with a badge: `Attached to RFQ #N`, `New RFQ created`, `Needs review`, or `Ignored`. | `#28` |
@@ -498,7 +505,7 @@ This section is the forward lookup from issue → requirement section. Use this 
 | #45 | Beltmann seed dataset | §7.2 |
 | #46 | Beltmann demo script | §7.2 |
 | #47 | Worker & scheduler | §5.8 FR-WK-1..3, §4 C1 |
-| #48 | Gmail OAuth integration | §5.1 FR-EI-2 (post-demo) |
+| #48 | Email provider integration (Gmail, Outlook, IMAP) | §5.1 FR-EI-2, §2.6 (post-demo) |
 | #49 | Agent memory / learning | §3.2 (post-demo) |
 | #50 | Daily summary email | §3.2 (post-demo) |
 | #51 | Error handling & DLQ | §6.3 NFR-RE-1..2 |
