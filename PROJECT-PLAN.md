@@ -4,6 +4,26 @@ A step-by-step build plan to go from zero to a Beltmann-demo-ready product. This
 
 Principle: **build the smallest thing that tells the story, in the order that lets you demo at every step.**
 
+### How work moves through the board
+
+Issues on the [GitHub Project board](https://github.com/users/cg0296/projects/2) flow through these statuses:
+
+```
+Todo → Suggested Next → Agent Work → Agent WIP → Testing → Human Work → Done
+```
+
+| Status | Who acts | What happens |
+|---|---|---|
+| **Todo** | Human | Queued. Human moves to Agent Work when prioritized. |
+| **Suggested Next** | Agent suggests, human approves | After completing work, the dev agent recommends the best next task with reasoning. Human promotes to Agent Work or overrides. |
+| **Agent Work** | Human approved | Ready for an AI dev agent to pick up. |
+| **Agent WIP** | Agent | Agent is actively working. Moved here immediately when starting (C1, C7 — visible in-progress sessions). |
+| **Testing** | Testing agent | Dev complete. Testing agent verifies acceptance criteria, cross-cutting constraints, and code quality. |
+| **Human Work** | Human | Requires human decision or action (failed test, manual config, deployment, etc.). |
+| **Done** | — | Testing agent verified and passed. Complete. |
+
+See [DEVELOPMENT-WORKFLOW.md](DEVELOPMENT-WORKFLOW.md) for the full dev agent SOP and [TESTING-WORKFLOW.md](TESTING-WORKFLOW.md) for the testing agent SOP.
+
 ---
 
 ## Phase 0 — Foundations (Week 1)
