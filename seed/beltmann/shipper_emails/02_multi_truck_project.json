@@ -1,0 +1,34 @@
+{
+  "scenario": "Multi-truck project — 5 flatbeds across 2 lanes, complex requirements",
+  "tests": ["extraction", "quote_sheet", "multi_lane"],
+  "expected_state": "ready_to_quote",
+  "sender": "sarah.chen@globalfreight.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "Project Quote - Multi-Truck Flatbed Moves",
+  "body": "Jillian,\n\nWe have a project coming up and need pricing on the following moves:\n\nLane 1: Houston, TX to Memphis, TN\n- 3 flatbeds\n- Commodity: Construction equipment (excavator parts)\n- Approx weight per truck: 44,000 lbs\n- Pickup window: April 20-22, 2026\n- Delivery by: April 25, 2026\n- Tarping required on all loads\n\nLane 2: Houston, TX to Nashville, TN\n- 2 flatbeds\n- Commodity: Steel beams\n- Approx weight per truck: 46,000 lbs\n- Pickup window: April 21-23, 2026\n- Delivery by: April 26, 2026\n- Oversize permits may be needed — beams are 53ft\n\nWe'd like per-truck pricing for each lane and an all-in project rate if possible.\n\nLet me know if you need anything else.\n\nSarah Chen\nGlobal Freight Solutions\n(713) 555-0298",
+  "thread_id": null,
+  "in_reply_to": null,
+  "message_id_header": "<msg-002@globalfreight.com>",
+  "expected_extraction": {
+    "customer_name": "Sarah Chen",
+    "customer_company": "Global Freight Solutions",
+    "origin": "Houston, TX",
+    "destination": "Memphis, TN / Nashville, TN",
+    "equipment_type": "Flatbed",
+    "truck_count": 5,
+    "commodity": "Construction equipment, Steel beams",
+    "weight_lbs": 44000,
+    "pickup_date": "2026-04-20",
+    "delivery_date": "2026-04-25",
+    "special_requirements": "Tarping required, Oversize permits may be needed (53ft beams)"
+  },
+  "expected_confidence": {
+    "origin": 0.97,
+    "destination": 0.85,
+    "equipment_type": 0.98,
+    "truck_count": 0.95,
+    "commodity": 0.93,
+    "weight_lbs": 0.90
+  },
+  "notes": "Multi-lane email. Destination confidence lower because two different destinations. Agent may need to create two RFQs or flag for review."
+}

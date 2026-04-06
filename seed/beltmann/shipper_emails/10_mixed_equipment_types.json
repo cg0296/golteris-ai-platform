@@ -1,0 +1,34 @@
+{
+  "scenario": "Mixed equipment — one request needs both flatbed and van trailers",
+  "tests": ["extraction", "multi_equipment"],
+  "expected_state": "ready_to_quote",
+  "sender": "karen.olsen@northstarlogistics.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "Mixed Load Quote - 2 Different Equipment Types",
+  "body": "Hi Jillian,\n\nI have a customer moving their manufacturing line from Milwaukee, WI to Louisville, KY and we need two types of equipment:\n\n1) One flatbed for the heavy machinery (CNC milling machine) — approximately 48,000 lbs. This piece is oversized at 12ft wide so we'll need permits.\n\n2) Two dry vans for the tooling, raw materials, and inventory — each about 30,000 lbs.\n\nPickup: April 21, 2026 (all three trucks same day)\nDelivery: April 23, 2026\n\nThe machinery requires top-loading with a crane at origin. Crane is provided by the shipper.\n\nPlease quote all three trucks.\n\nKaren Olsen\nNorthStar Logistics\n(414) 555-0321",
+  "thread_id": null,
+  "in_reply_to": null,
+  "message_id_header": "<msg-010@northstarlogistics.com>",
+  "expected_extraction": {
+    "customer_name": "Karen Olsen",
+    "customer_company": "NorthStar Logistics",
+    "origin": "Milwaukee, WI",
+    "destination": "Louisville, KY",
+    "equipment_type": "Flatbed, Dry Van",
+    "truck_count": 3,
+    "commodity": "CNC milling machine, tooling, raw materials, inventory",
+    "weight_lbs": 48000,
+    "pickup_date": "2026-04-21",
+    "delivery_date": "2026-04-23",
+    "special_requirements": "Oversized load (12ft wide) — permits needed, Top-loading with crane at origin (crane provided by shipper)"
+  },
+  "expected_confidence": {
+    "origin": 0.98,
+    "destination": 0.98,
+    "equipment_type": 0.88,
+    "truck_count": 0.95,
+    "commodity": 0.90,
+    "weight_lbs": 0.85
+  },
+  "notes": "Mixed equipment complicates extraction — equipment_type confidence may be lower. Agent may want to split into two RFQs or capture both types."
+}

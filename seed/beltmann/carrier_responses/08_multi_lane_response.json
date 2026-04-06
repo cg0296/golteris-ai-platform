@@ -1,0 +1,21 @@
+{
+  "scenario": "Multiple lanes in one response — carrier quotes both lanes from multi-truck project",
+  "tests": ["carrier_parsing", "multi_lane", "bid_comparison"],
+  "responds_to": "02_multi_truck_project.json",
+  "sender": "pricing@heartlandfleet.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "RE: Project Quote - Houston Multi-Truck Moves",
+  "body": "Hi Jillian,\n\nThanks for sending this over. Here's our pricing on both lanes:\n\nLANE 1: Houston, TX → Memphis, TN (3 flatbeds)\n- Rate: $1,750 per truck\n- Total for lane: $5,250\n- Tarps included\n- Available April 20-22 pickup, delivery by April 24\n\nLANE 2: Houston, TX → Nashville, TN (2 flatbeds)\n- Rate: $2,100 per truck\n- Total for lane: $4,200\n- Tarps included\n- Note: We checked on permits for the 53ft beams — Texas and Tennessee both require oversize permits. We can handle the permitting but it adds $450 per truck ($900 total for this lane).\n- Available April 21-23 pickup, delivery by April 25\n\nPROJECT TOTAL: $10,350 (including permits)\n\nIf you book all 5 trucks as a package, we can knock 5% off: $9,832.50\n\nAll rates include fuel surcharge. Valid through April 12.\n\nHeartland Fleet Services\nPricing Desk\n(281) 555-0662",
+  "thread_id": "thread-carrier-008",
+  "in_reply_to": "<carrier-rfq-002@beltmann.com>",
+  "message_id_header": "<resp-008@heartlandfleet.com>",
+  "expected_bid": {
+    "carrier_name": "Heartland Fleet Services",
+    "rate": 10350.00,
+    "currency": "USD",
+    "rate_type": "all_in",
+    "terms": "Lane 1: $1,750/truck × 3 = $5,250. Lane 2: $2,100/truck × 2 + $900 permits = $5,100. Project total $10,350. 5% discount if all 5 booked together ($9,832.50). Includes FSC, valid through April 12.",
+    "availability": "confirmed"
+  },
+  "notes": "Complex multi-lane response with per-truck, per-lane, and project-level pricing plus a volume discount. Tests the carrier parser's ability to handle structured multi-section responses."
+}

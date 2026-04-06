@@ -1,0 +1,35 @@
+{
+  "scenario": "Missing required fields — no commodity, no weight. Should trigger clarification.",
+  "tests": ["extraction", "validation", "missing_info_detection"],
+  "expected_state": "needs_clarification",
+  "sender": "mike.johnson@prairieshipments.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "Need a truck ASAP",
+  "body": "Hey Jillian,\n\nI need to move a load from Chicago to Detroit. Looking for a van trailer, just one truck. Need it picked up Monday April 14th and there by Wednesday the 16th.\n\nCan you get me a rate?\n\nMike Johnson\nPrairie Shipments",
+  "thread_id": null,
+  "in_reply_to": null,
+  "message_id_header": "<msg-003@prairieshipments.com>",
+  "expected_extraction": {
+    "customer_name": "Mike Johnson",
+    "customer_company": "Prairie Shipments",
+    "origin": "Chicago, IL",
+    "destination": "Detroit, MI",
+    "equipment_type": "Van",
+    "truck_count": 1,
+    "commodity": null,
+    "weight_lbs": null,
+    "pickup_date": "2026-04-14",
+    "delivery_date": "2026-04-16",
+    "special_requirements": null
+  },
+  "expected_confidence": {
+    "origin": 0.95,
+    "destination": 0.95,
+    "equipment_type": 0.92,
+    "truck_count": 0.99,
+    "commodity": 0.0,
+    "weight_lbs": 0.0
+  },
+  "expected_clarification_fields": ["commodity", "weight_lbs"],
+  "notes": "Commodity and weight are missing — required fields per FR-AG-4. Agent should draft a clarification email asking what's being shipped and approximate weight."
+}

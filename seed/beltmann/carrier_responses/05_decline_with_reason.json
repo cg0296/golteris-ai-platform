@@ -1,0 +1,20 @@
+{
+  "scenario": "Decline — carrier cannot cover, provides reason",
+  "tests": ["carrier_parsing", "decline_handling"],
+  "responds_to": "12_insurance_requirements.json",
+  "sender": "dispatch@midamtruck.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "RE: Aerospace Shipment Wichita-Huntsville — Pass",
+  "body": "Hi Jillian,\n\nWe'll have to pass on this one. Our cargo insurance maxes out at $2M which doesn't meet the $5M requirement for this shipment. We also don't currently have any TWIC-carded drivers available that week.\n\nFeel free to reach out on other loads though — we run the KS-AL corridor regularly and can usually help on standard freight.\n\nThanks,\nMid-American Trucking\nDispatch",
+  "thread_id": "thread-carrier-005",
+  "in_reply_to": "<carrier-rfq-012@beltmann.com>",
+  "message_id_header": "<resp-005@midamtruck.com>",
+  "expected_bid": {
+    "carrier_name": "Mid-American Trucking",
+    "rate": null,
+    "currency": null,
+    "rate_type": null,
+    "terms": "DECLINED — insufficient cargo insurance ($2M vs $5M required), no TWIC-carded drivers available",
+    "availability": "unavailable"
+  }
+}

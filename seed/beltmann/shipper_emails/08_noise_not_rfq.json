@@ -1,0 +1,14 @@
+{
+  "scenario": "Noise — not an RFQ. Newsletter / marketing email that should be ignored.",
+  "tests": ["matching", "noise_filtering"],
+  "expected_state": null,
+  "expected_routing": "ignored",
+  "sender": "newsletter@freightweekly.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "Freight Market Update — April 2026",
+  "body": "FREIGHT WEEKLY — Your Weekly Market Update\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nMarket Snapshot: April 6, 2026\n\nDry van spot rates continued their seasonal climb this week, with national averages hitting $2.45/mi — up 3.2% from last month. The Southeast corridor remains tight, particularly Atlanta and Charlotte lanes.\n\nFlatbed demand surged in Texas and Oklahoma driven by construction season and energy infrastructure projects. Expect rates on Houston outbound lanes to remain elevated through Q2.\n\nReefer capacity is loosening slightly in the Midwest as produce season hasn't fully kicked off yet.\n\nKey Indicators:\n- DAT National Van Rate: $2.45/mi (+$0.08 w/w)\n- DAT National Flatbed Rate: $2.82/mi (+$0.12 w/w)\n- DAT National Reefer Rate: $2.91/mi (-$0.03 w/w)\n- Diesel National Avg: $3.78/gal (-$0.02 w/w)\n\nTo unsubscribe, click here.\n\n© 2026 Freight Weekly. All rights reserved.",
+  "thread_id": null,
+  "in_reply_to": null,
+  "message_id_header": "<newsletter-20260406@freightweekly.com>",
+  "notes": "This is a newsletter, not an RFQ. The matching service should classify this as noise and set routing_status=ignored. No RFQ should be created."
+}
