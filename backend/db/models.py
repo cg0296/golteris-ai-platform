@@ -17,7 +17,7 @@ Tables and their roles:
     agent_runs    — One row per workflow invocation (e.g., "process new email for RFQ
                     #42"). Tracks start/end, status, and rolls up cost/tokens from
                     child agent_calls. Powers the Agent → Run Timeline view.
-    agent_calls   — One row per Claude API call. Logs the full prompt, model, token
+    agent_calls   — One row per LLM API call. Logs the full prompt, model, provider, token
                     counts, cost in USD, and duration. Powers the Agent → Decisions
                     audit view. Required by C4 (visible reasoning) and C5 (cost caps).
     approvals     — HITL review queue. Every outbound email draft lands here with
@@ -125,7 +125,7 @@ class AgentRunStatus(str, enum.Enum):
 
 
 class AgentCallStatus(str, enum.Enum):
-    """Status of a single Claude API call (agent_calls)."""
+    """Status of a single LLM API call (agent_calls). Provider-agnostic."""
     SUCCESS = "success"
     FAILED = "failed"
     TIMEOUT = "timeout"
@@ -318,7 +318,7 @@ class AgentRun(Base):
     Powers the Agent → Run Timeline view (#38) and the Agent → Tasks Queue (#39).
     See REQUIREMENTS.md NFR-OB-2.
 
-    The run may span multiple Claude API calls (agent_calls) — for example,
+    The run may span multiple LLM API calls (agent_calls) — for example,
     extraction + validation + draft generation in one orchestrated run.
     """
     __tablename__ = "agent_runs"
@@ -361,16 +361,16 @@ class AgentRun(Base):
 
 class AgentCall(Base):
     """
-    One row per Claude API call.
+    One row per LLM API call (any provider — Anthropic, OpenAI, etc.).
 
-    This is the most granular audit record in the system. Every time the Anthropic
-    SDK is called, the wrapper writes a row here with the full prompt, response,
-    model, token counts, cost, and duration.
+    This is the most granular audit record in the system. Every time the LLM
+    provider abstraction layer is called, it writes a row here with the full
+    prompt, response, provider, model, token counts, cost, and duration.
 
     Required by:
     - C4 (visible reasoning) — the broker can trace any decision to its prompt
     - C5 (cost caps) — cost_usd enables per-call and per-day cost tracking
-    - NFR-OB-1 — cost must match the Anthropic bill within 1%
+    - NFR-OB-1 — cost must match the provider's bill within 1%
 
     Powers the Agent → Decisions audit view (#37).
     """
@@ -389,13 +389,13 @@ class AgentCall(Base):
     # in the RFQ detail drawer reads these fields.
     system_prompt = Column(Text)
     user_prompt = Column(Text, nullable=False)
-    # The full response from Claude — stored as text (may be JSON for tool-use)
+    # The full response from the LLM — stored as text (may be JSON for tool-use)
     response = Column(Text)
     # Token counts — used for cost calculation and the Decisions audit view
     input_tokens = Column(Integer, nullable=False, default=0)
     output_tokens = Column(Integer, nullable=False, default=0)
-    # Cost in USD — calculated from token counts using Anthropic's pricing.
-    # Must match the actual Anthropic bill within 1% (NFR-OB-1).
+    # Cost in USD — calculated from token counts using the provider's pricing.
+    # Must match the actual provider bill within 1% (NFR-OB-1).
     cost_usd = Column(Numeric(10, 6), nullable=False, default=Decimal("0"))
     # Timing
     started_at = Column(DateTime, nullable=False, default=datetime.utcnow)

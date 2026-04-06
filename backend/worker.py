@@ -21,7 +21,7 @@ Cross-cutting constraints relevant here:
     C1 — The worker MUST check workflows.enabled before dispatching any job.
          If a workflow is disabled, the worker skips it. The kill switch
          (all workflows disabled) effectively pauses the worker.
-    C5 — Before making any Claude API call, the worker must check the daily
+    C5 — Before making any LLM API call, the worker must check the daily
          cost cap. If the cap is reached, no further calls are made.
 
 See REQUIREMENTS.md §6.8 (FR-WK-1 through FR-WK-3) for formal requirements.

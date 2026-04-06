@@ -7,7 +7,7 @@
 #   rfqs          — core RFQ records with extracted fields and state
 #   messages      — inbound/outbound email records linked to RFQs
 #   agent_runs    — per-workflow-invocation tracking (duration, cost rollup)
-#   agent_calls   — per-Claude-API-call logging (prompt, tokens, cost, duration)
+#   agent_calls   — per-LLM-call logging (prompt, provider, tokens, cost, duration)
 #   approvals     — HITL review queue (C2 — nothing sends without approval)
 #   audit_events  — every state change and action for the RFQ detail timeline
 #   carrier_bids  — carrier quote responses for bid comparison

@@ -82,7 +82,7 @@ This comment serves two purposes:
 Follow the steps in [TESTING-WORKFLOW.md](TESTING-WORKFLOW.md) as if you were the testing agent:
 
 1. **Run the acceptance criteria checks** — execute every command, visit every URL, run every test from the issue's acceptance criteria. Record what happened.
-2. **Verify cross-cutting constraints** — check the relevant constraints from REQUIREMENTS.md §5 (C1–C7) against your code. Did you accidentally bypass HITL? Did you expose agent jargon in the UI? Are Claude calls logged?
+2. **Verify cross-cutting constraints** — check the relevant constraints from REQUIREMENTS.md §5 (C1–C7) against your code. Did you accidentally bypass HITL? Did you expose agent jargon in the UI? Are LLM calls logged?
 3. **Check your own comments** — does every file have a top-level docstring? Does every function have a docstring? Are complex blocks explained inline? (§3.6)
 4. **Run automated tests** — `pytest` for backend, `vitest` for frontend. All tests must pass.
 5. **Fix anything that fails** — if you find bugs, fix them and commit the fixes before proceeding.
@@ -156,10 +156,10 @@ After posting the completion comment, **move the issue status from `Agent Work` 
 1. Agent sees #24 is in `Agent Work` status.
 2. Agent reads REQUIREMENTS.md and the issue body.
 3. Agent posts a comment:
-   > **Reasoning:** #24 is in Agent Work. Dependencies #11 (schema) and #20 (Anthropic API) are Done. This is the core extraction agent.
+   > **Reasoning:** #24 is in Agent Work. Dependencies #11 (schema) and #20 (LLM API credentials) are Done. This is the core extraction agent.
    >
    > **Plan:**
-   > 1. Create `backend/agents/extraction.py` with Claude tool-use schema for RFQ fields.
+   > 1. Create `backend/agents/extraction.py` with LLM tool-use schema for RFQ fields.
    > 2. Add confidence scoring per field (threshold 0.90 per §5 C2, FR-AG-2).
    > 3. Write to `rfqs` table and `agent_calls` table.
    > 4. Add 5 test cases using seed emails from `seed/beltmann/`.
@@ -168,7 +168,7 @@ After posting the completion comment, **move the issue status from `Agent Work` 
 4. Agent creates branch `issue-24-extraction-agent`, writes code, commits.
 5. Agent posts a completion comment:
    > **What I did:**
-   > - Created `backend/agents/extraction.py` — Claude tool-use extraction with 10-field schema
+   > - Created `backend/agents/extraction.py` — LLM tool-use extraction with 10-field schema
    > - Created `tests/agents/test_extraction.py` — 5 test cases against seed emails
    > - Updated `db/migrations/0004_agent_calls.py` — added agent_calls table
    >

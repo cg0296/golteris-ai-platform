@@ -16,7 +16,7 @@ Nothing runs yet. The goal is to have a working skeleton on a box with a databas
 - [ ] Postgres database provisioned
 - [ ] Python backend scaffold (FastAPI) with a health endpoint
 - [ ] Static frontend served from the same app (can be plain HTML/JS initially — the prototype in `product-ux.html` is a good starting point)
-- [ ] Anthropic API key wired up and a single "hello Claude" test endpoint that proves tool-use works
+- [ ] LLM API key wired up and a single test endpoint that proves tool-use works (provider-agnostic — see REQUIREMENTS.md §2.5)
 - [ ] Basic auth (even hardcoded user for demo) so the UI has a logged-in state
 
 ### Core data model (first draft)
@@ -41,7 +41,7 @@ Build the minimum agent pipeline that turns one email into one structured RFQ in
 ### Deliverables
 
 - [ ] **Mailbox poller** — a Python function that pulls messages from a connected inbox on a cron (or for dev, from a seeded folder of sample emails). Supports any email provider via the abstraction layer (IMAP, Gmail, Outlook). Writes to `messages` table.
-- [ ] **Extraction agent** — Python function that reads a message, calls Claude with a structured tool-use schema, and writes extracted fields into `rfqs`. Logs the run to `agent_runs`.
+- [ ] **Extraction agent** — Python function that reads a message, calls the LLM (via provider abstraction layer) with a structured tool-use schema, and writes extracted fields into `rfqs`. Logs the run to `agent_runs`.
 - [ ] **Validation agent** — checks required fields, sets `state` to `needs_clarification` or `ready_to_quote`, drafts a follow-up if missing data.
 - [ ] **Orchestrator loop** — a simple worker script that polls the database for RFQs in each state and dispatches the next agent.
 - [ ] **Seed data** — 5-10 sample emails covering happy path, missing equipment, ambiguous destination, multi-truck project, and a noise message (not an RFQ).
@@ -108,7 +108,7 @@ This is the trust surface. When Jillian asks *"why did it do that?"* this is whe
   - Messages (full inbound/outbound thread attached to this RFQ)
   - Actions & History (timeline of every agent action and human decision)
 - [ ] **API endpoint** — `GET /api/rfqs/:id` returns the full record with messages, timeline, and reasoning
-- [ ] **Raw-data disclosure** — a collapsible "View system reasoning" section that shows the Claude prompt/response for each agent run (for debugging, not for brokers)
+- [ ] **Raw-data disclosure** — a collapsible "View system reasoning" section that shows the LLM prompt/response for each agent run (for debugging, not for brokers)
 - [ ] **Deep links** — clicking an activity item or RFQ card opens the drawer directly to that RFQ
 
 ### Acceptance test
@@ -203,7 +203,7 @@ Why this sequence:
 
 | Risk | Mitigation |
 |---|---|
-| Claude extraction is unreliable on messy emails | Start with a tight JSON schema, strong examples in the prompt, and low-confidence flagging. Log every extraction for review. |
+| LLM extraction is unreliable on messy emails | Start with a tight JSON schema, strong examples in the prompt, and low-confidence flagging. Log every extraction for review. Switch providers if one underperforms. |
 | Email provider auth takes longer than expected | For the demo, use a seeded folder of sample emails instead of a live inbox. Connect real email provider as v2. |
 | The orchestrator loop becomes complex | Keep it boring — a Python worker that `SELECT ... FOR UPDATE SKIP LOCKED` on a jobs table. No frameworks. |
 | Jillian asks about auth/security/compliance | Have a one-pager ready. Real answer: single-tenant, isolated DB, audit log on every action, human approval before any outbound. |
@@ -221,7 +221,7 @@ Things to *not* build before the Beltmann demo, even though they're on the roadm
 - Carrier scoring / market rate intelligence
 - Reverse auction features
 - Mobile app (mobile web is enough)
-- MCP server for Claude Desktop integration
+- MCP server or LLM desktop integration
 - Notification / email / Slack digests
 - Advanced scope rules per customer
 - Auto-send on high-confidence items (everything is HITL until a user explicitly opts in)

@@ -361,7 +361,7 @@ def main():
         print("ERROR: RENDER_API_KEY not set. Add it to .env or set the environment variable.")
         sys.exit(1)
     if not ANTHROPIC_API_KEY:
-        print("WARNING: ANTHROPIC_API_KEY not set. The services will be created but Claude calls won't work.")
+        print("WARNING: ANTHROPIC_API_KEY not set. The services will be created but LLM calls won't work without at least one provider key.")
 
     # Step 1: Database
     db_id = create_database()

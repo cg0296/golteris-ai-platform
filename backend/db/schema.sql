@@ -14,7 +14,7 @@
 --   rfqs           — Core RFQ records with extracted fields and state
 --   messages       — Inbound/outbound email records linked to RFQs
 --   agent_runs     — Per-workflow-invocation tracking (duration, cost rollup)
---   agent_calls    — Per-Claude-API-call logging (prompt, tokens, cost, duration)
+--   agent_calls    — Per-LLM-call logging (prompt, provider, tokens, cost, duration)
 --   approvals      — HITL review queue (C2 — nothing sends without approval)
 --   audit_events   — Immutable event log for RFQ detail timeline
 --   carrier_bids   — Carrier quote responses for bid comparison
@@ -175,7 +175,7 @@ CREATE INDEX ix_agent_runs_rfq_id ON agent_runs (rfq_id);
 CREATE INDEX ix_agent_runs_status ON agent_runs (status);
 CREATE INDEX ix_agent_runs_started_at ON agent_runs (started_at);
 
--- Per-Claude-API-call logging. Full prompt, response, model, tokens, cost, duration.
+-- Per-LLM-call logging. Full prompt, response, provider, model, tokens, cost, duration.
 -- C4: enables tracing any decision to its prompt.
 -- C5: cost_usd enables cost cap enforcement.
 CREATE TABLE agent_calls (

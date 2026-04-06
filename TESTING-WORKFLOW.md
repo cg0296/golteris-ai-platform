@@ -68,7 +68,7 @@ Every piece of work must comply with the constraints in [REQUIREMENTS.md](REQUIR
 | **C2 — HITL gating** | Does any outbound email send without `approved=true`? Can approval be bypassed? |
 | **C3 — Plain English** | Does the UI show any internal agent jargon? Any `run_id`, `extraction_completed`, or technical language? |
 | **C4 — Visible reasoning** | Can every action be traced in the RFQ detail timeline? Is prompt/model/cost auditable? |
-| **C5 — Cost caps** | Are Claude calls logged with tokens and cost? Would hitting a cap actually stop further calls? |
+| **C5 — Cost caps** | Are LLM calls logged with tokens and cost? Would hitting a cap actually stop further calls? |
 | **C7 — Dev agent discipline** | Does every commit reference the issue? Are comments thorough (§3.6)? Is REQUIREMENTS.md updated if scope changed? |
 
 Not every constraint applies to every issue — use judgment. But if an issue touches outbound email, C2 must be verified. If it touches the UI, C3 must be verified. And so on.
