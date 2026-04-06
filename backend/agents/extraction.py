@@ -1,0 +1,449 @@
+"""
+backend/agents/extraction.py — RFQ extraction agent.
+
+Turns an inbound shipper email into a structured RFQ record by calling the LLM
+with a tool-use schema. This is the first agent in the pipeline and the primary
+demo hero moment ("email arrives, structured RFQ appears").
+
+How it works:
+    1. Reads a message from the `messages` table
+    2. Creates an agent_run via the run tracking service (#22)
+    3. Calls the LLM with the extract_rfq tool schema
+    4. The LLM returns structured fields + per-field confidence scores
+    5. Persists the extracted fields to a new row in the `rfqs` table
+    6. Logs an audit event for the RFQ detail timeline
+    7. Finishes the agent run (rolls up cost/tokens)
+
+Called by:
+    - The background worker (backend/worker.py) when a new message arrives
+    - Manually for testing: `extract_rfq(db, message_id)`
+
+Cross-cutting constraints:
+    C4 — Every LLM call is logged to agent_calls (automatic via call_llm)
+    C5 — Cost caps enforced at call_llm level
+    FR-AG-1 — Extraction uses tool-use / function calling for structured output
+    FR-AG-2 — Every field has a confidence score (0.0-1.0)
+
+See REQUIREMENTS.md §6.3 FR-AG-1 and FR-AG-2.
+See .scratch/repo-wiki/Agent-Contracts.md for the full extraction contract.
+"""
+
+import json
+import logging
+from datetime import datetime
+from decimal import Decimal
+from typing import Any, Optional
+
+from sqlalchemy.orm import Session
+
+from backend.db.models import (
+    AgentRun,
+    AgentRunStatus,
+    AuditEvent,
+    Message,
+    RFQ,
+    RFQState,
+)
+from backend.llm.client import call_llm
+from backend.llm.provider import ToolDefinition
+from backend.services.agent_runs import fail_run, finish_run, start_run
+
+logger = logging.getLogger("golteris.agents.extraction")
+
+
+# ---------------------------------------------------------------------------
+# Tool-use schema — defines what structured data the LLM must return.
+#
+# This is the core extraction contract. The LLM sees this schema and fills
+# in each field from the email content. Fields it can't find are set to null.
+# Confidence scores tell us how sure the LLM is about each extraction.
+#
+# The schema matches the `rfqs` table columns (see backend/db/models.py).
+# FR-AG-1: tool-use for structured extraction
+# FR-AG-2: per-field confidence scores
+# ---------------------------------------------------------------------------
+
+EXTRACT_RFQ_TOOL = ToolDefinition(
+    name="extract_rfq",
+    description=(
+        "Extract structured freight quote request (RFQ) fields from a shipper email. "
+        "Fill in every field you can find. Set fields to null if the information is not "
+        "present in the email. Provide a confidence score (0.0 to 1.0) for each key field "
+        "indicating how certain you are about the extraction."
+    ),
+    input_schema={
+        "type": "object",
+        "properties": {
+            "customer_name": {
+                "type": ["string", "null"],
+                "description": "Contact person's name from the email signature or body",
+            },
+            "customer_company": {
+                "type": ["string", "null"],
+                "description": "Company name of the shipper/customer",
+            },
+            "customer_email": {
+                "type": ["string", "null"],
+                "description": "Email address of the contact person",
+            },
+            "origin": {
+                "type": ["string", "null"],
+                "description": "Pickup city and state (e.g., 'Dallas, TX')",
+            },
+            "destination": {
+                "type": ["string", "null"],
+                "description": "Delivery city and state (e.g., 'Atlanta, GA')",
+            },
+            "equipment_type": {
+                "type": ["string", "null"],
+                "description": "Truck/trailer type: flatbed, van, reefer, box truck, step deck, etc.",
+            },
+            "truck_count": {
+                "type": ["integer", "null"],
+                "description": "Number of trucks needed",
+            },
+            "commodity": {
+                "type": ["string", "null"],
+                "description": "What is being shipped (e.g., 'steel coils', 'lumber')",
+            },
+            "weight_lbs": {
+                "type": ["integer", "null"],
+                "description": "Approximate weight per truck in pounds",
+            },
+            "pickup_date": {
+                "type": ["string", "null"],
+                "description": "Requested pickup date in YYYY-MM-DD format. Convert relative dates (e.g., 'next Tuesday') to absolute dates.",
+            },
+            "delivery_date": {
+                "type": ["string", "null"],
+                "description": "Requested delivery date in YYYY-MM-DD format",
+            },
+            "special_requirements": {
+                "type": ["string", "null"],
+                "description": "Any special requirements: tarping, lift gate, driver unload, temperature control, permits, insurance minimums, hazmat, appointment times, etc.",
+            },
+            "confidence": {
+                "type": "object",
+                "description": "Confidence score (0.0 to 1.0) for each key field. 1.0 = explicitly stated, 0.0 = not found, 0.5-0.9 = inferred with varying certainty.",
+                "properties": {
+                    "origin": {"type": "number", "minimum": 0, "maximum": 1},
+                    "destination": {"type": "number", "minimum": 0, "maximum": 1},
+                    "equipment_type": {"type": "number", "minimum": 0, "maximum": 1},
+                    "truck_count": {"type": "number", "minimum": 0, "maximum": 1},
+                    "commodity": {"type": "number", "minimum": 0, "maximum": 1},
+                    "weight_lbs": {"type": "number", "minimum": 0, "maximum": 1},
+                },
+                "required": ["origin", "destination", "equipment_type", "truck_count", "commodity", "weight_lbs"],
+            },
+        },
+        "required": [
+            "customer_name", "customer_company", "customer_email",
+            "origin", "destination", "equipment_type", "truck_count",
+            "commodity", "weight_lbs", "pickup_date", "delivery_date",
+            "special_requirements", "confidence",
+        ],
+    },
+)
+
+
+SYSTEM_PROMPT = """You are a freight logistics assistant working for a freight broker. Your job is to extract structured quote request (RFQ) information from inbound shipper emails.
+
+Instructions:
+- Extract every field you can find from the email content.
+- If a field is not mentioned or cannot be determined, set it to null.
+- For dates, convert relative references (e.g., "next Tuesday", "tomorrow", "this Friday") to absolute YYYY-MM-DD format. Today's date will be provided.
+- For weight, extract per-truck weight in pounds. If a total weight is given for multiple trucks, divide by truck count.
+- For equipment, normalize to standard types: flatbed, van, reefer, step deck, box truck, tanker, etc.
+- For origin and destination, include city and state. If only a city is given without a state, include only the city and set confidence lower.
+- Capture ALL special requirements mentioned anywhere in the email: tarping, lift gate, driver unload/assist, inside delivery, temperature requirements, permits, insurance minimums, appointment windows, hazmat, etc.
+- Set confidence scores honestly:
+  - 1.0 = field explicitly stated in clear terms
+  - 0.9 = field clearly stated but minor ambiguity (e.g., abbreviation)
+  - 0.7-0.8 = field reasonably inferred from context
+  - 0.4-0.6 = field guessed with significant uncertainty
+  - 0.0 = field not found in the email at all
+
+Use the extract_rfq tool to return your results."""
+
+
+def extract_rfq(
+    db: Session,
+    message_id: int,
+    today_date: Optional[str] = None,
+) -> Optional[RFQ]:
+    """
+    Extract structured RFQ fields from an inbound email message.
+
+    This is the main entry point for the extraction agent. It reads the
+    message, calls the LLM with the tool-use schema, and persists the
+    extracted data as a new RFQ.
+
+    Args:
+        db: SQLAlchemy session.
+        message_id: ID of the message to extract from (must exist in messages table).
+        today_date: Today's date as YYYY-MM-DD string, used for resolving relative
+                    dates in emails. Defaults to today if not provided.
+
+    Returns:
+        The newly created RFQ with extracted fields and confidence scores,
+        or None if the message wasn't found.
+
+    Side effects:
+        - Creates an agent_run row (via run tracking service)
+        - Creates agent_calls rows (via call_llm)
+        - Creates a new rfqs row with extracted fields
+        - Creates an audit_events row for the RFQ timeline
+        - Sets message.rfq_id to link the message to the new RFQ
+    """
+    # Load the message
+    message = db.query(Message).filter(Message.id == message_id).first()
+    if not message:
+        logger.error("Message %d not found — cannot extract", message_id)
+        return None
+
+    # Resolve today's date for the system prompt (helps LLM convert relative dates)
+    if not today_date:
+        today_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+    # Start an agent run to track this extraction (C4 — visible reasoning)
+    run = start_run(
+        db,
+        workflow_name="RFQ Extraction",
+        rfq_id=None,  # We don't have an RFQ yet — we're creating one
+        trigger_source="new_email",
+    )
+
+    try:
+        # Build the user prompt with the email content and today's date
+        user_prompt = _build_user_prompt(message, today_date)
+
+        # Call the LLM with the extraction tool schema.
+        # call_llm handles: cost cap check (C5), provider selection, logging to
+        # agent_calls (C4), and error handling.
+        response = call_llm(
+            db=db,
+            run_id=run.id,
+            agent_name="extraction",
+            system_prompt=SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            tools=[EXTRACT_RFQ_TOOL],
+            temperature=0.0,  # Deterministic for consistent extraction
+        )
+
+        # Parse the tool-use result — the LLM should have called extract_rfq
+        extracted = _parse_tool_response(response)
+        if not extracted:
+            logger.warning("LLM did not call extract_rfq tool for message %d", message_id)
+            fail_run(db, run.id, "LLM did not return tool-use result")
+            return None
+
+        # Create the RFQ from extracted fields
+        rfq = _create_rfq_from_extraction(db, message, extracted)
+
+        # Link the message to the new RFQ
+        message.rfq_id = rfq.id
+
+        # Log an audit event for the RFQ detail timeline (C4)
+        # Uses plain English per C3 — "Pulled quote request from email"
+        _log_audit_event(db, rfq, message, extracted)
+
+        # Update the run with the RFQ ID now that we have one
+        run.rfq_id = rfq.id
+        db.commit()
+
+        # Finish the run — rolls up cost and tokens from the LLM call
+        finish_run(db, run.id)
+
+        logger.info(
+            "Extraction complete: message=%d -> rfq=%d origin=%s destination=%s confidence=%s",
+            message_id, rfq.id, rfq.origin, rfq.destination,
+            json.dumps(extracted.get("confidence", {})),
+        )
+
+        return rfq
+
+    except Exception as e:
+        logger.exception("Extraction failed for message %d: %s", message_id, e)
+        fail_run(db, run.id, str(e))
+        raise
+
+
+def _build_user_prompt(message: Message, today_date: str) -> str:
+    """
+    Build the user prompt from the email message.
+
+    Includes the sender, subject, and body — the three fields the LLM needs
+    to extract RFQ data from. Also includes today's date so relative date
+    references ("next Tuesday") can be resolved to absolute dates.
+    """
+    return (
+        f"Today's date: {today_date}\n\n"
+        f"From: {message.sender}\n"
+        f"Subject: {message.subject or '(no subject)'}\n\n"
+        f"{message.body}"
+    )
+
+
+def _parse_tool_response(response) -> Optional[dict[str, Any]]:
+    """
+    Extract the structured data from the LLM's tool-use response.
+
+    The LLM should have called the extract_rfq tool exactly once.
+    Returns the tool's input dict (the extracted fields), or None
+    if the tool wasn't called.
+    """
+    if not response.tool_calls:
+        return None
+
+    # Find the extract_rfq tool call (there should be exactly one)
+    for tool_call in response.tool_calls:
+        if tool_call.get("name") == "extract_rfq":
+            return tool_call.get("input", {})
+
+    return None
+
+
+def _create_rfq_from_extraction(
+    db: Session,
+    message: Message,
+    extracted: dict[str, Any],
+) -> RFQ:
+    """
+    Create a new RFQ record from the extracted fields.
+
+    Maps the LLM's tool-use output to the rfqs table columns. Sets the
+    initial state based on whether required fields are present:
+    - All required fields present with high confidence -> ready_to_quote
+    - Missing required fields or low confidence -> needs_clarification
+
+    The confidence scores are stored as JSONB for the HITL escalation
+    policy (#23) to use when deciding whether to flag for review.
+    """
+    confidence = extracted.get("confidence", {})
+
+    # Parse dates — they come as strings from the LLM tool output
+    pickup_date = _parse_date(extracted.get("pickup_date"))
+    delivery_date = _parse_date(extracted.get("delivery_date"))
+
+    rfq = RFQ(
+        customer_name=extracted.get("customer_name"),
+        customer_email=extracted.get("customer_email") or message.sender,
+        customer_company=extracted.get("customer_company"),
+        origin=extracted.get("origin"),
+        destination=extracted.get("destination"),
+        equipment_type=extracted.get("equipment_type"),
+        truck_count=extracted.get("truck_count"),
+        commodity=extracted.get("commodity"),
+        weight_lbs=extracted.get("weight_lbs"),
+        pickup_date=pickup_date,
+        delivery_date=delivery_date,
+        special_requirements=extracted.get("special_requirements"),
+        confidence_scores=confidence,
+        # Determine initial state based on completeness and confidence
+        state=_determine_initial_state(extracted, confidence),
+    )
+
+    db.add(rfq)
+    db.flush()  # Get the ID before committing
+
+    return rfq
+
+
+def _determine_initial_state(
+    extracted: dict[str, Any],
+    confidence: dict[str, float],
+) -> RFQState:
+    """
+    Decide the initial RFQ state based on field completeness and confidence.
+
+    Required fields (per FR-AG-2 and the Agent Contracts doc):
+    - origin, destination, equipment_type, truck_count, commodity
+
+    If any required field is null or has confidence below the threshold (0.90),
+    the RFQ starts in needs_clarification. Otherwise, it's ready_to_quote.
+
+    The 0.90 threshold is configurable per workflow (#23) — for now it's
+    hardcoded as the default per REQUIREMENTS.md FR-AG-2.
+    """
+    CONFIDENCE_THRESHOLD = 0.90
+    REQUIRED_FIELDS = ["origin", "destination", "equipment_type", "truck_count", "commodity"]
+
+    for field_name in REQUIRED_FIELDS:
+        # Check if the field value is missing
+        if extracted.get(field_name) is None:
+            logger.info("Field '%s' is null — RFQ needs clarification", field_name)
+            return RFQState.NEEDS_CLARIFICATION
+
+        # Check if confidence is below threshold (FR-AG-2, FR-AG-3)
+        field_confidence = confidence.get(field_name, 0.0)
+        if field_confidence < CONFIDENCE_THRESHOLD:
+            logger.info(
+                "Field '%s' confidence %.2f < %.2f — RFQ needs clarification",
+                field_name, field_confidence, CONFIDENCE_THRESHOLD,
+            )
+            return RFQState.NEEDS_CLARIFICATION
+
+    return RFQState.READY_TO_QUOTE
+
+
+def _log_audit_event(
+    db: Session,
+    rfq: RFQ,
+    message: Message,
+    extracted: dict[str, Any],
+) -> None:
+    """
+    Create an audit event for the RFQ detail timeline.
+
+    Uses plain English per C3 — the broker sees "Pulled quote request from
+    email" in the timeline, not "extraction_completed" or "agent_call_success".
+    Technical details are in the event_data JSONB for drill-down.
+    """
+    confidence = extracted.get("confidence", {})
+    low_confidence_fields = [
+        k for k, v in confidence.items() if v < 0.90
+    ]
+
+    # Build a human-readable description (C3 — plain English)
+    if rfq.state == RFQState.NEEDS_CLARIFICATION:
+        description = (
+            f"Pulled quote request from {message.sender} — "
+            f"needs clarification on: {', '.join(low_confidence_fields) or 'missing fields'}"
+        )
+    else:
+        description = (
+            f"Pulled quote request from {message.sender} — "
+            f"{rfq.origin} to {rfq.destination}, "
+            f"{rfq.truck_count} {rfq.equipment_type or 'truck'}(s)"
+        )
+
+    event = AuditEvent(
+        rfq_id=rfq.id,
+        event_type="rfq_extracted",
+        actor="extraction_agent",
+        description=description,
+        event_data={
+            "message_id": message.id,
+            "confidence_scores": confidence,
+            "low_confidence_fields": low_confidence_fields,
+            "initial_state": rfq.state.value,
+        },
+    )
+    db.add(event)
+
+
+def _parse_date(date_str: Optional[str]) -> Optional[datetime]:
+    """
+    Parse a date string from the LLM output (expected YYYY-MM-DD format).
+
+    Returns None if the string is null, empty, or unparseable.
+    The LLM is instructed to return dates in YYYY-MM-DD format, but
+    we handle failures gracefully rather than crashing.
+    """
+    if not date_str:
+        return None
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        logger.warning("Could not parse date '%s' — expected YYYY-MM-DD", date_str)
+        return None
