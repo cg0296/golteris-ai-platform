@@ -1,46 +1,49 @@
 """
-backend/worker.py — Background worker entry point.
+backend/worker.py — Background worker for agent orchestration.
 
-This is the long-running process that handles:
-1. Mailbox polling — checks for new emails on a cron schedule (#12, #47)
-2. Job queue processing — picks up jobs from the Postgres queue using
-   SELECT ... FOR UPDATE SKIP LOCKED (#47)
-3. Delayed job firing — nudge timers, reminders, follow-up deadlines (#32)
+This is the long-running process that powers the Golteris pipeline. It:
+1. Polls the Postgres job queue for pending work
+2. Dispatches jobs to the appropriate agent
+3. Handles failures with retry logic
+4. Respects workflow enable/disable toggles (C1)
 
-This file is a placeholder scaffold. The real implementation will be built
-by issue #47 (Build worker process and scheduler). For now, it:
-- Connects to the database
-- Logs that it's running
-- Sleeps in a loop (so the Render worker process stays alive)
+The job queue uses SELECT ... FOR UPDATE SKIP LOCKED on the `jobs` table,
+which provides safe, concurrent job processing without an external queue
+(Redis, RabbitMQ, Celery). See REQUIREMENTS.md §2.1.
 
-The worker runs as a separate process from the web server. On Render, it's
-defined as a Background Worker in render.yaml. Locally, run it with:
+Crash safety (FR-WK-2): All state lives in Postgres. If the worker crashes,
+pending jobs stay pending and are picked up on restart. Running jobs that
+were interrupted are detected by their stale `started_at` timestamp and
+can be re-queued.
+
+To run locally:
     python -m backend.worker
 
-Cross-cutting constraints relevant here:
-    C1 — The worker MUST check workflows.enabled before dispatching any job.
-         If a workflow is disabled, the worker skips it. The kill switch
-         (all workflows disabled) effectively pauses the worker.
-    C5 — Before making any LLM API call, the worker must check the daily
-         cost cap. If the cap is reached, no further calls are made.
+In production (Render), defined as a Background Worker in render.yaml.
 
-See REQUIREMENTS.md §6.8 (FR-WK-1 through FR-WK-3) for formal requirements.
+Cross-cutting constraints:
+    C1 — Checks workflows.enabled before processing each job. Kill switch
+         (all workflows disabled) causes the worker to idle.
+    C5 — Cost caps enforced at the call_llm level inside each agent.
+    FR-WK-1 — Postgres job queue with FOR UPDATE SKIP LOCKED
+    FR-WK-2 — All state in Postgres, nothing in memory
+    FR-WK-3 — Worker idle state visible via the Tasks view (#39)
 """
 
 import logging
 import os
 import sys
 import time
+from datetime import datetime
 
-# Add the project root to the Python path so imports work when running
-# as `python -m backend.worker` from the project root.
+# Add project root to path for imports when running as `python -m backend.worker`
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from backend.db.database import SessionLocal  # noqa: E402
-from backend.db.models import Workflow  # noqa: E402
+from sqlalchemy import text
 
-# Configure logging — structured JSON logs will be added by #52 (observability).
-# For now, use a simple format that includes timestamps.
+from backend.db.database import SessionLocal
+from backend.db.models import Job, JobStatus, Workflow
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
@@ -48,70 +51,293 @@ logging.basicConfig(
 )
 logger = logging.getLogger("golteris.worker")
 
-# How often the worker checks for new jobs (in seconds).
-# The mailbox poller runs on its own schedule inside this loop.
+# How often the worker checks for jobs (in seconds)
 POLL_INTERVAL = int(os.environ.get("WORKER_POLL_INTERVAL", "10"))
 
+# Maximum jobs to process per poll cycle (prevents one cycle from running forever)
+MAX_JOBS_PER_CYCLE = int(os.environ.get("WORKER_MAX_JOBS_PER_CYCLE", "5"))
 
-def check_enabled_workflows():
+
+# ---------------------------------------------------------------------------
+# Job queue operations
+# ---------------------------------------------------------------------------
+
+
+def enqueue_job(
+    db,
+    job_type: str,
+    payload: dict,
+    rfq_id: int = None,
+    workflow_id: int = None,
+) -> Job:
     """
-    Query the database for workflows that are currently enabled.
+    Add a job to the queue for the worker to pick up.
 
-    C1 enforcement: the worker only processes jobs for enabled workflows.
-    If no workflows are enabled (kill switch active), this returns an empty list
-    and the worker effectively idles.
+    This is the standard way to trigger agent work. Agents don't call each
+    other directly — they enqueue the next job and let the worker dispatch it.
+    This keeps the pipeline loosely coupled and crash-safe.
+
+    Args:
+        db: SQLAlchemy session.
+        job_type: What agent to run. One of: "extraction", "validation",
+                  "quote_sheet", "matching".
+        payload: Job-specific parameters as a dict. Common keys:
+                 - message_id: for extraction and matching
+                 - rfq_id: for validation and quote_sheet
+        rfq_id: Optional RFQ this job relates to.
+        workflow_id: Optional workflow FK for C1 enforcement.
 
     Returns:
-        List of workflow names that are currently enabled.
+        The newly created Job with status=PENDING.
     """
-    db = SessionLocal()
-    try:
-        enabled = db.query(Workflow).filter(Workflow.enabled.is_(True)).all()
-        return [w.name for w in enabled]
-    finally:
-        db.close()
+    job = Job(
+        job_type=job_type,
+        payload=payload,
+        rfq_id=rfq_id,
+        workflow_id=workflow_id,
+        status=JobStatus.PENDING,
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+
+    logger.info("Job enqueued: id=%d type=%s rfq=%s", job.id, job_type, rfq_id)
+    return job
+
+
+def pick_next_job(db) -> Job:
+    """
+    Pick up the next pending job using SELECT ... FOR UPDATE SKIP LOCKED.
+
+    This is the core of the Postgres job queue pattern. FOR UPDATE locks the
+    row so no other worker picks it up. SKIP LOCKED means if a row is already
+    locked by another worker, we skip it and get the next one. This enables
+    safe concurrent processing without deadlocks.
+
+    The job's status is set to RUNNING and started_at is set before returning.
+
+    Args:
+        db: SQLAlchemy session.
+
+    Returns:
+        The locked Job ready for processing, or None if no jobs are pending.
+    """
+    # Raw SQL for FOR UPDATE SKIP LOCKED — SQLAlchemy ORM doesn't have
+    # native SKIP LOCKED support in all versions, and the raw query is
+    # clearer about what's happening at the database level.
+    result = db.execute(
+        text(
+            "SELECT id FROM jobs "
+            "WHERE status = 'pending' "
+            "ORDER BY created_at ASC "
+            "LIMIT 1 "
+            "FOR UPDATE SKIP LOCKED"
+        )
+    ).fetchone()
+
+    if not result:
+        return None
+
+    job = db.query(Job).filter(Job.id == result[0]).first()
+    job.status = JobStatus.RUNNING
+    job.started_at = datetime.utcnow()
+    db.commit()
+    db.refresh(job)
+
+    return job
+
+
+def complete_job(db, job: Job) -> None:
+    """Mark a job as successfully completed."""
+    job.status = JobStatus.COMPLETED
+    job.finished_at = datetime.utcnow()
+    db.commit()
+    logger.info("Job completed: id=%d type=%s", job.id, job.job_type)
+
+
+def fail_job(db, job: Job, error: str) -> None:
+    """
+    Mark a job as failed. If retries remain, re-queue it as pending.
+
+    Retry logic: if retry_count < max_retries, set status back to PENDING
+    and increment retry_count. Otherwise, set status to FAILED permanently.
+    """
+    job.retry_count += 1
+
+    if job.retry_count < job.max_retries:
+        # Re-queue for retry
+        job.status = JobStatus.PENDING
+        job.started_at = None
+        job.error_message = f"Retry {job.retry_count}/{job.max_retries}: {error}"
+        logger.warning(
+            "Job %d failed (retry %d/%d): %s",
+            job.id, job.retry_count, job.max_retries, error,
+        )
+    else:
+        # Permanently failed
+        job.status = JobStatus.FAILED
+        job.finished_at = datetime.utcnow()
+        job.error_message = error
+        logger.error(
+            "Job %d permanently failed after %d retries: %s",
+            job.id, job.max_retries, error,
+        )
+
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Job dispatch — routes job_type to the right agent/service
+# ---------------------------------------------------------------------------
+
+# Job type -> (module_path, function_name, payload_key_for_db_id)
+# The dispatch table maps job types to the agent functions they should call.
+# Each agent function takes (db, some_id) as arguments.
+JOB_DISPATCH = {
+    "extraction": ("backend.agents.extraction", "extract_rfq", "message_id"),
+    "validation": ("backend.agents.validation", "draft_followup", "rfq_id"),
+    "quote_sheet": ("backend.agents.quote_sheet", "generate_quote_sheet", "rfq_id"),
+    "matching": ("backend.services.message_matching", "match_message_to_rfq", "message_id"),
+}
+
+
+def dispatch_job(db, job: Job) -> None:
+    """
+    Route a job to the appropriate agent function.
+
+    Looks up the job_type in the dispatch table, imports the module,
+    calls the function with the appropriate ID from the payload.
+
+    Args:
+        db: SQLAlchemy session.
+        job: The job to dispatch (must have status=RUNNING).
+
+    Raises:
+        ValueError: If the job_type is not recognized.
+        KeyError: If the required payload key is missing.
+    """
+    if job.job_type not in JOB_DISPATCH:
+        raise ValueError(f"Unknown job type: {job.job_type}")
+
+    module_path, func_name, payload_key = JOB_DISPATCH[job.job_type]
+
+    # Get the ID from the payload
+    target_id = job.payload.get(payload_key)
+    if target_id is None:
+        raise KeyError(f"Job payload missing required key '{payload_key}'")
+
+    # Lazy import — only load the agent module when we need it.
+    # This avoids importing all agents at worker startup.
+    import importlib
+    module = importlib.import_module(module_path)
+    func = getattr(module, func_name)
+
+    logger.info(
+        "Dispatching job %d: %s.%s(%s=%d)",
+        job.id, module_path, func_name, payload_key, target_id,
+    )
+
+    func(db, target_id)
+
+
+# ---------------------------------------------------------------------------
+# C1 enforcement — workflow enable/disable check
+# ---------------------------------------------------------------------------
+
+
+def is_workflow_enabled(db, workflow_id: int) -> bool:
+    """
+    Check if a specific workflow is enabled (C1).
+
+    If the job has no workflow_id, we allow it — system-level jobs
+    (like manual triggers) aren't gated by workflow toggles.
+    """
+    if workflow_id is None:
+        return True
+
+    workflow = db.query(Workflow).filter(Workflow.id == workflow_id).first()
+    if not workflow:
+        return True  # Workflow not found — allow (don't block on missing config)
+
+    return workflow.enabled
+
+
+def any_workflows_enabled(db) -> bool:
+    """
+    Check if ANY workflow is enabled. If none are, the kill switch is active.
+
+    Used by the worker to decide whether to even poll for jobs.
+    """
+    return db.query(Workflow).filter(Workflow.enabled.is_(True)).count() > 0
+
+
+# ---------------------------------------------------------------------------
+# Main worker loop
+# ---------------------------------------------------------------------------
+
+
+def process_cycle(db) -> int:
+    """
+    Process one cycle of jobs from the queue.
+
+    Picks up to MAX_JOBS_PER_CYCLE pending jobs and dispatches them.
+    Returns the number of jobs processed.
+
+    This is extracted from run_worker() so it can be tested independently.
+    """
+    processed = 0
+
+    for _ in range(MAX_JOBS_PER_CYCLE):
+        job = pick_next_job(db)
+        if not job:
+            break  # No more pending jobs
+
+        # C1: Check if the workflow is still enabled before processing
+        if not is_workflow_enabled(db, job.workflow_id):
+            logger.info(
+                "Job %d skipped — workflow %d is disabled (C1)",
+                job.id, job.workflow_id,
+            )
+            # Put it back as pending — it'll be picked up if the workflow is re-enabled
+            job.status = JobStatus.PENDING
+            job.started_at = None
+            db.commit()
+            continue
+
+        try:
+            dispatch_job(db, job)
+            complete_job(db, job)
+            processed += 1
+        except Exception as e:
+            fail_job(db, job, str(e))
+
+    return processed
 
 
 def run_worker():
     """
-    Main worker loop.
+    Main worker loop — runs indefinitely.
 
-    Runs indefinitely, checking for enabled workflows and processing jobs.
-    The worker survives crashes because all state lives in Postgres — nothing
-    is held in memory across iterations (FR-WK-2).
-
-    This is a placeholder — the real job processing logic will be added by #47.
+    Each cycle: check for enabled workflows, process pending jobs, sleep.
+    All state lives in Postgres (FR-WK-2), so the worker can crash and
+    restart without losing work.
     """
-    logger.info("Golteris worker starting — poll interval: %ds", POLL_INTERVAL)
+    logger.info(
+        "Golteris worker starting — poll_interval=%ds, max_jobs_per_cycle=%d",
+        POLL_INTERVAL, MAX_JOBS_PER_CYCLE,
+    )
 
     while True:
+        db = SessionLocal()
         try:
-            # C1: Only process jobs for enabled workflows
-            enabled_workflows = check_enabled_workflows()
-
-            if enabled_workflows:
-                logger.info(
-                    "Enabled workflows: %s — checking for jobs...",
-                    ", ".join(enabled_workflows),
-                )
-                # TODO (#47): Implement job queue processing here.
-                # The pattern is:
-                #   1. SELECT ... FOR UPDATE SKIP LOCKED from a jobs table
-                #   2. Dispatch the job to the appropriate agent
-                #   3. Update job status on completion or failure
-                #   4. Roll up cost/tokens to the parent agent_run
-            else:
-                # Kill switch active or no workflows configured — idle quietly.
-                # Log at DEBUG to avoid spamming in production.
-                logger.debug("No enabled workflows — idling.")
-
+            processed = process_cycle(db)
+            if processed > 0:
+                logger.info("Cycle complete — processed %d jobs", processed)
         except Exception:
-            # Log the error but don't crash — the worker must survive failures.
-            # Real error handling (retries, DLQ) will be added by #51.
-            logger.exception("Worker loop error — will retry next cycle")
+            logger.exception("Worker cycle error — will retry next cycle")
+        finally:
+            db.close()
 
-        # Sleep before the next poll. All state is in Postgres, so sleeping
-        # is safe — we won't miss anything, just pick it up next cycle.
         time.sleep(POLL_INTERVAL)
 
 

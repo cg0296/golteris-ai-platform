@@ -150,6 +150,17 @@ class MessageRoutingStatus(str, enum.Enum):
     IGNORED = "ignored"             # Filtered out by rules (e.g., newsletter)
 
 
+class JobStatus(str, enum.Enum):
+    """
+    Status of a job in the Postgres job queue.
+    Used by the worker (#47) with SELECT ... FOR UPDATE SKIP LOCKED.
+    """
+    PENDING = "pending"       # Waiting to be picked up
+    RUNNING = "running"       # Worker has locked and is processing
+    COMPLETED = "completed"   # Finished successfully
+    FAILED = "failed"         # Failed after all retries
+
+
 # ---------------------------------------------------------------------------
 # Tables
 # ---------------------------------------------------------------------------
@@ -610,4 +621,58 @@ class ReviewQueue(Base):
     __table_args__ = (
         Index("ix_review_queue_status", "status"),
         Index("ix_review_queue_message_id", "message_id"),
+    )
+
+
+class Job(Base):
+    """
+    Postgres-backed job queue for the background worker (#47).
+
+    The worker picks up pending jobs using SELECT ... FOR UPDATE SKIP LOCKED,
+    which provides safe, concurrent job processing without an external queue
+    (Redis, RabbitMQ, Celery). See REQUIREMENTS.md §2.1.
+
+    Job types map to agent functions:
+    - "extraction" → backend.agents.extraction.extract_rfq
+    - "validation" → backend.agents.validation.draft_followup
+    - "quote_sheet" → backend.agents.quote_sheet.generate_quote_sheet
+    - "matching" → backend.services.message_matching.match_message_to_rfq
+
+    The payload JSONB stores job-specific parameters (e.g., message_id, rfq_id).
+
+    Cross-cutting constraints:
+        C1 — Worker checks workflows.enabled before processing each job
+        FR-WK-1 — Postgres job queue with FOR UPDATE SKIP LOCKED
+        FR-WK-2 — All state in Postgres, nothing in memory (crash-safe)
+    """
+    __tablename__ = "jobs"
+
+    id = Column(Integer, primary_key=True)
+    # What kind of job (maps to an agent/service function)
+    job_type = Column(String(100), nullable=False)
+    # Job-specific parameters — e.g., {"message_id": 42} or {"rfq_id": 7}
+    payload = Column(JSONB, nullable=False, default=dict)
+    # Current status — pending jobs are picked up by the worker
+    status = Column(
+        Enum(JobStatus, name="job_status", create_constraint=True),
+        nullable=False,
+        default=JobStatus.PENDING,
+    )
+    # Optional link to the RFQ this job relates to
+    rfq_id = Column(Integer, ForeignKey("rfqs.id"), nullable=True)
+    # Optional link to the workflow that created this job (for C1 checking)
+    workflow_id = Column(Integer, ForeignKey("workflows.id"), nullable=True)
+    # Retry tracking — jobs can be retried on transient failures
+    retry_count = Column(Integer, nullable=False, default=0)
+    max_retries = Column(Integer, nullable=False, default=3)
+    # Error details if the job failed
+    error_message = Column(Text)
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    started_at = Column(DateTime)
+    finished_at = Column(DateTime)
+
+    __table_args__ = (
+        Index("ix_jobs_status_created", "status", "created_at"),
+        Index("ix_jobs_rfq_id", "rfq_id"),
     )
