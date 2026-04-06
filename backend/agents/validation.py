@@ -75,7 +75,7 @@ RECOMMENDED_FIELDS = {
     "delivery_date": "requested delivery date",
 }
 
-CONFIDENCE_THRESHOLD = 0.90
+from backend.services.escalation_policy import DEFAULT_THRESHOLD as CONFIDENCE_THRESHOLD
 
 
 # ---------------------------------------------------------------------------
