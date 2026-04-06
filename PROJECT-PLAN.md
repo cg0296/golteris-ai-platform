@@ -60,7 +60,7 @@ Build the minimum agent pipeline that turns one email into one structured RFQ in
 
 ### Deliverables
 
-- [ ] **Mailbox poller** — a Python function that pulls messages from a connected inbox on a cron (or for dev, from a seeded folder of sample emails). Supports any email provider via the abstraction layer (IMAP, Gmail, Outlook). Writes to `messages` table.
+- [ ] **Mailbox poller** — a Python function that pulls messages from a connected inbox on a cron (or for dev, from a seeded folder of sample emails). Supports any email provider via the abstraction layer (Microsoft Graph for Outlook/Microsoft 365, IMAP for Gmail/Yahoo, seed files for demo). Provider auto-detection: Graph > IMAP > seed files. Writes to `messages` table.
 - [ ] **Extraction agent** — Python function that reads a message, calls the LLM (via provider abstraction layer) with a structured tool-use schema, and writes extracted fields into `rfqs`. Logs the run to `agent_runs`.
 - [ ] **Validation agent** — checks required fields, sets `state` to `needs_clarification` or `ready_to_quote`, drafts a follow-up if missing data.
 - [ ] **Orchestrator loop** — a simple worker script that polls the database for RFQs in each state and dispatches the next agent.
