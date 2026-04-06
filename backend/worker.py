@@ -314,11 +314,34 @@ def process_cycle(db) -> int:
     return processed
 
 
+def poll_mailbox(db) -> int:
+    """
+    Check the configured mailbox for new emails and ingest them.
+
+    New messages are persisted and matching jobs are enqueued for the
+    process_cycle to pick up. Returns the number of new messages ingested.
+
+    This runs at the start of each worker cycle, before job processing.
+    """
+    try:
+        from backend.services.email_ingestion import get_provider_from_config, ingest_new_messages
+        provider = get_provider_from_config()
+        messages = ingest_new_messages(db, provider)
+        return len(messages)
+    except Exception:
+        logger.exception("Mailbox poll failed — will retry next cycle")
+        return 0
+
+
 def run_worker():
     """
     Main worker loop — runs indefinitely.
 
-    Each cycle: check for enabled workflows, process pending jobs, sleep.
+    Each cycle:
+    1. Poll the mailbox for new emails (creates matching jobs)
+    2. Process pending jobs from the queue (dispatches agents)
+    3. Sleep before next cycle
+
     All state lives in Postgres (FR-WK-2), so the worker can crash and
     restart without losing work.
     """
@@ -330,6 +353,12 @@ def run_worker():
     while True:
         db = SessionLocal()
         try:
+            # Step 1: Poll mailbox for new emails
+            ingested = poll_mailbox(db)
+            if ingested > 0:
+                logger.info("Mailbox poll — ingested %d new messages", ingested)
+
+            # Step 2: Process pending jobs (including newly enqueued matching jobs)
             processed = process_cycle(db)
             if processed > 0:
                 logger.info("Cycle complete — processed %d jobs", processed)
