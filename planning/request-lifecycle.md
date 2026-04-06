@@ -1,6 +1,11 @@
 # Request Lifecycle — How an RFQ Flows Through Golteris
 
-This document traces the complete lifecycle of a freight quote request from the moment a customer email arrives to the moment the RFQ is closed as won/lost/cancelled.
+This document traces the complete lifecycle of a freight quote request from the moment a shipper's email arrives at the broker's mailbox to the moment the RFQ is closed as won/lost/cancelled.
+
+**Key roles:**
+- **Beltmann Logistics** = the broker (our tenant). Jillian works here. Golteris runs for them.
+- **Shippers** (e.g., Tom) = Beltmann's customers. They email freight requests to Beltmann.
+- **Carriers** = trucking companies. Beltmann sends them RFQs; they return pricing.
 
 ---
 
@@ -105,8 +110,10 @@ Agent Observability
 
 ### Step 1 — Email Arrives
 
-Tom at Beltmann sends an email:
+Tom, a shipper (one of Beltmann's customers), sends an email to Beltmann's mailbox:
 > *"Need a rate on 3 flatbeds Dallas to Atlanta next Tuesday. Steel coils, 45k lbs, tarped."*
+
+**Note:** Beltmann is the **broker** (our tenant). Tom is a **shipper** (Beltmann's client). Golteris monitors Beltmann's mailbox and processes inbound RFQs from shippers like Tom.
 
 ```
                     ┌──────────────┐

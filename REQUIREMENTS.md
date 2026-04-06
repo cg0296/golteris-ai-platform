@@ -20,7 +20,15 @@ Source material consolidated here:
 
 **Thesis:** Brokers lose hours per day translating unstructured email into spreadsheets, clarifications, carrier RFQs, and final quotes. Golteris automates the translation layer while keeping the broker in control of every outbound action.
 
-**Primary workflow (MVP):** Freight quote handling — customer email → structured RFQ → clarification loop → carrier distribution → bid comparison → marked-up customer quote.
+**Primary workflow (MVP):** Freight quote handling — shipper email → structured RFQ → clarification loop → carrier distribution → bid comparison → marked-up customer quote.
+
+**CRITICAL — Who is who (do not confuse these):**
+- **Beltmann Logistics = the broker.** They are our customer/tenant. Jillian works there. Golteris is built FOR them.
+- **Shippers = Beltmann's customers.** They email freight requests TO Beltmann. They never see Golteris.
+- **Carriers = trucking companies.** Beltmann sends them RFQs and they return pricing.
+- The flow is: **Shipper → Beltmann (broker, using Golteris) → Carriers → back to Beltmann → back to Shipper.**
+- In the UI, "customer" on an RFQ card means the **shipper** (Beltmann's client), NOT Beltmann itself.
+- Some planning docs (product-ux.md) use "Beltmann" on RFQ example cards — this means a shipper contact at Beltmann's client, or it's an error. When in doubt: Beltmann = broker, not shipper.
 
 **Key differentiator from a chatbot:** Golteris is operational execution with explicit state, not conversation. It maintains workflow state across messages, triggers actions, coordinates tools, and uses AI only where ambiguity requires interpretation.
 
@@ -145,10 +153,10 @@ The following stack is locked in. AI dev agents must use these technologies — 
 
 | Role | Description | Primary surfaces |
 |---|---|---|
-| **Broker / operator** (Jillian @ Beltmann) | Daily user. Handles RFQs, approves drafts, monitors carriers. | Home, Needs Review, RFQs, Inbox, History |
-| **Broker admin / owner** | Configures workflows, policies, mailboxes, cost caps. | Settings, Agent controls |
-| **Customer** (shipper) | Sends RFQ, replies to clarifications, receives quote. | Email only — never touches the app |
-| **Carriers** | Receive bid requests, return pricing. | Email only |
+| **Broker / operator** (Jillian @ Beltmann) | Daily user. Works at the brokerage (Beltmann). Handles RFQs from shippers, approves drafts, coordinates with carriers. Beltmann is the **broker/tenant**, not the customer. | Home, Needs Review, RFQs, Inbox, History |
+| **Broker admin / owner** | Configures workflows, policies, mailboxes, cost caps. Also at the brokerage. | Settings, Agent controls |
+| **Shipper / customer** (Beltmann's clients) | The companies that send freight requests TO the broker (Beltmann). They email RFQs, reply to clarifications, receive final quotes. They never touch Golteris. | Email only |
+| **Carriers** | Receive bid requests from the broker (Beltmann), return pricing. | Email only |
 | **Internal engineer** | Implements, extends, and debugs agents and integrations. | Agent → Decisions, logs, runbooks |
 
 ---
@@ -233,7 +241,7 @@ These govern every feature. They are non-negotiable and override any conflicting
 - Every LLM API call logs prompt, model, provider, tokens, cost, and duration. Total cost per run rolls up from individual calls. — `#21 #22`
 
 ### C6 — Single-tenant for v1
-- Until multi-tenant work in `#55` lands, the system is single-tenant. Single customer (Beltmann), single organization, single mailbox. Do not prematurely add `org_id` scaffolding that will need rework.
+- Until multi-tenant work in `#55` lands, the system is single-tenant. Single broker/tenant (Beltmann), single organization, single mailbox. Beltmann is the **broker operating the system**, not the shipper/customer. Beltmann's clients (shippers) send RFQs; Beltmann uses Golteris to process them. Do not prematurely add `org_id` scaffolding that will need rework.
 
 ### C7 — Human control over dev-time AI agents (parallel to C1)
 - **AI coding agents never merge to `main` without an explicit human-approved PR.** Direct pushes to `main` are disallowed.
