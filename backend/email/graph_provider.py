@@ -60,6 +60,7 @@ class GraphMailboxProvider(MailboxProvider):
         client_secret: Optional[str] = None,
         user_email: Optional[str] = None,
         filter_recipient: Optional[str] = None,
+        mail_folder: Optional[str] = None,
     ):
         """
         Args:
@@ -70,13 +71,18 @@ class GraphMailboxProvider(MailboxProvider):
             filter_recipient: If set, only fetch emails sent TO this address.
                 Useful when the mailbox has an alias (e.g., agents@golteris.com)
                 and you only want emails addressed to that alias, not all mail.
+            mail_folder: If set, only fetch from this folder name (e.g., "agent-golteris").
+                When an Outlook rule routes alias emails to a dedicated folder,
+                this is cleaner than scanning the entire mailbox.
         """
         self.tenant_id = tenant_id or os.environ.get("MS_GRAPH_TENANT_ID", "")
         self.client_id = client_id or os.environ.get("MS_GRAPH_CLIENT_ID", "")
         self.client_secret = client_secret or os.environ.get("MS_GRAPH_CLIENT_SECRET", "")
         self.user_email = user_email or os.environ.get("MS_GRAPH_USER_EMAIL", "")
         self.filter_recipient = filter_recipient or os.environ.get("MS_GRAPH_FILTER_RECIPIENT", "")
+        self.mail_folder = mail_folder or os.environ.get("MS_GRAPH_MAIL_FOLDER", "")
         self._token_cache: Optional[str] = None
+        self._folder_id: Optional[str] = None
 
     def fetch_new_messages(self) -> list[InboundMessage]:
         """
@@ -109,9 +115,17 @@ class GraphMailboxProvider(MailboxProvider):
                 "$orderby": "receivedDateTime desc",
             }
 
-            # If filtering by recipient (e.g., only emails to agents@golteris.com)
-            # We filter after fetching since Graph's $filter on toRecipients is limited
-            url = f"{GRAPH_BASE_URL}/users/{self.user_email}/messages"
+            # If a specific folder is configured (e.g., "agent-golteris" from an
+            # Outlook rule), only fetch from that folder. Otherwise scan all mail.
+            if self.mail_folder:
+                folder_id = self._resolve_folder_id(token)
+                if folder_id:
+                    url = f"{GRAPH_BASE_URL}/users/{self.user_email}/mailFolders/{folder_id}/messages"
+                else:
+                    logger.warning("Folder '%s' not found — falling back to all messages", self.mail_folder)
+                    url = f"{GRAPH_BASE_URL}/users/{self.user_email}/messages"
+            else:
+                url = f"{GRAPH_BASE_URL}/users/{self.user_email}/messages"
 
             response = requests.get(
                 url,
@@ -245,6 +259,32 @@ class GraphMailboxProvider(MailboxProvider):
         except Exception as e:
             logger.error("Failed to parse Graph message: %s", e)
             return None
+
+    def _resolve_folder_id(self, token: str) -> Optional[str]:
+        """
+        Look up the Graph folder ID for a folder name (e.g., "agent-golteris").
+
+        Caches the result so we only do this lookup once per provider instance.
+        """
+        if self._folder_id:
+            return self._folder_id
+
+        try:
+            response = requests.get(
+                f"{GRAPH_BASE_URL}/users/{self.user_email}/mailFolders",
+                headers={"Authorization": f"Bearer {token}"},
+                params={"$select": "id,displayName"},
+            )
+            if response.status_code == 200:
+                for folder in response.json().get("value", []):
+                    if folder.get("displayName", "").lower() == self.mail_folder.lower():
+                        self._folder_id = folder["id"]
+                        logger.info("Resolved folder '%s' -> %s", self.mail_folder, self._folder_id[:20])
+                        return self._folder_id
+        except Exception as e:
+            logger.error("Failed to resolve folder '%s': %s", self.mail_folder, e)
+
+        return None
 
     def _mark_as_read(self, token: str, message_id: str) -> None:
         """
