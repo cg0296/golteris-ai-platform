@@ -142,8 +142,11 @@ def api_root():
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 
 if os.path.isdir(FRONTEND_DIR):
-    # Serve static assets (JS, CSS, images) from the Vite build output
-    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
+    # Serve static assets (JS, CSS, images) from the Vite build output.
+    # The assets directory only exists after `vite build` runs — check before mounting.
+    assets_dir = os.path.join(FRONTEND_DIR, "assets")
+    if os.path.isdir(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
     @app.get("/{full_path:path}")
     def serve_frontend(full_path: str):

@@ -36,9 +36,9 @@ WORKDIR /app/frontend
 # dependencies only re-install when package.json or lock file changes.
 COPY frontend/package*.json ./
 
-# Install dependencies. Using `npm ci` for reproducible builds
-# (installs exactly what's in package-lock.json).
-RUN npm ci
+# Install dependencies. Using `npm install` because package-lock.json
+# may not exist yet. Once it does, switch to `npm ci` for reproducible builds.
+RUN npm install
 
 # Copy the rest of the frontend source and build it.
 # Vite outputs to frontend/dist/ by default.
