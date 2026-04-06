@@ -11,13 +11,15 @@ For requirements, constraints, and tech stack: see [REQUIREMENTS.md](REQUIREMENT
 Issues move through these statuses on the [GitHub Project board](https://github.com/users/cg0296/projects/2):
 
 ```
-Todo → Agent Work → Testing → Human Work → Done
+Todo → Suggested Next → Agent Work → Agent WIP → Testing → Human Work → Done
 ```
 
 | Status | Meaning |
 |---|---|
 | **Todo** | Queued. Not ready for agent work. A human moves it to Agent Work when it's prioritized. |
+| **Suggested Next** | **Agent recommends this issue as the next task.** When an agent finishes work, it evaluates remaining issues and moves the best next candidate here with a reasoning comment explaining why (dependencies met, critical path, demo priority, etc.). The human reviews and either promotes it to `Agent Work` or moves it back to `Todo`. |
 | **Agent Work** | **Dev agents pick up work here.** The human has approved this issue for development. |
+| **Agent WIP** | **Agent is actively working on this issue.** The dev agent moves the issue here immediately upon starting work. This makes it visible to the human that an agent session is in progress (C1 — human control over dev agents, C7). If the agent session is interrupted or abandoned, the human can see what was in flight. |
 | **Testing** | Dev agent is finished. **Testing agent picks up work here** — verifies against acceptance criteria, cross-cutting constraints, and code quality. See [TESTING-WORKFLOW.md](TESTING-WORKFLOW.md). |
 | **Human Work** | Requires human action — either because testing failed and the human needs to decide next steps, or because the task itself requires human work (manual config, deployment, external account setup, etc.). Not for agents. |
 | **Done** | Testing agent verified and passed. Complete. |
@@ -29,8 +31,9 @@ Todo → Agent Work → Testing → Human Work → Done
 ### 1. Find your work
 
 - Read the project board. **Only pick up issues in `Agent Work` status.**
-- Never start work on issues in `Todo`, `Human Work`, `Testing`, or `Done`.
+- Never start work on issues in `Todo`, `Suggested Next`, `Human Work`, `Testing`, or `Done`.
 - If no issues are in `Agent Work`, stop and tell the human. Do not invent work.
+- **When you start working on an issue, immediately move it from `Agent Work` → `Agent WIP`.** This signals to the human that an agent session is actively in progress.
 
 ### 2. Read the requirements
 
@@ -124,9 +127,32 @@ Add a second comment to the GitHub issue with:
 
 ### 2. Move the issue to Testing
 
-After posting the completion comment, **move the issue status from `Agent Work` to `Testing`** on the project board.
+After posting the completion comment, **move the issue status from `Agent WIP` to `Testing`** on the project board.
 
-### 3. Create a PR
+### 3. Suggest the next task
+
+After completing your work, **evaluate the remaining open issues** and move the best next candidate from `Todo` to `Suggested Next` on the project board. Add a comment to that issue explaining your reasoning:
+
+```markdown
+## Suggested as Next Task
+
+**Reasoning:** [Why this issue should be worked on next]
+- Dependencies met: [list which prerequisite issues are Done]
+- Critical path: [is this blocking other work or demo-critical?]
+- Priority signals: [demo tag, phase order, human urgency markers]
+- Logical sequence: [does this build naturally on what was just completed?]
+
+**Alternatives considered:** [Other issues that were candidates and why this one won]
+```
+
+Rules for suggesting next:
+- Only move ONE issue to `Suggested Next` at a time.
+- Prefer issues tagged `demo` or `beltmann` if the demo date is approaching.
+- Prefer issues whose dependencies are all in `Done`.
+- Prefer issues in the current or next phase (don't skip ahead to Phase 9 while Phase 2 is incomplete).
+- If you cannot confidently recommend a next task, leave the board as-is and tell the human.
+
+### 4. Create a PR
 
 - Push your branch and open a PR referencing the issue (`Closes #<number>`).
 - The PR description should summarize the changes — but the detailed testing instructions live in the issue comment, not the PR.
@@ -139,10 +165,12 @@ After posting the completion comment, **move the issue status from `Agent Work` 
 | Rule | Why |
 |---|---|
 | Only pick up `Agent Work` issues | Human controls what gets built and when (C1, C7) |
+| Move to `Agent WIP` when you start | Human can see an agent session is in progress (C1, C7) |
 | Post a plan comment before coding | Human can course-correct before effort is wasted; future agents have context |
 | **Self-test before posting completion** | **Catch bugs before they reach the testing agent or human — show actual test output** |
 | Post a completion comment with test instructions | Human can verify without reading every line of code; keeps Testing status meaningful |
 | Move to `Testing` when done | Human knows exactly what's waiting for their review |
+| Suggest next task with reasoning | Keeps the pipeline moving; human approves or overrides |
 | Never merge your own PR | Human approval required on every merge (C7) |
 | One issue per branch | Small blast radius, easy to review and revert |
 | Reference issue number in every commit | Traceability stays live automatically |
@@ -154,8 +182,9 @@ After posting the completion comment, **move the issue status from `Agent Work` 
 **Issue #24: Build RFQ extraction agent**
 
 1. Agent sees #24 is in `Agent Work` status.
-2. Agent reads REQUIREMENTS.md and the issue body.
-3. Agent posts a comment:
+2. Agent moves #24 from `Agent Work` → `Agent WIP`.
+3. Agent reads REQUIREMENTS.md and the issue body.
+4. Agent posts a comment:
    > **Reasoning:** #24 is in Agent Work. Dependencies #11 (schema) and #20 (LLM API credentials) are Done. This is the core extraction agent.
    >
    > **Plan:**
@@ -165,8 +194,8 @@ After posting the completion comment, **move the issue status from `Agent Work` 
    > 4. Add 5 test cases using seed emails from `seed/beltmann/`.
    > 5. Verify with `pytest tests/agents/test_extraction.py`.
 
-4. Agent creates branch `issue-24-extraction-agent`, writes code, commits.
-5. Agent posts a completion comment:
+5. Agent creates branch `issue-24-extraction-agent`, writes code, commits.
+6. Agent posts a completion comment:
    > **What I did:**
    > - Created `backend/agents/extraction.py` — LLM tool-use extraction with 10-field schema
    > - Created `tests/agents/test_extraction.py` — 5 test cases against seed emails
@@ -183,6 +212,8 @@ After posting the completion comment, **move the issue status from `Agent Work` 
    > - [x] Flags low-confidence fields
    > - [x] Run duration and cost visible in agent_calls table
 
-6. Agent moves #24 from `Agent Work` → `Testing`.
-7. Agent opens PR: `Closes #24 — Build RFQ extraction agent`.
-8. Human reviews, tests, merges (or sends back with feedback).
+7. Agent moves #24 from `Agent WIP` → `Testing`.
+8. Agent opens PR: `Closes #24 — Build RFQ extraction agent`.
+9. Agent evaluates remaining issues, moves #23 (confidence scoring) to `Suggested Next` with a comment:
+   > **Suggested as Next Task** — #23 depends on #24 (extraction agent, now done) and #11 (schema, done). It's Phase 2 and tagged `mvp`. Confidence scoring is required before the HITL escalation flow (#26) can work.
+10. Human reviews, tests, merges (or sends back with feedback).
