@@ -177,12 +177,24 @@ def get_provider_from_config() -> MailboxProvider:
     """
     Create the appropriate mailbox provider based on environment config.
 
-    Checks for IMAP configuration first. If not set, falls back to the
-    seed file provider for demo/development.
+    Priority order:
+    1. Microsoft Graph API (if MS_GRAPH_CLIENT_ID is set) — for Microsoft 365
+    2. IMAP (if IMAP_HOST is set) — for Gmail, Yahoo, any IMAP server
+    3. Seed file provider — demo fallback
 
     Returns:
         A configured MailboxProvider instance.
     """
+    # Check if Microsoft Graph is configured
+    graph_client_id = os.environ.get("MS_GRAPH_CLIENT_ID", "")
+    graph_user = os.environ.get("MS_GRAPH_USER_EMAIL", "")
+
+    if graph_client_id and graph_user:
+        from backend.email.graph_provider import GraphMailboxProvider
+        filter_recipient = os.environ.get("MS_GRAPH_FILTER_RECIPIENT", "")
+        logger.info("Using Graph API provider: %s (filter: %s)", graph_user, filter_recipient or "none")
+        return GraphMailboxProvider()
+
     # Check if IMAP is configured
     imap_host = os.environ.get("IMAP_HOST", "")
     imap_user = os.environ.get("IMAP_USER", "")
