@@ -510,9 +510,11 @@ class AuditEvent(Base):
     # Human-readable description shown in the UI timeline.
     # Uses operator language per C3 (e.g., "Draft reply prepared for Tom @ Beltmann")
     description = Column(Text, nullable=False)
-    # Optional structured metadata for events that carry extra data
+    # Optional structured data for events that carry extra context
     # (e.g., {"old_state": "needs_clarification", "new_state": "ready_to_quote"})
-    metadata = Column(JSONB)
+    # Named 'event_data' instead of 'metadata' because 'metadata' is reserved
+    # by SQLAlchemy's Declarative API.
+    event_data = Column(JSONB)
     # Timestamp — when this event occurred
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 

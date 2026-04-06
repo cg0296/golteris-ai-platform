@@ -228,7 +228,7 @@ CREATE TABLE audit_events (
     event_type  VARCHAR(255) NOT NULL,
     actor       VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
-    metadata    JSONB,
+    event_data  JSONB,              -- Named event_data (not metadata) because metadata is reserved by SQLAlchemy
     created_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
 

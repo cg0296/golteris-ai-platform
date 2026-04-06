@@ -20,10 +20,13 @@ Cross-cutting constraints relevant here:
     C3 — API responses use plain-English descriptions, not internal jargon
 """
 
+import logging
 import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+
+logger = logging.getLogger("golteris.web")
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -37,13 +40,24 @@ async def lifespan(app: FastAPI):
     """
     Application lifespan handler — runs on startup and shutdown.
 
-    On startup: creates database tables if they don't exist yet.
+    On startup: attempts to create database tables if they don't exist yet.
     This is a convenience for initial deploys. In production, Alembic
-    migrations are the authoritative schema management tool — this
-    ensures the app can start even if migrations haven't been run yet.
+    migrations are the authoritative schema management tool.
+
+    If the database is unreachable (e.g., local dev without Postgres),
+    the app still starts — /health will work, but API routes that hit
+    the database will fail. This allows the app to be smoke-tested
+    without a running Postgres instance.
     """
-    # Create tables that don't exist yet (safe — does not alter existing tables)
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables verified/created successfully.")
+    except Exception as e:
+        # Don't crash the app if the database is unreachable at startup.
+        # This allows /health to work for smoke tests and Render health checks
+        # even if the database is still provisioning.
+        logger.warning("Could not connect to database on startup: %s", e)
+        logger.warning("The app will start, but database-dependent routes will fail.")
     yield
     # Shutdown: nothing to clean up — SQLAlchemy engine handles connection pooling
 
