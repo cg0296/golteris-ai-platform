@@ -147,16 +147,22 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
         _send_to_review_queue(db, message, result)
         return result
 
-    # No candidates at all — this is likely a new RFQ
+    # No candidates at all — this is a new RFQ.
+    # Enqueue extraction so the pipeline automatically creates a structured
+    # RFQ from the email content. The chain continues from extraction:
+    #   extraction → validation (if needs_clarification) or quote_sheet (if ready)
+    from backend.worker import enqueue_job
+
     result = MatchResult(
         method="no_match",
-        reason="No matching RFQs found — likely a new quote request",
+        reason="No matching RFQs found — new quote request, extraction enqueued",
         routing_status=MessageRoutingStatus.NEW_RFQ_CREATED,
     )
     message.routing_status = result.routing_status
     db.commit()
 
-    logger.info("Message %d: no match — flagged as new RFQ", message_id)
+    enqueue_job(db, "extraction", {"message_id": message.id})
+    logger.info("Message %d: no match — new RFQ, extraction job enqueued", message_id)
     return result
 
 
