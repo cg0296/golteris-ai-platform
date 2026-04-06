@@ -352,34 +352,37 @@ def _create_rfq_from_extraction(
 def _determine_initial_state(
     extracted: dict[str, Any],
     confidence: dict[str, float],
+    policy=None,
 ) -> RFQState:
     """
     Decide the initial RFQ state based on field completeness and confidence.
 
-    Required fields (per FR-AG-2 and the Agent Contracts doc):
-    - origin, destination, equipment_type, truck_count, commodity
+    Uses the escalation policy (#23) to check per-field thresholds. If no
+    policy is provided, uses the default (0.90 for all fields).
 
-    If any required field is null or has confidence below the threshold (0.90),
-    the RFQ starts in needs_clarification. Otherwise, it's ready_to_quote.
-
-    The 0.90 threshold is configurable per workflow (#23) — for now it's
-    hardcoded as the default per REQUIREMENTS.md FR-AG-2.
+    Required fields (per FR-AG-2): origin, destination, equipment_type,
+    truck_count, commodity. If any is null or below threshold -> needs_clarification.
     """
-    CONFIDENCE_THRESHOLD = 0.90
-    REQUIRED_FIELDS = ["origin", "destination", "equipment_type", "truck_count", "commodity"]
+    from backend.services.escalation_policy import (
+        EscalationPolicy,
+        REQUIRED_FIELDS,
+    )
+
+    if policy is None:
+        policy = EscalationPolicy()
 
     for field_name in REQUIRED_FIELDS:
-        # Check if the field value is missing
+        threshold = policy.get_threshold(field_name)
+
         if extracted.get(field_name) is None:
             logger.info("Field '%s' is null — RFQ needs clarification", field_name)
             return RFQState.NEEDS_CLARIFICATION
 
-        # Check if confidence is below threshold (FR-AG-2, FR-AG-3)
         field_confidence = confidence.get(field_name, 0.0)
-        if field_confidence < CONFIDENCE_THRESHOLD:
+        if field_confidence < threshold:
             logger.info(
                 "Field '%s' confidence %.2f < %.2f — RFQ needs clarification",
-                field_name, field_confidence, CONFIDENCE_THRESHOLD,
+                field_name, field_confidence, threshold,
             )
             return RFQState.NEEDS_CLARIFICATION
 
@@ -399,9 +402,11 @@ def _log_audit_event(
     email" in the timeline, not "extraction_completed" or "agent_call_success".
     Technical details are in the event_data JSONB for drill-down.
     """
+    from backend.services.escalation_policy import DEFAULT_THRESHOLD
+
     confidence = extracted.get("confidence", {})
     low_confidence_fields = [
-        k for k, v in confidence.items() if v < 0.90
+        k for k, v in confidence.items() if v < DEFAULT_THRESHOLD
     ]
 
     # Build a human-readable description (C3 — plain English)
