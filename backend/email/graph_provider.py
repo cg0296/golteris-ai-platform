@@ -266,12 +266,26 @@ class GraphMailboxProvider(MailboxProvider):
 
     def _is_addressed_to(self, raw_msg: dict, target_email: str) -> bool:
         """
-        Check if a message was addressed to a specific email (To or Cc).
+        Check if a message was originally addressed to a specific email.
 
-        Used for alias filtering — when the mailbox has multiple aliases
-        and we only want emails sent to a specific one.
+        Microsoft aliases resolve to the primary mailbox address in the
+        toRecipients field, so we check the raw internet 'To' header
+        which preserves the original address (e.g., agents@golteris.com
+        even though Graph shows Curt@goldentechsolutionsllc.com).
+
+        Falls back to checking toRecipients and ccRecipients if the
+        internet header isn't available.
         """
         target = target_email.lower()
+
+        # Check the raw internet To header first — preserves the original
+        # address before alias resolution
+        for header in raw_msg.get("internetMessageHeaders", []):
+            if header.get("name", "").lower() == "to":
+                if target in header.get("value", "").lower():
+                    return True
+
+        # Fall back to Graph's resolved toRecipients/ccRecipients
         for recipient in raw_msg.get("toRecipients", []):
             if recipient.get("emailAddress", {}).get("address", "").lower() == target:
                 return True
