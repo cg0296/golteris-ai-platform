@@ -1,0 +1,34 @@
+{
+  "scenario": "Urgent — same-day request, time-sensitive language",
+  "tests": ["extraction", "urgency_detection"],
+  "expected_state": "ready_to_quote",
+  "sender": "raj.patel@quickshipusa.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "URGENT — Need truck TODAY or tomorrow AM",
+  "body": "Jillian — URGENT\n\nOne of our carriers just cancelled on us and we need a replacement ASAP.\n\nVan trailer, St. Louis MO to Cincinnati OH\nCommodity: Packaged food products (non-temp controlled)\nWeight: 41,000 lbs\nMust pick up TODAY (April 6) by 4pm or FIRST THING tomorrow morning\nDelivery: April 8 by noon\n\nThis is a must-ship. Please call me if you can cover this. Happy to pay premium rate.\n\nRaj Patel\nQuickShip USA\n(314) 555-0199 — CALL ME",
+  "thread_id": null,
+  "in_reply_to": null,
+  "message_id_header": "<msg-011@quickshipusa.com>",
+  "expected_extraction": {
+    "customer_name": "Raj Patel",
+    "customer_company": "QuickShip USA",
+    "origin": "St. Louis, MO",
+    "destination": "Cincinnati, OH",
+    "equipment_type": "Van",
+    "truck_count": 1,
+    "commodity": "Packaged food products",
+    "weight_lbs": 41000,
+    "pickup_date": "2026-04-06",
+    "delivery_date": "2026-04-08",
+    "special_requirements": "URGENT — carrier cancellation replacement, Premium rate acceptable, Pickup by 4pm today or first thing tomorrow"
+  },
+  "expected_confidence": {
+    "origin": 0.97,
+    "destination": 0.97,
+    "equipment_type": 0.96,
+    "truck_count": 0.99,
+    "commodity": 0.94,
+    "weight_lbs": 0.97
+  },
+  "notes": "Urgent request with premium willingness. Tests whether extraction captures urgency context in special_requirements. Dates are relative ('today', 'tomorrow') — extraction must resolve to absolute dates."
+}

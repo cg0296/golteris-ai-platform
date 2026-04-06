@@ -1,0 +1,34 @@
+{
+  "scenario": "Ambiguous destination — 'Springfield' exists in multiple states, no state specified",
+  "tests": ["extraction", "confidence_scoring", "hitl_escalation"],
+  "expected_state": "needs_clarification",
+  "sender": "david.martinez@crosscountryfreight.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "Quote - Van Load to Springfield",
+  "body": "Jillian,\n\nNeed a van from Kansas City to Springfield. One truck, household goods, about 35,000 lbs. Looking at pickup next Tuesday April 15th, delivery by Thursday.\n\nNo special requirements.\n\nDavid Martinez\nCross Country Freight\n(816) 555-0267",
+  "thread_id": null,
+  "in_reply_to": null,
+  "message_id_header": "<msg-005@crosscountryfreight.com>",
+  "expected_extraction": {
+    "customer_name": "David Martinez",
+    "customer_company": "Cross Country Freight",
+    "origin": "Kansas City, MO",
+    "destination": "Springfield",
+    "equipment_type": "Van",
+    "truck_count": 1,
+    "commodity": "Household goods",
+    "weight_lbs": 35000,
+    "pickup_date": "2026-04-15",
+    "delivery_date": "2026-04-17",
+    "special_requirements": null
+  },
+  "expected_confidence": {
+    "origin": 0.93,
+    "destination": 0.45,
+    "equipment_type": 0.97,
+    "truck_count": 0.99,
+    "commodity": 0.95,
+    "weight_lbs": 0.94
+  },
+  "notes": "Springfield could be MO, IL, MA, OH, or others. From Kansas City, MO and IL are most likely. Destination confidence should be LOW (< 0.90) triggering HITL escalation per FR-AG-3."
+}

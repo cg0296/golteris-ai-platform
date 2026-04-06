@@ -1,0 +1,21 @@
+{
+  "scenario": "Counter-offer — carrier quotes but with modified terms/conditions",
+  "tests": ["carrier_parsing", "bid_comparison"],
+  "responds_to": "06_special_requirements_heavy.json",
+  "sender": "rates@deserthaul.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "RE: Box Truck LA to Phoenix — Quote with Notes",
+  "body": "Jillian,\n\nWe can handle the LA-Phoenix retail delivery but with a few adjustments:\n\nRate: $1,650\n- Includes lift gate and 26ft box truck\n- Driver will bring the freight to the first threshold (front door) but we can NOT do inside delivery past the entrance. Our insurance doesn't cover interior building work.\n- We can do the 2-hour notification window\n\nAlternatively, if you need full inside delivery, we can subcontract a lumper service at destination for an additional $350 (total would be $2,000).\n\nPickup: April 18 morning works for us\nDelivery: April 19 afternoon\n\nLet me know which option works.\n\nDesert Haul LLC\nAlex Romero\n(602) 555-0543",
+  "thread_id": "thread-carrier-006",
+  "in_reply_to": "<carrier-rfq-006@beltmann.com>",
+  "message_id_header": "<resp-006@deserthaul.com>",
+  "expected_bid": {
+    "carrier_name": "Desert Haul LLC",
+    "rate": 1650.00,
+    "currency": "USD",
+    "rate_type": "all_in",
+    "terms": "Includes lift gate + box truck. Threshold delivery only (no inside delivery). Option B: $2,000 with lumper service for inside delivery.",
+    "availability": "confirmed with conditions",
+    "notes": "Counter-offer — doesn't fully meet inside delivery requirement without additional $350 lumper"
+  }
+}

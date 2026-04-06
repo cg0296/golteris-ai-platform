@@ -1,0 +1,34 @@
+{
+  "scenario": "Large project with specific insurance and liability requirements",
+  "tests": ["extraction", "special_requirements_capture"],
+  "expected_state": "ready_to_quote",
+  "sender": "amanda.wright@precisionaero.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "RFQ - Aerospace Components — High Value Shipment",
+  "body": "Dear Jillian,\n\nPrecision Aerospace needs to transport high-value components and we have specific requirements:\n\nOrigin: Wichita, KS (our facility at 4500 S Oliver St)\nDestination: Huntsville, AL (Redstone Arsenal — government facility, need TWIC card for drivers)\n\nEquipment: 1 enclosed van trailer (air-ride suspension mandatory)\nCommodity: Aerospace guidance system components\nDeclared value: $2.4 million\nWeight: 8,500 lbs (lightweight but extremely high value)\n\nPickup: April 24, 2026 between 8am-10am\nDelivery: April 25, 2026 between 1pm-3pm (appointment required)\n\nInsurance requirements:\n- Carrier must have minimum $5M cargo insurance\n- Additional $3M umbrella/excess liability\n- Certificate of insurance must be provided 48 hours before pickup\n- White glove handling — no double-brokering allowed\n\nPlease confirm your carriers can meet these requirements before quoting.\n\nRegards,\nAmanda Wright\nLogistics Manager\nPrecision Aerospace Corp.\n(316) 555-0488",
+  "thread_id": null,
+  "in_reply_to": null,
+  "message_id_header": "<msg-012@precisionaero.com>",
+  "expected_extraction": {
+    "customer_name": "Amanda Wright",
+    "customer_company": "Precision Aerospace Corp.",
+    "origin": "Wichita, KS",
+    "destination": "Huntsville, AL",
+    "equipment_type": "Enclosed van (air-ride suspension)",
+    "truck_count": 1,
+    "commodity": "Aerospace guidance system components",
+    "weight_lbs": 8500,
+    "pickup_date": "2026-04-24",
+    "delivery_date": "2026-04-25",
+    "special_requirements": "Air-ride suspension mandatory, TWIC card required for drivers (government facility), Declared value $2.4M, Min $5M cargo insurance + $3M umbrella, COI required 48hrs before pickup, White glove handling, No double-brokering, Pickup window 8am-10am, Delivery appointment 1pm-3pm"
+  },
+  "expected_confidence": {
+    "origin": 0.97,
+    "destination": 0.96,
+    "equipment_type": 0.93,
+    "truck_count": 0.99,
+    "commodity": 0.95,
+    "weight_lbs": 0.98
+  },
+  "notes": "High-value shipment with extensive special requirements. Tests extraction of insurance/compliance requirements into special_requirements field. Carrier distribution (#32) will need to filter for carriers meeting insurance minimums."
+}

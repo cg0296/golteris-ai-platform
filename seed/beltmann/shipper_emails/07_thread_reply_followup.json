@@ -1,0 +1,22 @@
+{
+  "scenario": "Reply in existing thread — customer provides missing info from email 03",
+  "tests": ["matching", "thread_matching", "state_transition"],
+  "expected_state": "ready_to_quote",
+  "sender": "mike.johnson@prairieshipments.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "Re: Need a truck ASAP",
+  "body": "Sorry about that Jillian, here's the missing info:\n\nCommodity: Auto parts (engine blocks)\nWeight: 40,000 lbs\n\nEverything else stays the same — Chicago to Detroit, van, pickup Monday.\n\nThanks,\nMike",
+  "thread_id": "thread-003",
+  "in_reply_to": "<msg-003@prairieshipments.com>",
+  "message_id_header": "<msg-007@prairieshipments.com>",
+  "expected_extraction": {
+    "commodity": "Auto parts (engine blocks)",
+    "weight_lbs": 40000
+  },
+  "expected_match": {
+    "should_match_rfq_from": "03_missing_commodity_weight.json",
+    "match_method": "thread_id + in_reply_to (deterministic)",
+    "confidence": 0.99
+  },
+  "notes": "This is a reply to email 03. The matching service should attach it to the same RFQ via thread_id/in_reply_to. After processing, the RFQ should transition from needs_clarification to ready_to_quote because commodity and weight are now provided."
+}

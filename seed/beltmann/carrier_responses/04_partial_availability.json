@@ -1,0 +1,20 @@
+{
+  "scenario": "Partial availability — can cover 2 of 3 trucks requested",
+  "tests": ["carrier_parsing", "partial_coverage"],
+  "responds_to": "09_messy_freeform.json",
+  "sender": "ops@cascadetrucking.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "RE: Portland to Sacramento Flatbeds",
+  "body": "Jillian,\n\nWe can cover 2 of the 3 flatbeds for the Portland-Sacramento lumber move.\n\nRate: $1,950 per truck (all-in, includes tarps)\nAvailable trucks: 2\nPickup: Can do April 22 or 23\nDelivery: April 26 (1 day earlier than requested)\n\nWe don't have a third truck available that week unfortunately. Want us to book the 2 we have while you find coverage for the third?\n\nCascade Trucking\nOps Desk\n(503) 555-0714",
+  "thread_id": "thread-carrier-004",
+  "in_reply_to": "<carrier-rfq-009@beltmann.com>",
+  "message_id_header": "<resp-004@cascadetrucking.com>",
+  "expected_bid": {
+    "carrier_name": "Cascade Trucking",
+    "rate": 1950.00,
+    "currency": "USD",
+    "rate_type": "all_in",
+    "terms": "$1,950/truck all-in, includes tarps. Can only cover 2 of 3 trucks.",
+    "availability": "partial — 2 of 3 trucks"
+  }
+}
