@@ -1,0 +1,34 @@
+{
+  "scenario": "Messy freeform — no structure, casual language, info buried in prose",
+  "tests": ["extraction", "messy_formatting"],
+  "expected_state": "ready_to_quote",
+  "sender": "bob.tucker@midwesthaul.net",
+  "recipients": "quotes@beltmann.com",
+  "subject": "hey jillian quick question",
+  "body": "hey jillian hope your doing well! so I got this thing I need to move. its basically a bunch of lumber sitting at a yard in Portland Oregon and it needs to get down to Sacramento. Probably 3 flatbeds worth, each one around 45k lbs give or take. its all dimensional lumber and plywood. we're looking at sometime around april 22-24 for pickup and ideally having it there by the 28th. no real special needs except the usual tarping for lumber. oh and one more thing the pickup site is kind of tight so the drivers need to be comfortable with tight yard access. let me know what you can do!\n\n-Bob T\nMidwest Hauling",
+  "thread_id": null,
+  "in_reply_to": null,
+  "message_id_header": "<msg-009@midwesthaul.net>",
+  "expected_extraction": {
+    "customer_name": "Bob Tucker",
+    "customer_company": "Midwest Hauling",
+    "origin": "Portland, OR",
+    "destination": "Sacramento, CA",
+    "equipment_type": "Flatbed",
+    "truck_count": 3,
+    "commodity": "Dimensional lumber and plywood",
+    "weight_lbs": 45000,
+    "pickup_date": "2026-04-22",
+    "delivery_date": "2026-04-28",
+    "special_requirements": "Tarping required, Tight yard access at pickup"
+  },
+  "expected_confidence": {
+    "origin": 0.94,
+    "destination": 0.93,
+    "equipment_type": 0.92,
+    "truck_count": 0.91,
+    "commodity": 0.93,
+    "weight_lbs": 0.88
+  },
+  "notes": "Tests the extraction agent's ability to pull structured data from completely unstructured casual prose. Weight confidence may be low due to 'give or take' qualifier."
+}

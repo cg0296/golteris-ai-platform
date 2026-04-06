@@ -1,0 +1,20 @@
+{
+  "scenario": "Clean all-in rate — straightforward bid, easy to parse",
+  "tests": ["carrier_parsing", "bid_comparison"],
+  "responds_to": "01_happy_path_single_flatbed.json",
+  "sender": "dispatch@lonestartransport.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "Re: Flatbed Dallas to Atlanta — Rate Confirmation",
+  "body": "Hi Jillian,\n\nWe can cover this load. Here's our rate:\n\nLane: Dallas, TX → Atlanta, GA\nEquipment: Flatbed (48ft)\nRate: $2,850 all-in\nPickup: April 15, 2026\nDelivery: April 17, 2026\nDriver: Will have tarps\n\nRate includes fuel surcharge. Valid for 48 hours.\n\nLet us know if you'd like to book.\n\nLone Star Transport\nDispatch: (972) 555-0311",
+  "thread_id": "thread-carrier-001",
+  "in_reply_to": "<carrier-rfq-001@beltmann.com>",
+  "message_id_header": "<resp-001@lonestartransport.com>",
+  "expected_bid": {
+    "carrier_name": "Lone Star Transport",
+    "rate": 2850.00,
+    "currency": "USD",
+    "rate_type": "all_in",
+    "terms": "Includes fuel surcharge, valid 48 hours",
+    "availability": "confirmed"
+  }
+}

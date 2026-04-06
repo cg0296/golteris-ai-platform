@@ -1,0 +1,33 @@
+{
+  "scenario": "Heavy special requirements — lift gate, driver unload, inside delivery, liftgate",
+  "tests": ["extraction", "special_requirements_capture"],
+  "expected_state": "ready_to_quote",
+  "sender": "jennifer.wu@pacificretail.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "Quote Request - Retail Store Deliveries",
+  "body": "Hi Jillian,\n\nWe have a shipment going from our warehouse in Los Angeles, CA to our new store location in Phoenix, AZ.\n\n- Equipment: 26ft box truck with lift gate\n- 1 truck\n- Commodity: Retail store fixtures and displays\n- Weight: approximately 12,000 lbs\n- Pickup: April 18, 2026 (morning preferred, before 10am)\n- Delivery: April 19, 2026\n\nIMPORTANT: Driver must assist with unloading. This is an inside delivery — product needs to be brought into the store, not just dropped at the dock. There is no loading dock at the delivery location, so lift gate is mandatory. Also need 2-hour delivery window notification.\n\nPlease quote with all accessorials included.\n\nJennifer Wu\nPacific Retail Group\n(310) 555-0445",
+  "thread_id": null,
+  "in_reply_to": null,
+  "message_id_header": "<msg-006@pacificretail.com>",
+  "expected_extraction": {
+    "customer_name": "Jennifer Wu",
+    "customer_company": "Pacific Retail Group",
+    "origin": "Los Angeles, CA",
+    "destination": "Phoenix, AZ",
+    "equipment_type": "Box truck (26ft) with lift gate",
+    "truck_count": 1,
+    "commodity": "Retail store fixtures and displays",
+    "weight_lbs": 12000,
+    "pickup_date": "2026-04-18",
+    "delivery_date": "2026-04-19",
+    "special_requirements": "Lift gate required (no dock at delivery), Driver assist unload, Inside delivery, 2-hour delivery window notification, Morning pickup preferred (before 10am)"
+  },
+  "expected_confidence": {
+    "origin": 0.98,
+    "destination": 0.98,
+    "equipment_type": 0.90,
+    "truck_count": 0.99,
+    "commodity": 0.96,
+    "weight_lbs": 0.94
+  }
+}

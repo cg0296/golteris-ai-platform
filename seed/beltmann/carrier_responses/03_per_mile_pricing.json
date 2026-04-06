@@ -1,0 +1,20 @@
+{
+  "scenario": "Per-mile pricing — requires distance lookup for total cost comparison",
+  "tests": ["carrier_parsing", "bid_comparison", "rate_normalization"],
+  "responds_to": "01_happy_path_single_flatbed.json",
+  "sender": "quotes@sunbeltfreight.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "RE: Rate for Dallas-ATL Flatbed",
+  "body": "Hi,\n\nWe can do this at $3.65/mile. Dallas to Atlanta is approximately 781 miles so that comes out to roughly $2,850.65.\n\nIncludes FSC. Tarps included no extra charge.\n\nCan pick up 4/15, deliver 4/17.\n\nSunbelt Freight\n(214) 555-0876",
+  "thread_id": "thread-carrier-003",
+  "in_reply_to": "<carrier-rfq-001@beltmann.com>",
+  "message_id_header": "<resp-003@sunbeltfreight.com>",
+  "expected_bid": {
+    "carrier_name": "Sunbelt Freight",
+    "rate": 2850.65,
+    "currency": "USD",
+    "rate_type": "per_mile",
+    "terms": "$3.65/mi × ~781 miles, includes FSC and tarps",
+    "availability": "confirmed"
+  }
+}

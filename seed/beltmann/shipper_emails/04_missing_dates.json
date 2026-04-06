@@ -1,0 +1,35 @@
+{
+  "scenario": "Missing pickup/delivery dates — has commodity and weight but no timeline",
+  "tests": ["extraction", "validation", "missing_info_detection"],
+  "expected_state": "needs_clarification",
+  "sender": "lisa.park@summitindustrial.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "Reefer Rate Needed - Pharma Shipment",
+  "body": "Hi there,\n\nWe need to ship temperature-controlled pharmaceuticals from Indianapolis, IN to Columbus, OH. One reefer truck, approximately 38,000 lbs. Temperature must be maintained at 36-46°F throughout transit.\n\nCan you provide a rate? We're flexible on timing but need to move it soon.\n\nBest,\nLisa Park\nSummit Industrial\n(317) 555-0183",
+  "thread_id": null,
+  "in_reply_to": null,
+  "message_id_header": "<msg-004@summitindustrial.com>",
+  "expected_extraction": {
+    "customer_name": "Lisa Park",
+    "customer_company": "Summit Industrial",
+    "origin": "Indianapolis, IN",
+    "destination": "Columbus, OH",
+    "equipment_type": "Reefer",
+    "truck_count": 1,
+    "commodity": "Pharmaceuticals",
+    "weight_lbs": 38000,
+    "pickup_date": null,
+    "delivery_date": null,
+    "special_requirements": "Temperature controlled 36-46°F"
+  },
+  "expected_confidence": {
+    "origin": 0.98,
+    "destination": 0.98,
+    "equipment_type": 0.97,
+    "truck_count": 0.99,
+    "commodity": 0.95,
+    "weight_lbs": 0.96
+  },
+  "expected_clarification_fields": ["pickup_date", "delivery_date"],
+  "notes": "Dates are missing. 'Soon' is not a date. Agent should draft clarification asking for specific pickup and delivery dates."
+}

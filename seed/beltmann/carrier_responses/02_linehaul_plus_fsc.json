@@ -1,0 +1,20 @@
+{
+  "scenario": "Linehaul + fuel surcharge breakdown — requires normalization for comparison",
+  "tests": ["carrier_parsing", "bid_comparison", "rate_normalization"],
+  "responds_to": "01_happy_path_single_flatbed.json",
+  "sender": "rates@eaglecarriers.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "RE: Flatbed Dallas to Atlanta — Our Quote",
+  "body": "Jillian,\n\nHere's our pricing for the Dallas-Atlanta flatbed:\n\nLinehaul: $2,400\nFuel surcharge (18%): $432\nTarping fee: $75\n---\nTotal: $2,907\n\nAvailable for April 15 pickup. Standard transit 2 days.\n\nEagle Carriers Inc.\nChris Murphy\nrates@eaglecarriers.com\n(404) 555-0228",
+  "thread_id": "thread-carrier-002",
+  "in_reply_to": "<carrier-rfq-001@beltmann.com>",
+  "message_id_header": "<resp-002@eaglecarriers.com>",
+  "expected_bid": {
+    "carrier_name": "Eagle Carriers Inc.",
+    "rate": 2907.00,
+    "currency": "USD",
+    "rate_type": "linehaul_plus_fsc",
+    "terms": "Linehaul $2,400 + 18% FSC ($432) + $75 tarping",
+    "availability": "confirmed"
+  }
+}

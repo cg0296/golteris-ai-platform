@@ -1,0 +1,21 @@
+{
+  "scenario": "Ambiguous/messy format — rate buried in conversational email, hard to parse",
+  "tests": ["carrier_parsing", "messy_formatting"],
+  "responds_to": "11_urgent_time_sensitive.json",
+  "sender": "joe@joeshauling.com",
+  "recipients": "quotes@beltmann.com",
+  "subject": "re: urgent van stl to cincy",
+  "body": "yeah we can prob do this one. my guy tony is deadheading back from indy tonight and could swing through STL in the morning. id need like 3200 for it tho since its last minute and tony would have to skip his planned reload in Louisville. that includes everything, fuel etc. he could be there by 7am tomorrow and have it in cincy by end of day. lmk asap if you want it bc otherwise tony's gonna take the louisville load.\n\njoe",
+  "thread_id": "thread-carrier-007",
+  "in_reply_to": "<carrier-rfq-011@beltmann.com>",
+  "message_id_header": "<resp-007@joeshauling.com>",
+  "expected_bid": {
+    "carrier_name": "Joe's Hauling",
+    "rate": 3200.00,
+    "currency": "USD",
+    "rate_type": "all_in",
+    "terms": "Premium rate due to last-minute/repositioning. All-in including fuel. Pickup 7am tomorrow, delivery end of day. Time-sensitive — needs confirmation ASAP.",
+    "availability": "confirmed but time-limited"
+  },
+  "notes": "Tests carrier parser's ability to extract rate and terms from completely unstructured conversational text. Rate is embedded mid-sentence ('like 3200')."
+}
