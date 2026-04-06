@@ -254,6 +254,20 @@ def extract_rfq(
         # Finish the run — rolls up cost and tokens from the LLM call
         finish_run(db, run.id)
 
+        # Chain to the next agent based on the RFQ state.
+        # All chaining goes through the job queue — agents never call
+        # each other directly. The worker picks up and dispatches.
+        from backend.worker import enqueue_job
+
+        if rfq.state == RFQState.NEEDS_CLARIFICATION:
+            # Missing or low-confidence fields — draft a follow-up email
+            enqueue_job(db, "validation", {"rfq_id": rfq.id}, rfq_id=rfq.id)
+            logger.info("RFQ %d needs clarification — validation job enqueued", rfq.id)
+        elif rfq.state == RFQState.READY_TO_QUOTE:
+            # All fields present and confident — generate quote sheet
+            enqueue_job(db, "quote_sheet", {"rfq_id": rfq.id}, rfq_id=rfq.id)
+            logger.info("RFQ %d ready to quote — quote sheet job enqueued", rfq.id)
+
         logger.info(
             "Extraction complete: message=%d -> rfq=%d origin=%s destination=%s confidence=%s",
             message_id, rfq.id, rfq.origin, rfq.destination,
