@@ -1,0 +1,90 @@
+# =============================================================================
+# Golteris — Render Blueprint (Infrastructure as Code)
+# =============================================================================
+#
+# This file defines the full Render deployment:
+#   1. Web Service — FastAPI serving the API + React static build
+#   2. Background Worker — the job processing worker (backend/worker.py)
+#   3. Managed Postgres — the database
+#
+# To deploy:
+#   1. Push this file to the repo
+#   2. Go to https://dashboard.render.com/blueprints
+#   3. Click "New Blueprint Instance" and connect this repo
+#   4. Render provisions everything defined below
+#
+# After initial deploy, pushes to `main` auto-deploy both the web service
+# and the worker (acceptance criteria: "Deploys happen automatically from main").
+#
+# See REQUIREMENTS.md §2.4 (Infrastructure & deploy) and §7.6 (NFR-DE-1..2).
+# =============================================================================
+
+databases:
+  # Managed Postgres — Render provisions and manages this automatically.
+  # The connection string is injected as DATABASE_URL into the web and worker services.
+  - name: golteris-db
+    plan: free               # Free tier is sufficient for MVP/demo
+    databaseName: golteris
+    user: golteris
+
+services:
+  # ---------------------------------------------------------------------------
+  # Web Service — FastAPI + React SPA
+  # ---------------------------------------------------------------------------
+  # Serves the REST API (/api/*) and the React frontend build (everything else).
+  # The Dockerfile handles building both the frontend and backend.
+  - type: web
+    name: golteris-web
+    runtime: docker
+    plan: free               # Free tier for demo; upgrade for production
+    repo: https://github.com/cg0296/golteris-ai-platform
+    branch: master
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      # Database connection — automatically set by Render from the managed Postgres
+      - key: DATABASE_URL
+        fromDatabase:
+          name: golteris-db
+          property: connectionString
+      # Anthropic API key — must be set manually in Render dashboard as a secret.
+      # NEVER store the actual key in this file or any committed file.
+      - key: ANTHROPIC_API_KEY
+        sync: false          # Not synced from repo — set manually in dashboard
+      # Cost caps (see REQUIREMENTS.md §5 C5)
+      - key: ANTHROPIC_DAILY_COST_CAP
+        value: "50.00"
+      - key: ANTHROPIC_MONTHLY_COST_CAP
+        value: "500.00"
+
+  # ---------------------------------------------------------------------------
+  # Background Worker — job queue processor and mailbox poller
+  # ---------------------------------------------------------------------------
+  # Runs backend/worker.py as a long-lived process. Polls the database for
+  # jobs and processes them. See backend/worker.py for details.
+  #
+  # C1 enforcement: the worker checks workflows.enabled before dispatching.
+  # If all workflows are disabled (kill switch), the worker idles.
+  - type: worker
+    name: golteris-worker
+    runtime: docker
+    plan: free
+    repo: https://github.com/cg0296/golteris-ai-platform
+    branch: master
+    # Override the Dockerfile CMD to run the worker instead of the web server.
+    # Still runs Alembic migrations first to ensure the schema is current.
+    dockerCommand: alembic upgrade head && python -m backend.worker
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: golteris-db
+          property: connectionString
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_DAILY_COST_CAP
+        value: "50.00"
+      - key: ANTHROPIC_MONTHLY_COST_CAP
+        value: "500.00"
+      # Worker poll interval in seconds (default 10)
+      - key: WORKER_POLL_INTERVAL
+        value: "10"

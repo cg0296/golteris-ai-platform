@@ -73,7 +73,23 @@ This comment serves two purposes:
 
 ---
 
-## After You Finish
+## After You Finish Coding — Self-Test First
+
+### 0. Run the testing workflow yourself before anything else
+
+**Do not post your completion comment or move to Testing until you have tested your own work.** This is a hard rule — it prevents broken code from reaching the testing agent or the human.
+
+Follow the steps in [TESTING-WORKFLOW.md](TESTING-WORKFLOW.md) as if you were the testing agent:
+
+1. **Run the acceptance criteria checks** — execute every command, visit every URL, run every test from the issue's acceptance criteria. Record what happened.
+2. **Verify cross-cutting constraints** — check the relevant constraints from REQUIREMENTS.md §5 (C1–C7) against your code. Did you accidentally bypass HITL? Did you expose agent jargon in the UI? Are Claude calls logged?
+3. **Check your own comments** — does every file have a top-level docstring? Does every function have a docstring? Are complex blocks explained inline? (§3.6)
+4. **Run automated tests** — `pytest` for backend, `vitest` for frontend. All tests must pass.
+5. **Fix anything that fails** — if you find bugs, fix them and commit the fixes before proceeding.
+
+**Include the actual test results in your completion comment** (not just "I tested it" — show the commands you ran and the output you got). This proves to the testing agent and the human that the code was verified before handoff.
+
+---
 
 ### 1. Post your completion comment
 
@@ -85,6 +101,12 @@ Add a second comment to the GitHub issue with:
 **What I did:**
 - [Bullet list of what was implemented, created, or changed]
 - [Files created or modified, with brief descriptions]
+
+**Self-test results (ran before posting):**
+- `[command I ran]` → [actual output, truncated if long]
+- `[another command]` → [actual output]
+- Cross-cutting constraints checked: [which ones, what I verified]
+- Code quality: [confirmed comments per §3.6, no secrets, tech stack compliance]
 
 **How to test (for human reviewer):**
 1. [Step-by-step instructions a human can follow to verify the work]
@@ -118,6 +140,7 @@ After posting the completion comment, **move the issue status from `Agent Work` 
 |---|---|
 | Only pick up `Agent Work` issues | Human controls what gets built and when (C1, C7) |
 | Post a plan comment before coding | Human can course-correct before effort is wasted; future agents have context |
+| **Self-test before posting completion** | **Catch bugs before they reach the testing agent or human — show actual test output** |
 | Post a completion comment with test instructions | Human can verify without reading every line of code; keeps Testing status meaningful |
 | Move to `Testing` when done | Human knows exactly what's waiting for their review |
 | Never merge your own PR | Human approval required on every merge (C7) |
