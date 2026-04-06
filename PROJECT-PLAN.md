@@ -40,7 +40,7 @@ Build the minimum agent pipeline that turns one email into one structured RFQ in
 
 ### Deliverables
 
-- [ ] **Mailbox poller** — a Python function that pulls messages from a test Gmail inbox on a cron (or for dev, from a seeded folder of sample emails). Writes to `messages` table.
+- [ ] **Mailbox poller** — a Python function that pulls messages from a connected inbox on a cron (or for dev, from a seeded folder of sample emails). Supports any email provider via the abstraction layer (IMAP, Gmail, Outlook). Writes to `messages` table.
 - [ ] **Extraction agent** — Python function that reads a message, calls Claude with a structured tool-use schema, and writes extracted fields into `rfqs`. Logs the run to `agent_runs`.
 - [ ] **Validation agent** — checks required fields, sets `state` to `needs_clarification` or `ready_to_quote`, drafts a follow-up if missing data.
 - [ ] **Orchestrator loop** — a simple worker script that polls the database for RFQs in each state and dispatches the next agent.
@@ -86,7 +86,7 @@ This is the most-used interaction in the product. It has to feel fast.
   - `POST /api/approvals/:id/approve` — marks approved, enqueues send
   - `POST /api/approvals/:id/reject`
   - `POST /api/approvals/:id/edit` — accepts an edited body
-- [ ] **Send agent** — consumes approved items, sends via Gmail API (or mock outbox for demo), writes outbound `messages` row and `audit_events`
+- [ ] **Send agent** — consumes approved items, sends via the configured email provider (or mock outbox for demo), writes outbound `messages` row and `audit_events`
 - [ ] **Keyboard shortcuts** — Enter = approve, E = edit, R = reject, S = skip, J/K = next/prev
 - [ ] **Confirmation toasts** — "Sent to Tom @ Beltmann"
 
@@ -204,7 +204,7 @@ Why this sequence:
 | Risk | Mitigation |
 |---|---|
 | Claude extraction is unreliable on messy emails | Start with a tight JSON schema, strong examples in the prompt, and low-confidence flagging. Log every extraction for review. |
-| Gmail API auth takes longer than expected | For the demo, use a seeded folder of sample emails instead of live Gmail. Connect real Gmail as v2. |
+| Email provider auth takes longer than expected | For the demo, use a seeded folder of sample emails instead of a live inbox. Connect real email provider as v2. |
 | The orchestrator loop becomes complex | Keep it boring — a Python worker that `SELECT ... FOR UPDATE SKIP LOCKED` on a jobs table. No frameworks. |
 | Jillian asks about auth/security/compliance | Have a one-pager ready. Real answer: single-tenant, isolated DB, audit log on every action, human approval before any outbound. |
 | Demo environment dies mid-demo | Record a backup screen capture. Always demo against a stable deployed environment, never localhost. |
@@ -253,7 +253,7 @@ When all ten boxes are checked, you're ready for Jillian.
 
 Post-Beltmann priorities depend on how the meeting goes, but the likely order:
 
-1. **Real Gmail integration** (if not already done)
+1. **Real email provider integration** — Gmail, Outlook, or IMAP (if not already done)
 2. **Customer-specific configuration** — Beltmann will want their quote sheet format, their carrier list, their language
 3. **Carrier RFQ outbound flow** — the other half of the workflow that wasn't in the demo
 4. **Carrier quote inbound + comparison view** — closing the loop

@@ -124,7 +124,7 @@ Tom, a shipper (one of Beltmann's customers), sends an email to Beltmann's mailb
                     │     .enabled │    If no → skip, idle
                     │              │
                     │  2. Read     │
-                    │     mailbox  │──► seeded folder (demo) or Gmail (prod)
+                    │     mailbox  │──► seeded folder (demo) or email provider (prod)
                     │              │
                     │  3. Write    │
                     │     message  │──► INSERT INTO messages (direction='inbound',
@@ -267,7 +267,7 @@ She clicks **Approve** (or hits `Enter`).
                                ├─ approvals.resolved_at = NOW()
                                │
                                └─► WORKER picks up approved item
-                                   → Sends email via Gmail API / SMTP
+                                   → Sends email via configured provider (IMAP/Gmail/Outlook)
                                    → INSERT INTO messages (direction='outbound')
                                    → audit_events: "Jillian approved follow-up to Tom"
                                    → audit_events: "Follow-up sent to Tom @ Beltmann"
