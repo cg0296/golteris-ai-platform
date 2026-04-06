@@ -33,6 +33,7 @@ from fastapi.responses import FileResponse
 
 from backend.db.database import engine
 from backend.db.models import Base
+from backend.api.agent_runs import router as agent_runs_router
 
 
 @asynccontextmanager
@@ -109,13 +110,13 @@ def health_check():
 
 
 # ---------------------------------------------------------------------------
-# API routes — placeholder for now. Each issue (#17, #25, #26, #27, etc.)
-# will add its own router under /api/*.
+# API routers — each domain area has its own router module in backend/api/.
+# Routers are registered here so FastAPI discovers all routes at startup.
 #
-# Example (to be added by future issues):
-#   from backend.api.rfqs import router as rfqs_router
-#   app.include_router(rfqs_router, prefix="/api")
+# Agent run tracking (#22) — GET /api/agent/runs, GET /api/agent/runs/:id
+# Future issues will add more routers (rfqs, approvals, workflows, etc.)
 # ---------------------------------------------------------------------------
+app.include_router(agent_runs_router)
 @app.get("/api")
 def api_root():
     """
