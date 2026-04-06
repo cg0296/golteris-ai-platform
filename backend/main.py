@@ -129,6 +129,27 @@ def api_root():
     }
 
 
+@app.get("/api/debug/tables")
+def debug_tables():
+    """
+    Debug endpoint — lists all tables in the database.
+    Temporary — will be removed once proper API routes exist.
+    Useful for verifying the schema was created on deploy.
+    """
+    from sqlalchemy import text
+    from backend.db.database import SessionLocal
+    db = SessionLocal()
+    try:
+        result = db.execute(text(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema = 'public' ORDER BY table_name"
+        ))
+        tables = [row[0] for row in result]
+        return {"tables": tables, "count": len(tables)}
+    finally:
+        db.close()
+
+
 # ---------------------------------------------------------------------------
 # Static file serving — serves the React frontend build.
 #
