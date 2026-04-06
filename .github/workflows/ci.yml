@@ -1,0 +1,77 @@
+# =============================================================================
+# Golteris — CI Pipeline (GitHub Actions)
+# =============================================================================
+#
+# Runs on every push to main and on every pull request.
+# See REQUIREMENTS.md §2.7 (Dev tooling) — "GitHub Actions for CI."
+#
+# Jobs:
+#   backend-lint   — Ruff linter + formatter check on Python code
+#   backend-test   — pytest (once tests exist)
+#
+# Frontend CI (Vitest, ESLint, Prettier) will be added when the frontend
+# is scaffolded. This pipeline covers the backend only for now.
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  backend-lint:
+    name: Backend Lint (Ruff)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install ruff
+
+      - name: Run Ruff linter
+        run: ruff check backend/
+
+      - name: Run Ruff formatter check
+        run: ruff format --check backend/
+
+  backend-test:
+    name: Backend Tests (pytest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        run: |
+          # Run pytest if test files exist; otherwise skip gracefully.
+          # Tests will be added by subsequent issues (#24, #13, etc.).
+          if find backend/ -name "test_*.py" -o -name "*_test.py" | grep -q .; then
+            pytest backend/ -v
+          else
+            echo "No test files found — skipping. Tests will be added by future issues."
+          fi
