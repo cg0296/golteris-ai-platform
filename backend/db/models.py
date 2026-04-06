@@ -381,7 +381,9 @@ class AgentCall(Base):
     run_id = Column(Integer, ForeignKey("agent_runs.id"), nullable=False)
     # Which agent made this call (e.g., "extraction", "validation", "draft_reply")
     agent_name = Column(String(255), nullable=False)
-    # The Claude model used (e.g., "claude-sonnet-4-6")
+    # LLM provider used (e.g., "anthropic", "openai") — enables multi-provider cost tracking
+    provider = Column(String(100), nullable=False, default="anthropic")
+    # The model used (e.g., "claude-sonnet-4-6", "gpt-4o", "gpt-4.1")
     model = Column(String(100), nullable=False)
     # Full prompts — stored for auditability. The "View system reasoning" disclosure
     # in the RFQ detail drawer reads these fields.

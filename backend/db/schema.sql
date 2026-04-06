@@ -182,6 +182,7 @@ CREATE TABLE agent_calls (
     id              SERIAL PRIMARY KEY,
     run_id          INTEGER NOT NULL REFERENCES agent_runs(id),
     agent_name      VARCHAR(255) NOT NULL,
+    provider        VARCHAR(100) NOT NULL DEFAULT 'anthropic',  -- LLM provider: "anthropic", "openai", etc.
     model           VARCHAR(100) NOT NULL,
     system_prompt   TEXT,
     user_prompt     TEXT NOT NULL,

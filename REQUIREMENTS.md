@@ -32,7 +32,7 @@ The following stack is locked in. AI dev agents must use these technologies — 
 
 ### 2.1 Backend
 - **Python 3.12+** with **FastAPI** — async-native web framework and API server
-- **Anthropic Python SDK** — all Claude API calls go through this; wrapped with cost/token logging per §5 C5
+- **Anthropic Python SDK** + **OpenAI Python SDK** — LLM calls go through a provider abstraction layer (`backend/llm/`), not directly. See §2.5 for the LLM-agnostic architecture.
 - **APScheduler** or FastAPI background tasks — for the cron poller and delayed job timers (`#47`)
 - **Postgres job queue** pattern — `SELECT ... FOR UPDATE SKIP LOCKED` on a jobs table; no external queue (Redis, RabbitMQ, Celery) unless the human approves
 
@@ -55,12 +55,20 @@ The following stack is locked in. AI dev agents must use these technologies — 
 - **Auto-deploy from `main`** — every merged PR deploys to the staging environment
 - **Custom subdomain** pointed at the Render service
 - **Environment variables** managed via Render dashboard; documented in `.env.example` in the repo
-- **Secrets** (Anthropic API key, Gmail credentials) stored in Render's secret manager, never in source
+- **Secrets** (LLM provider API keys, Gmail credentials) stored in Render's secret manager, never in source
 
 ### 2.5 AI / LLM
-- **Claude Sonnet 4.6** as the default model for all agents (extraction, validation, matching, drafting, parsing)
-- **Claude tool-use (function calling)** for structured extraction — agents define JSON schemas, Claude returns structured data
-- Model is configurable per-agent via Settings (`#44`) but defaults to Sonnet 4.6
+- **LLM-agnostic architecture** — the system must support swapping between LLM providers (Anthropic Claude, OpenAI GPT, Google Gemini, open-source models) without changing agent logic. All LLM calls go through a provider abstraction layer.
+- **Default provider:** Anthropic Claude (Sonnet 4.6) — but this is a configuration choice, not a hard dependency
+- **Supported providers (v1):** Anthropic (Claude), OpenAI (GPT-4o, GPT-4.1) — additional providers can be added by implementing the provider interface
+- **Tool-use / function calling** for structured extraction — agents define JSON schemas, the provider returns structured data. Both Anthropic and OpenAI support this natively.
+- **Provider abstraction layer** — a wrapper module (`backend/llm/`) that:
+  - Exposes a single `call_llm(agent_name, system_prompt, user_prompt, tools, model)` function
+  - Routes to the configured provider (Anthropic SDK, OpenAI SDK, etc.)
+  - Logs every call to `agent_calls` table with prompt, model, provider, tokens, cost, duration
+  - Enforces cost caps before making the call
+  - Handles provider-specific error codes (rate limits, timeouts) uniformly
+- Model is configurable **per-agent** and **per-provider** via Settings (`#44`)
 - Every call wrapped with: prompt logging, token counting, cost calculation, duration timing → `agent_calls` table (`#21`)
 
 ### 2.6 Email (v1 / demo)
@@ -149,7 +157,7 @@ The following stack is locked in. AI dev agents must use these technologies — 
 
 ### 4.1 In scope for MVP / Beltmann demo
 - Inbound email ingestion (seeded folder acceptable for demo) — `#12`
-- Claude-powered RFQ extraction with confidence scoring — `#23 #24`
+- LLM-powered RFQ extraction with confidence scoring — `#23 #24`
 - Message → RFQ matching — `#13`
 - RFQ state machine with audit trail — `#14`
 - Missing-info detection and clarification drafting — `#15`
@@ -160,7 +168,7 @@ The following stack is locked in. AI dev agents must use these technologies — 
 - Settings with workflow toggles, approval policies, mailbox status — `#31`
 - Agent observability (decisions, runs, queue, memory, schedule, guidance, controls) — `#37 #38 #39 #40 #41 #42 #43 #44`
 - Worker process and scheduler — `#47`
-- Deploy environment, Anthropic API, cost caps, decision logging, run tracking — `#19 #20 #21 #22`
+- Deploy environment, LLM API credentials, cost caps, decision logging, run tracking — `#19 #20 #21 #22`
 - Realistic Beltmann seed data and demo script — `#45 #46`
 - Carrier RFQ distribution, parsing, comparison, pricing, customer quote — `#32 #33 #34 #35 #36`
 
@@ -192,7 +200,7 @@ The following stack is locked in. AI dev agents must use these technologies — 
 - Reverse auction features
 - Mobile app (mobile web is enough)
 - Auto-send for any outbound (all outbound is HITL until operator explicitly opts in)
-- MCP server or Claude Desktop integration
+- MCP server or LLM desktop integration
 
 ---
 
@@ -221,8 +229,8 @@ These govern every feature. They are non-negotiable and override any conflicting
 - State changes happen through explicit transition rules, not ad-hoc updates. Manual overrides are allowed and logged. — `#14`
 
 ### C5 — Hard cost caps
-- Daily and monthly Anthropic API cost caps enforced at the API wrapper layer. Hitting the cap hard-stops further calls. — `#20 #44`
-- Every Claude API call logs prompt, model, tokens, cost, and duration. Total cost per run rolls up from individual calls. — `#21 #22`
+- Daily and monthly LLM API cost caps enforced at the provider abstraction layer. Hitting the cap hard-stops further calls. Caps apply across all providers combined. — `#20 #44`
+- Every LLM API call logs prompt, model, provider, tokens, cost, and duration. Total cost per run rolls up from individual calls. — `#21 #22`
 
 ### C6 — Single-tenant for v1
 - Until multi-tenant work in `#55` lands, the system is single-tenant. Single customer (Beltmann), single organization, single mailbox. Do not prematurely add `org_id` scaffolding that will need rework.
@@ -264,7 +272,7 @@ Each requirement is `FR-<area>-<n>` with the issue(s) that implement it.
 
 | ID | Requirement | Issues |
 |---|---|---|
-| FR-AG-1 | Extraction agent turns inbound emails into structured RFQ fields (origin, destination, equipment, truck count, pickup/delivery, commodity, weight, special requirements, contact) using Claude tool-use. | `#24` |
+| FR-AG-1 | Extraction agent turns inbound emails into structured RFQ fields (origin, destination, equipment, truck count, pickup/delivery, commodity, weight, special requirements, contact) using LLM tool-use / function calling. Provider-agnostic — works with any supported LLM. | `#24` |
 | FR-AG-2 | Every extracted field has a confidence score (0.0–1.0). Default escalation threshold 0.90, configurable per workflow. | `#23` |
 | FR-AG-3 | Low-confidence fields flag the whole RFQ into Needs Review with a human-readable reason. | `#23` |
 | FR-AG-4 | Missing-information detection identifies required fields that are absent and drafts a clarification email. | `#15` |
@@ -347,7 +355,7 @@ Each requirement is `FR-<area>-<n>` with the issue(s) that implement it.
 ### 7.2 Observability
 | ID | Requirement | Issues |
 |---|---|---|
-| NFR-OB-1 | Every Claude API call logs prompt, model, input tokens, output tokens, cost USD, and duration ms to `agent_calls`. Cost matches the Anthropic bill within 1%. | `#21` |
+| NFR-OB-1 | Every LLM API call logs prompt, model, provider, input tokens, output tokens, cost USD, and duration ms to `agent_calls`. Cost matches the provider's bill within 1%. | `#21` |
 | NFR-OB-2 | Every workflow invocation creates an `agent_runs` row with start/end, status, total cost, total tokens, and links to its child calls. | `#22` |
 | NFR-OB-3 | Structured JSON logs include `request_id`, `run_id`, and `rfq_id` on every line so any complaint traces to root cause. | `#52` |
 | NFR-OB-4 | Metrics cover call count, error rate, p95 latency, and cost per day, with alerts for error spikes, cost caps, and queue backup. | `#52` |
@@ -362,7 +370,7 @@ Each requirement is `FR-<area>-<n>` with the issue(s) that implement it.
 ### 7.4 Cost & budget
 | ID | Requirement | Issues |
 |---|---|---|
-| NFR-CO-1 | Daily and monthly Anthropic cost caps enforced at the wrapper layer with hard stop on breach. | `#20 #44` |
+| NFR-CO-1 | Daily and monthly LLM cost caps enforced at the provider abstraction layer with hard stop on breach. Caps apply across all providers combined. | `#20 #44` |
 | NFR-CO-2 | Budget alarms fire before caps are reached. | `#20` |
 | NFR-CO-3 | API keys never appear in source or logs. | `#20` |
 
@@ -425,7 +433,7 @@ Each requirement is `FR-<area>-<n>` with the issue(s) that implement it.
 - [ ] Nothing in the UI uses technical jargon
 - [ ] No agent runs without a human-enabled workflow
 - [ ] No outbound message sends without explicit approval
-- [ ] Every Claude call is logged with prompt, model, tokens, cost, and duration
+- [ ] Every LLM call is logged with prompt, model, provider, tokens, cost, and duration
 - [ ] Cost caps enforce and alarm
 
 ### 9.2 AI-development hygiene (per §2 rules)
@@ -454,7 +462,7 @@ This section is the forward lookup from issue → requirement section. Use this 
 | #17 | Broker home dashboard | §5.5 FR-UI-1..4, §7.1, §4 C3 |
 | #18 | Beltmann demo prep | §7 |
 | #19 | Staging environment deploy | §6.6 NFR-DE-1..2 |
-| #20 | Anthropic API credentials & cost caps | §4 C5, §6.4 NFR-CO-1..3 |
+| #20 | LLM API credentials & cost caps | §4 C5, §6.4 NFR-CO-1..3 |
 | #21 | Agent decision logging | §4 C4, §6.2 NFR-OB-1 |
 | #22 | Agent run tracking | §6.2 NFR-OB-2 |
 | #23 | Confidence scoring & HITL escalation | §5.3 FR-AG-2..3 |
