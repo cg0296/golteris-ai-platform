@@ -209,11 +209,11 @@ class GraphMailboxProvider(MailboxProvider):
                 "saveToSentItems": True,
             }
 
-            # If replying to a thread, set the in-reply-to header for proper threading
-            if reply_to_message_id:
-                mail_payload["message"]["internetMessageHeaders"] = [
-                    {"name": "In-Reply-To", "value": reply_to_message_id},
-                ]
+            # If replying to a thread, use Graph's conversationId-based threading.
+            # Note: Graph API rejects In-Reply-To as a custom header — it requires
+            # custom headers to start with "x-". Thread linking is handled by Graph
+            # automatically when the conversation is in the same mailbox.
+            # We skip the header and let Graph handle threading natively.
 
             url = f"{GRAPH_BASE_URL}/users/{self.user_email}/sendMail"
             resp = requests.post(
