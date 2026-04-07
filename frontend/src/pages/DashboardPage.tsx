@@ -19,6 +19,7 @@
 
 import { useCallback, useState } from "react"
 import { toast } from "sonner"
+import { useAuth } from "@/lib/auth"
 import { KpiStrip } from "@/components/dashboard/KpiStrip"
 import { UrgentActions } from "@/components/dashboard/UrgentActions"
 import { ActiveRfqsTable } from "@/components/dashboard/ActiveRfqsTable"
@@ -39,6 +40,7 @@ const actionToasts: Record<string, { title: string; description: string }> = {
 }
 
 export function DashboardPage() {
+  const { user } = useAuth()
   const summary = useDashboardSummary()
   const rfqs = useActiveRfqs()
   const approvals = usePendingApprovals()
@@ -91,7 +93,7 @@ export function DashboardPage() {
       {/* Welcome banner */}
       <div>
         <h2 className="text-xl font-semibold text-[#0E2841]">
-          Good {getGreeting()}, Jillian
+          Good {getGreeting()}, {user?.name ?? "there"}
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
           {summary.data

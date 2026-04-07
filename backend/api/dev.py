@@ -93,7 +93,20 @@ def reseed_demo_data(db: Session = Depends(get_db)):
     db.query(RFQ).delete()
     db.query(Carrier).delete()
     db.query(Workflow).delete()
+    # Don't delete users — preserve auth accounts
     db.commit()
+
+    # --- Seed default user if none exist ---
+    from backend.db.models import User
+    from backend.auth import hash_password
+    if db.query(User).count() == 0:
+        db.add(User(
+            email="jillian@beltmann.com",
+            hashed_password=hash_password("beltmann2026"),
+            name="Jillian",
+            role="owner",
+        ))
+        db.flush()
 
     # --- Workflows (C1 enforcement) ---
     workflows_data = [

@@ -22,3 +22,6 @@ requests>=2.31.0
 
 # Environment variable loading for local dev
 python-dotenv>=1.0.0
+bcrypt==5.0.0
+passlib==1.7.4
+python-jose==3.5.0

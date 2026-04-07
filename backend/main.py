@@ -42,6 +42,7 @@ from backend.api.approvals import router as approvals_router
 from backend.api.carriers import router as carriers_router
 from backend.api.workflows import router as workflows_router
 from backend.api.agent_controls import router as agent_controls_router
+from backend.api.auth import router as auth_router
 from backend.api.chat import router as chat_router
 from backend.api.dev import router as dev_router
 
@@ -127,6 +128,7 @@ def health_check():
 # Agent run tracking (#22) — GET /api/agent/runs, GET /api/agent/runs/:id
 # Future issues will add more routers (rfqs, approvals, workflows, etc.)
 # ---------------------------------------------------------------------------
+app.include_router(auth_router)
 app.include_router(agent_runs_router)
 app.include_router(dashboard_router)
 app.include_router(approvals_router)
