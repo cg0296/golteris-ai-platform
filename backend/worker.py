@@ -198,6 +198,8 @@ JOB_DISPATCH = {
     "validation": ("backend.agents.validation", "draft_followup", "rfq_id"),
     "quote_sheet": ("backend.agents.quote_sheet", "generate_quote_sheet", "rfq_id"),
     "matching": ("backend.services.message_matching", "match_message_to_rfq", "message_id"),
+    # Outbound email sending (#25) — only runs after C2 approval gate
+    "send_outbound_email": ("backend.services.email_send", "send_approved_email", "approval_id"),
 }
 
 

@@ -162,6 +162,83 @@ class GraphMailboxProvider(MailboxProvider):
 
         return messages
 
+    def send_message(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        reply_to_message_id: str | None = None,
+    ) -> dict:
+        """
+        Send an email via Microsoft Graph API's /sendMail endpoint (#25).
+
+        Uses the same OAuth2 client credentials as fetch. Requires
+        Mail.Send application permission in the Entra app registration.
+
+        C2 CONSTRAINT: Only called by email_send service after approval check.
+
+        Args:
+            to: Recipient email address
+            subject: Email subject
+            body: Email body (plain text)
+            reply_to_message_id: For threading, the original message's internet message ID
+
+        Returns:
+            Dict with success, message_id, and error fields.
+        """
+        if not self.client_id or not self.user_email:
+            return {"success": False, "message_id": None, "error": "Graph API not configured"}
+
+        token = self._get_access_token()
+        if not token:
+            return {"success": False, "message_id": None, "error": "Failed to get Graph access token"}
+
+        try:
+            # Build the Graph API sendMail payload
+            mail_payload: dict = {
+                "message": {
+                    "subject": subject,
+                    "body": {
+                        "contentType": "Text",
+                        "content": body,
+                    },
+                    "toRecipients": [
+                        {"emailAddress": {"address": to}}
+                    ],
+                },
+                "saveToSentItems": True,
+            }
+
+            # If replying to a thread, set the in-reply-to header for proper threading
+            if reply_to_message_id:
+                mail_payload["message"]["internetMessageHeaders"] = [
+                    {"name": "In-Reply-To", "value": reply_to_message_id},
+                ]
+
+            url = f"{GRAPH_BASE_URL}/users/{self.user_email}/sendMail"
+            resp = requests.post(
+                url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json=mail_payload,
+                timeout=30,
+            )
+
+            if resp.status_code == 202:
+                # 202 Accepted — email queued for delivery by Graph
+                logger.info("Email sent via Graph to %s: %s", to, subject)
+                return {"success": True, "message_id": None, "error": None}
+            else:
+                error_detail = resp.text[:500]
+                logger.error("Graph sendMail failed (%d): %s", resp.status_code, error_detail)
+                return {"success": False, "message_id": None, "error": f"Graph API {resp.status_code}: {error_detail}"}
+
+        except requests.RequestException as e:
+            logger.error("Graph sendMail request error: %s", e)
+            return {"success": False, "message_id": None, "error": str(e)}
+
     def get_provider_name(self) -> str:
         return "graph"
 
