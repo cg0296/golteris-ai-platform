@@ -16,7 +16,7 @@
  */
 
 import { useState } from "react"
-import { Send } from "lucide-react"
+import { Send, FileText } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -30,6 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CarrierSelectModal } from "./CarrierSelectModal"
 import { useRfqDetail } from "@/hooks/use-rfq-detail"
 import { useRankedBids, type RankedBid } from "@/hooks/use-ranked-bids"
+import { useQuoteSheet } from "@/hooks/use-quote-sheet"
 import { formatRelativeTime } from "@/lib/utils"
 import type { RfqDetail, RfqMessage, ActivityEvent, CarrierBidItem } from "@/types/api"
 
@@ -56,8 +57,10 @@ interface RfqDetailDrawerProps {
 export function RfqDetailDrawer({ rfqId, onClose }: RfqDetailDrawerProps) {
   const { data, isLoading } = useRfqDetail(rfqId)
   const rankedBids = useRankedBids(rfqId)
+  const quoteSheet = useQuoteSheet(rfqId)
   const isOpen = rfqId !== null
   const [carrierModalRfqId, setCarrierModalRfqId] = useState<number | null>(null)
+  const [showQuoteSheet, setShowQuoteSheet] = useState(false)
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -138,6 +141,62 @@ export function RfqDetailDrawer({ rfqId, onClose }: RfqDetailDrawerProps) {
               <div className="mt-6">
                 <Separator className="mb-4" />
                 <RankedBidsSection bids={rankedBids.data?.bids ?? []} />
+              </div>
+            )}
+
+            {/* Quote Sheet — shown if one was generated */}
+            {quoteSheet.data && (
+              <div className="mt-6">
+                <Separator className="mb-4" />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Quote Sheet
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowQuoteSheet(!showQuoteSheet)}
+                    >
+                      <FileText className="h-3.5 w-3.5 mr-1.5" />
+                      {showQuoteSheet ? "Hide" : "View Quote Sheet"}
+                    </Button>
+                  </div>
+                  {showQuoteSheet && (
+                    <div className="bg-muted/30 border rounded-lg p-4 text-sm space-y-2">
+                      {(() => {
+                        const qs = quoteSheet.data.quote_sheet as Record<string, unknown>
+                        return (
+                          <>
+                            {qs.reference_id && (
+                              <p className="font-mono text-xs text-muted-foreground">Ref: {String(qs.reference_id)}</p>
+                            )}
+                            {qs.summary && (
+                              <p className="font-medium">{String(qs.summary)}</p>
+                            )}
+                            {Array.isArray(qs.lanes) && qs.lanes.map((lane: Record<string, unknown>, i: number) => (
+                              <div key={i} className="grid grid-cols-2 gap-x-4 gap-y-1 pt-2 border-t">
+                                {lane.origin && <div><span className="text-xs text-muted-foreground">Origin:</span> <span>{String(lane.origin)}</span></div>}
+                                {lane.destination && <div><span className="text-xs text-muted-foreground">Dest:</span> <span>{String(lane.destination)}</span></div>}
+                                {lane.equipment && <div><span className="text-xs text-muted-foreground">Equipment:</span> <span>{String(lane.equipment)}</span></div>}
+                                {lane.truck_count && <div><span className="text-xs text-muted-foreground">Trucks:</span> <span>{String(lane.truck_count)}</span></div>}
+                                {lane.commodity && <div><span className="text-xs text-muted-foreground">Commodity:</span> <span>{String(lane.commodity)}</span></div>}
+                                {lane.weight_lbs && <div><span className="text-xs text-muted-foreground">Weight:</span> <span>{Number(lane.weight_lbs).toLocaleString()} lbs</span></div>}
+                                {lane.pickup_date && <div><span className="text-xs text-muted-foreground">Pickup:</span> <span>{String(lane.pickup_date)}</span></div>}
+                              </div>
+                            ))}
+                            {qs.special_requirements && (
+                              <div className="pt-2 border-t">
+                                <span className="text-xs text-muted-foreground">Special:</span>
+                                <p>{String(qs.special_requirements)}</p>
+                              </div>
+                            )}
+                          </>
+                        )
+                      })()}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

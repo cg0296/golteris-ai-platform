@@ -128,6 +128,57 @@ def price_rfq(
     }
 
 
+@router.get("/api/rfqs/{rfq_id}/quote-sheet")
+def get_quote_sheet(rfq_id: int, db: Session = Depends(get_db)):
+    """
+    Return the generated quote sheet for an RFQ.
+
+    Reads the quote_sheet agent's tool-use output from agent_calls
+    and formats it for display or download.
+    """
+    from backend.db.models import AgentCall, AgentRun
+    import json
+
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    if not rfq:
+        raise HTTPException(status_code=404, detail=f"RFQ {rfq_id} not found")
+
+    # Find the most recent quote_sheet agent call for this RFQ
+    call = (
+        db.query(AgentCall)
+        .join(AgentRun, AgentCall.run_id == AgentRun.id)
+        .filter(AgentRun.rfq_id == rfq_id, AgentCall.agent_name == "quote_sheet")
+        .order_by(AgentCall.started_at.desc())
+        .first()
+    )
+
+    if not call or not call.response:
+        raise HTTPException(status_code=404, detail="No quote sheet found for this RFQ")
+
+    # Parse the tool-use response to extract the structured quote sheet
+    try:
+        # The response contains the full Message object as string — extract tool input
+        resp = call.response
+        # Find the tool_use input JSON in the response
+        import re
+        # Look for the input dict in the ToolUseBlock
+        match = re.search(r"input=(\{.*?\})\s*,\s*name='generate_quote_sheet'", resp, re.DOTALL)
+        if match:
+            sheet_data = json.loads(match.group(1))
+        else:
+            # Try parsing the whole response as JSON
+            sheet_data = json.loads(resp) if resp.startswith("{") else {"raw": resp[:2000]}
+    except (json.JSONDecodeError, AttributeError):
+        sheet_data = {"raw": call.response[:2000]}
+
+    return {
+        "rfq_id": rfq_id,
+        "customer_name": rfq.customer_name,
+        "customer_company": rfq.customer_company,
+        "quote_sheet": sheet_data,
+    }
+
+
 @router.post("/api/rfqs/{rfq_id}/generate-quote")
 def generate_quote(
     rfq_id: int,
