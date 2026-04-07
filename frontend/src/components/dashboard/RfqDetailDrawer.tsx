@@ -20,7 +20,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Send, FileText } from "lucide-react"
+import { Send, FileText, Mail, ChevronDown, ChevronRight } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -156,7 +156,7 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
 
               {/* --- Summary tab --- */}
               <TabsContent value="summary" className="mt-4">
-                <SummarySection data={data} />
+                <SummarySection data={data} messages={data.messages} />
               </TabsContent>
 
               {/* --- Current Status tab --- */}
@@ -286,8 +286,13 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
 // ---------------------------------------------------------------------------
 
 
-/** Summary tab — definition list of all extracted RFQ fields. */
-function SummarySection({ data }: { data: RfqDetail }) {
+/** Summary tab — original email (#109) + definition list of extracted RFQ fields. */
+function SummarySection({ data, messages }: { data: RfqDetail; messages: RfqMessage[] }) {
+  const [showOriginal, setShowOriginal] = useState(false)
+
+  /* Find the first inbound message — this is the original email that was extracted from (#109) */
+  const originalEmail = messages.find((m) => m.direction === "inbound")
+
   const fields = [
     ["Customer", data.customer_name],
     ["Company", data.customer_company],
@@ -306,15 +311,51 @@ function SummarySection({ data }: { data: RfqDetail }) {
   ].filter(([, val]) => val != null)
 
   return (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-      {fields.map(([label, value]) => (
-        <div key={label as string}>
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
-            {label}
-          </p>
-          <p className="text-sm font-medium break-words">{value}</p>
+    <div className="space-y-4">
+      {/* Original email — collapsible section above extracted fields (#109) */}
+      {originalEmail && (
+        <div className="border rounded-lg overflow-hidden">
+          <button
+            onClick={() => setShowOriginal(!showOriginal)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-muted/30 transition-colors"
+          >
+            {showOriginal ? (
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            )}
+            <Mail className="h-3.5 w-3.5 text-[#0F9ED5] shrink-0" />
+            <span className="text-xs font-medium">Original Email</span>
+            <span className="text-xs text-muted-foreground ml-auto">
+              from {originalEmail.sender}
+            </span>
+          </button>
+          {showOriginal && (
+            <div className="px-3 pb-3 border-t bg-muted/10">
+              {originalEmail.subject && (
+                <p className="text-xs text-muted-foreground mt-2 mb-1">
+                  Subject: {originalEmail.subject}
+                </p>
+              )}
+              <p className="text-sm whitespace-pre-wrap leading-relaxed mt-1">
+                {originalEmail.body}
+              </p>
+            </div>
+          )}
         </div>
-      ))}
+      )}
+
+      {/* Extracted fields */}
+      <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+        {fields.map(([label, value]) => (
+          <div key={label as string}>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
+              {label}
+            </p>
+            <p className="text-sm font-medium break-words">{value}</p>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
