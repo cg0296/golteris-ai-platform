@@ -13,6 +13,7 @@ import { ChevronDown, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { useAgentRuns, useAgentRunDetail } from "@/hooks/use-agent-runs"
+import { useCostVisibility } from "@/lib/cost-visibility"
 import { formatRelativeTime, cn } from "@/lib/utils"
 
 const statusColors: Record<string, string> = {
@@ -100,6 +101,7 @@ function RunRow({
 }) {
   const detail = useAgentRunDetail(isExpanded ? run.id : null)
   const durationSec = run.duration_ms ? (run.duration_ms / 1000).toFixed(1) : "—"
+  const { showCost } = useCostVisibility()
 
   return (
     <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
@@ -132,7 +134,7 @@ function RunRow({
         <div className="hidden sm:flex items-center gap-3 shrink-0">
           <div className="text-right">
             <p className="text-xs font-mono">{durationSec}s</p>
-            <p className="text-[10px] text-muted-foreground">${run.total_cost_usd.toFixed(4)}</p>
+            {showCost && <p className="text-[10px] text-muted-foreground">${run.total_cost_usd.toFixed(4)}</p>}
           </div>
           <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
             <div
@@ -177,6 +179,7 @@ function RunRow({
 }
 
 function CallRow({ call }: { call: { id: number; agent_name: string; model: string; provider: string; status: string; input_tokens: number; output_tokens: number; cost_usd: number; duration_ms: number | null } }) {
+  const { showCost } = useCostVisibility()
   return (
     <div className="flex items-center justify-between bg-white rounded p-2 border text-xs">
       <div>
@@ -185,7 +188,7 @@ function CallRow({ call }: { call: { id: number; agent_name: string; model: stri
       </div>
       <div className="flex items-center gap-3 text-muted-foreground">
         <span>{call.input_tokens + call.output_tokens} tokens</span>
-        <span>${call.cost_usd.toFixed(4)}</span>
+        {showCost && <span>${call.cost_usd.toFixed(4)}</span>}
         <span>{call.duration_ms ? `${(call.duration_ms / 1000).toFixed(1)}s` : "—"}</span>
         <Badge variant="secondary" className={`text-[9px] ${statusColors[call.status] ?? ""}`}>
           {call.status}

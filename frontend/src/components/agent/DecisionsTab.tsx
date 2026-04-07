@@ -8,6 +8,7 @@
 
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
+import { useCostVisibility } from "@/lib/cost-visibility"
 import { Card, CardContent } from "@/components/ui/card"
 import { useAgentRuns, useAgentRunDetail } from "@/hooks/use-agent-runs"
 import { formatRelativeTime } from "@/lib/utils"
@@ -18,6 +19,7 @@ export function DecisionsTab() {
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null)
   const detail = useAgentRunDetail(selectedRunId)
   const [expandedCallId, setExpandedCallId] = useState<number | null>(null)
+  const { showCost } = useCostVisibility()
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -45,7 +47,7 @@ export function DecisionsTab() {
             >
               <p className="text-sm font-medium">{run.workflow_name}</p>
               <p className="text-xs text-muted-foreground">
-                {run.started_at ? formatRelativeTime(run.started_at) : "—"} · ${run.total_cost_usd.toFixed(4)}
+                {run.started_at ? formatRelativeTime(run.started_at) : "—"}{showCost ? ` · $${run.total_cost_usd.toFixed(4)}` : ""}
               </p>
             </button>
           ))
@@ -83,7 +85,7 @@ export function DecisionsTab() {
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span>{call.input_tokens + call.output_tokens} tokens</span>
-                    <span>${call.cost_usd.toFixed(4)}</span>
+                    {showCost && <span>${call.cost_usd.toFixed(4)}</span>}
                     <span>{call.duration_ms ? `${(call.duration_ms / 1000).toFixed(1)}s` : "—"}</span>
                   </div>
                 </div>

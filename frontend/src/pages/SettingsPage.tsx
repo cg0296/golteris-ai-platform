@@ -22,6 +22,7 @@ import {
   CheckCircle,
   XCircle,
   Bot,
+  Eye,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
@@ -38,6 +39,7 @@ import {
   useAgentControls,
   useUpdateAgent,
 } from "@/hooks/use-settings"
+import { useCostVisibility } from "@/lib/cost-visibility"
 
 export function SettingsPage() {
   const workflows = useWorkflows()
@@ -48,6 +50,7 @@ export function SettingsPage() {
   const updateAgent = useUpdateAgent()
   const queryClient = useQueryClient()
 
+  const { showCost, setShowCost } = useCostVisibility()
   const [showReseedConfirm, setShowReseedConfirm] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
@@ -238,6 +241,36 @@ export function SettingsPage() {
                 Daily: ${status.data?.cost_caps.daily ?? "—"} · Monthly: ${status.data?.cost_caps.monthly ?? "—"}
               </p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Display Preferences (#113) */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            Display
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <p className="text-sm font-medium">Show cost information</p>
+              <p className="text-xs text-muted-foreground">
+                Display LLM costs in Agent decisions, timeline, and controls
+              </p>
+            </div>
+            <button
+              onClick={() => setShowCost(!showCost)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                showCost ? "bg-green-500" : "bg-gray-300"
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                showCost ? "translate-x-6" : "translate-x-1"
+              }`} />
+            </button>
           </div>
         </CardContent>
       </Card>
