@@ -200,6 +200,8 @@ JOB_DISPATCH = {
     "matching": ("backend.services.message_matching", "match_message_to_rfq", "message_id"),
     # Outbound email sending (#25) — only runs after C2 approval gate
     "send_outbound_email": ("backend.services.email_send", "send_approved_email", "approval_id"),
+    # Carrier bid parsing (#33) — extracts structured bids from carrier reply emails
+    "parse_carrier_bid": ("backend.agents.carrier_bid_parser", "parse_carrier_bid", "message_id"),
 }
 
 
