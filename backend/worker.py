@@ -323,18 +323,27 @@ def process_cycle(db) -> int:
 
 def poll_mailbox(db) -> int:
     """
-    Check the configured mailbox for new emails and ingest them.
+    Check all configured mailboxes for new emails and ingest them (#48).
+
+    Reads active mailboxes from the database first. Falls back to env-var
+    config if no database mailboxes exist (backwards compatibility).
 
     New messages are persisted and matching jobs are enqueued for the
-    process_cycle to pick up. Returns the number of new messages ingested.
+    process_cycle to pick up. Returns the total number of new messages ingested.
 
     This runs at the start of each worker cycle, before job processing.
     """
     try:
-        from backend.services.email_ingestion import get_provider_from_config, ingest_new_messages
-        provider = get_provider_from_config()
-        messages = ingest_new_messages(db, provider)
-        return len(messages)
+        from backend.services.email_ingestion import get_providers_from_db, ingest_new_messages
+        providers = get_providers_from_db(db)
+        total = 0
+        for provider in providers:
+            try:
+                messages = ingest_new_messages(db, provider)
+                total += len(messages)
+            except Exception:
+                logger.exception("Poll failed for %s provider — will retry next cycle", provider.get_provider_name())
+        return total
     except Exception:
         logger.exception("Mailbox poll failed — will retry next cycle")
         return 0
