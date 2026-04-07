@@ -21,6 +21,7 @@ import {
   AlertOctagon,
   CheckCircle,
   XCircle,
+  Bot,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
@@ -34,6 +35,8 @@ import {
   useSystemStatus,
   useToggleWorkflow,
   useKillSwitch,
+  useAgentControls,
+  useUpdateAgent,
 } from "@/hooks/use-settings"
 
 export function SettingsPage() {
@@ -41,6 +44,8 @@ export function SettingsPage() {
   const status = useSystemStatus()
   const toggleWorkflow = useToggleWorkflow()
   const killSwitch = useKillSwitch()
+  const agentControls = useAgentControls()
+  const updateAgent = useUpdateAgent()
   const queryClient = useQueryClient()
 
   const [showReseedConfirm, setShowReseedConfirm] = useState(false)
@@ -232,6 +237,67 @@ export function SettingsPage() {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Agent Controls (#44) */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Bot className="h-4 w-4" />
+            Agent Controls
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {agentControls.isLoading ? (
+            <div className="space-y-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-14 bg-muted/50 rounded animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <>
+              {Object.entries(agentControls.data?.agents ?? {}).map(([agentId, config]) => (
+                <div key={agentId} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <div className="flex-1 min-w-0 mr-4">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{config.name}</p>
+                      <button
+                        onClick={() => updateAgent.mutate({
+                          agent_id: agentId,
+                          enabled: !config.enabled,
+                        }, {
+                          onSuccess: () => toast.success(`${config.name} ${config.enabled ? "disabled" : "enabled"}`),
+                        })}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${
+                          config.enabled ? "bg-green-500" : "bg-gray-300"
+                        }`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                          config.enabled ? "translate-x-5" : "translate-x-0.5"
+                        }`} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{config.description}</p>
+                  </div>
+                  <select
+                    value={config.model}
+                    onChange={(e) => updateAgent.mutate({
+                      agent_id: agentId,
+                      model: e.target.value,
+                    }, {
+                      onSuccess: () => toast.success(`${config.name} model updated`),
+                    })}
+                    className="text-xs border rounded px-2 py-1 bg-white shrink-0"
+                  >
+                    {(agentControls.data?.models ?? []).map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </>
+          )}
         </CardContent>
       </Card>
 
