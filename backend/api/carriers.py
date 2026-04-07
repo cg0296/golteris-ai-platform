@@ -84,6 +84,46 @@ def distribute_rfq(
     return result
 
 
+@router.get("/api/rfqs/{rfq_id}/bids")
+def get_ranked_bids(rfq_id: int, db: Session = Depends(get_db)):
+    """
+    Return ranked carrier bids for an RFQ (#34).
+
+    Bids are sorted by total landed cost with tags:
+    best_value, runner_up, outlier_high, outlier_low.
+    """
+    from backend.services.bid_ranking import rank_bids
+
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    if not rfq:
+        raise HTTPException(status_code=404, detail=f"RFQ {rfq_id} not found")
+
+    ranked = rank_bids(db, rfq_id)
+    return {
+        "rfq_id": rfq_id,
+        "bids": [
+            {
+                "id": rb.bid.id,
+                "rank": rb.rank,
+                "carrier_name": rb.bid.carrier_name,
+                "carrier_email": rb.bid.carrier_email,
+                "rate": float(rb.bid.rate) if rb.bid.rate else None,
+                "normalized_rate": rb.normalized_rate,
+                "currency": rb.bid.currency,
+                "rate_type": rb.bid.rate_type,
+                "terms": rb.bid.terms,
+                "availability": rb.bid.availability,
+                "notes": rb.bid.notes,
+                "tag": rb.tag,
+                "reason": rb.reason,
+                "received_at": rb.bid.received_at.isoformat() if rb.bid.received_at else None,
+            }
+            for rb in ranked
+        ],
+        "total": len(ranked),
+    }
+
+
 def _serialize_carrier(carrier: Carrier) -> dict:
     """Convert a Carrier to a JSON dict for the selection UI."""
     return {
