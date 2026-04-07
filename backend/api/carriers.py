@@ -155,20 +155,25 @@ def get_quote_sheet(rfq_id: int, db: Session = Depends(get_db)):
     if not call or not call.response:
         raise HTTPException(status_code=404, detail="No quote sheet found for this RFQ")
 
-    # Parse the tool-use response to extract the structured quote sheet
+    # Parse the tool-use response to extract the structured quote sheet.
+    # The response is a stringified Anthropic Message object with ToolUseBlock.
+    # We need to extract the 'input' dict from the tool call.
     try:
-        # The response contains the full Message object as string — extract tool input
+        import ast, re
         resp = call.response
-        # Find the tool_use input JSON in the response
-        import re
-        # Look for the input dict in the ToolUseBlock
-        match = re.search(r"input=(\{.*?\})\s*,\s*name='generate_quote_sheet'", resp, re.DOTALL)
+
+        # Strategy 1: Find input={...} pattern and use ast.literal_eval
+        # Match from "input=" to the matching closing brace
+        match = re.search(r"input=(\{[^}]*(?:\{[^}]*\}[^}]*)*\})", resp)
         if match:
-            sheet_data = json.loads(match.group(1))
+            # Replace Python None/True/False with JSON equivalents for parsing
+            input_str = match.group(1)
+            sheet_data = ast.literal_eval(input_str)
+        elif resp.startswith("{"):
+            sheet_data = json.loads(resp)
         else:
-            # Try parsing the whole response as JSON
-            sheet_data = json.loads(resp) if resp.startswith("{") else {"raw": resp[:2000]}
-    except (json.JSONDecodeError, AttributeError):
+            sheet_data = {"raw": resp[:2000]}
+    except Exception:
         sheet_data = {"raw": call.response[:2000]}
 
     return {
