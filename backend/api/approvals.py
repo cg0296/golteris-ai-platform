@@ -123,7 +123,7 @@ def approve(
     If the approval is already resolved (approved/rejected/skipped), returns 400.
     If the approval doesn't exist, returns 404.
 
-    On success, creates an audit event and returns the updated approval.
+    On success, creates an audit event and enqueues the outbound send job (#25).
     """
     result = approve_approval(
         db,
@@ -133,6 +133,17 @@ def approve(
     )
     if result is None:
         return _not_found_or_resolved(db, approval_id)
+
+    # Enqueue the outbound email send job (#25).
+    # The worker will pick this up, verify C2 one more time, and send via
+    # the configured email provider (Graph, IMAP, or file).
+    from backend.worker import enqueue_job
+    enqueue_job(
+        db,
+        job_type="send_outbound_email",
+        payload={"approval_id": result.id},
+        rfq_id=result.rfq_id,
+    )
 
     return _action_response(result)
 

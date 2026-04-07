@@ -131,6 +131,47 @@ class IMAPMailboxProvider(MailboxProvider):
 
         return messages
 
+    def send_message(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        reply_to_message_id: str | None = None,
+    ) -> dict:
+        """
+        Send an email via SMTP using the same credentials as IMAP (#25).
+
+        Derives the SMTP host from the IMAP host (most providers use the same
+        hostname with different ports). Uses STARTTLS on port 587.
+
+        C2 CONSTRAINT: Only called by email_send service after approval check.
+        """
+        import smtplib
+        from email.mime.text import MIMEText
+
+        # Derive SMTP host from IMAP host (imap.gmail.com → smtp.gmail.com, etc.)
+        smtp_host = self.host.replace("imap.", "smtp.")
+
+        try:
+            msg = MIMEText(body)
+            msg["Subject"] = subject
+            msg["From"] = self.user
+            msg["To"] = to
+            if reply_to_message_id:
+                msg["In-Reply-To"] = reply_to_message_id
+
+            with smtplib.SMTP(smtp_host, 587, timeout=30) as server:
+                server.starttls()
+                server.login(self.user, self.password)
+                server.sendmail(self.user, [to], msg.as_string())
+
+            logger.info("Email sent via SMTP to %s: %s", to, subject)
+            return {"success": True, "message_id": msg["Message-ID"], "error": None}
+
+        except smtplib.SMTPException as e:
+            logger.error("SMTP send failed: %s", e)
+            return {"success": False, "message_id": None, "error": str(e)}
+
     def get_provider_name(self) -> str:
         return "imap"
 

@@ -92,6 +92,44 @@ class FileMailboxProvider(MailboxProvider):
 
         return messages
 
+    def send_message(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        reply_to_message_id: str | None = None,
+    ) -> dict:
+        """
+        Log outbound email to a file instead of actually sending (#25).
+
+        Used in dev/demo mode when no real email provider is configured.
+        Writes to a .sent.json file in the seed directory so the broker
+        can verify what would have been sent.
+        """
+        import json
+        from datetime import datetime
+
+        sent_file = os.path.join(self.seed_dir, ".sent.json")
+        try:
+            with open(sent_file, "r") as f:
+                sent_log = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            sent_log = []
+
+        sent_log.append({
+            "to": to,
+            "subject": subject,
+            "body": body,
+            "reply_to": reply_to_message_id,
+            "sent_at": datetime.utcnow().isoformat(),
+        })
+
+        with open(sent_file, "w") as f:
+            json.dump(sent_log, f, indent=2)
+
+        logger.info("Email logged to file (dev mode) to=%s subject=%s", to, subject)
+        return {"success": True, "message_id": None, "error": None}
+
     def get_provider_name(self) -> str:
         return "file"
 
