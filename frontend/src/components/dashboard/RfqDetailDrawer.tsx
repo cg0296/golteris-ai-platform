@@ -16,6 +16,8 @@
  */
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { Send, FileText } from "lucide-react"
 import {
   Sheet,
@@ -211,6 +213,21 @@ export function RfqDetailDrawer({ rfqId, onClose }: RfqDetailDrawerProps) {
                   <Send className="h-4 w-4 mr-2" />
                   Send to Carriers
                 </Button>
+              </div>
+            )}
+
+            {/* Won / Lost / Cancel buttons (#100) — shown for non-terminal RFQs */}
+            {!["won", "lost", "cancelled"].includes(data.state) && (
+              <div className="mt-6">
+                <Separator className="mb-4" />
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  Close RFQ
+                </p>
+                <div className="flex gap-2">
+                  <OutcomeButton rfqId={data.id} outcome="won" label="Won" className="bg-green-600 hover:bg-green-700 text-white" onSuccess={onClose} />
+                  <OutcomeButton rfqId={data.id} outcome="lost" label="Lost" className="bg-gray-500 hover:bg-gray-600 text-white" onSuccess={onClose} />
+                  <OutcomeButton rfqId={data.id} outcome="cancelled" label="Cancel" className="text-red-600 border-red-300 hover:bg-red-50" variant="outline" onSuccess={onClose} />
+                </div>
               </div>
             )}
           </>
@@ -492,5 +509,59 @@ function RankedBidsSection({ bids }: { bids: RankedBid[] }) {
         ))}
       </div>
     </div>
+  )
+}
+
+
+/** Won/Lost/Cancel button (#100) — marks RFQ as terminal. */
+function OutcomeButton({
+  rfqId,
+  outcome,
+  label,
+  className,
+  variant = "default",
+  onSuccess,
+}: {
+  rfqId: number
+  outcome: string
+  label: string
+  className?: string
+  variant?: "default" | "outline"
+  onSuccess: () => void
+}) {
+  const [isPending, setIsPending] = useState(false)
+  const queryClient = useQueryClient()
+
+  const handleClick = async () => {
+    setIsPending(true)
+    try {
+      await fetch(
+        `${import.meta.env.DEV ? "http://localhost:8001" : ""}/api/rfqs/${rfqId}/outcome`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ outcome }),
+        }
+      )
+      queryClient.invalidateQueries()
+      toast.success(`RFQ marked as ${label}`)
+      onSuccess()
+    } catch {
+      toast.error("Failed to update outcome")
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  return (
+    <Button
+      variant={variant}
+      size="sm"
+      onClick={handleClick}
+      disabled={isPending}
+      className={className}
+    >
+      {isPending ? "..." : label}
+    </Button>
   )
 }
