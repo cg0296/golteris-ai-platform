@@ -54,7 +54,7 @@ export function RfqDetailDrawer({ rfqId, onClose }: RfqDetailDrawerProps) {
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto p-6">
         {isLoading || !data ? (
           <div className="space-y-4 pt-8">
             <div className="h-8 w-48 bg-muted/50 rounded animate-pulse" />
@@ -166,14 +166,16 @@ function SummarySection({ data }: { data: RfqDetail }) {
   ].filter(([, val]) => val != null)
 
   return (
-    <dl className="space-y-2">
+    <div className="grid grid-cols-2 gap-x-6 gap-y-4">
       {fields.map(([label, value]) => (
-        <div key={label as string} className="flex justify-between gap-4">
-          <dt className="text-sm text-muted-foreground shrink-0">{label}</dt>
-          <dd className="text-sm text-right font-medium">{value}</dd>
+        <div key={label as string}>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-0.5">
+            {label}
+          </p>
+          <p className="text-sm font-medium break-words">{value}</p>
         </div>
       ))}
-    </dl>
+    </div>
   )
 }
 
