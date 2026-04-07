@@ -15,6 +15,8 @@
  *   C4 — Timeline shows every action; "View system reasoning" disclosure
  */
 
+import { useState } from "react"
+import { Send } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -22,8 +24,10 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CarrierSelectModal } from "./CarrierSelectModal"
 import { useRfqDetail } from "@/hooks/use-rfq-detail"
 import { formatRelativeTime } from "@/lib/utils"
 import type { RfqDetail, RfqMessage, ActivityEvent, CarrierBidItem } from "@/types/api"
@@ -51,6 +55,7 @@ interface RfqDetailDrawerProps {
 export function RfqDetailDrawer({ rfqId, onClose }: RfqDetailDrawerProps) {
   const { data, isLoading } = useRfqDetail(rfqId)
   const isOpen = rfqId !== null
+  const [carrierModalRfqId, setCarrierModalRfqId] = useState<number | null>(null)
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -133,9 +138,29 @@ export function RfqDetailDrawer({ rfqId, onClose }: RfqDetailDrawerProps) {
                 <BidsSection bids={data.carrier_bids} />
               </div>
             )}
+
+            {/* Send to Carriers action (#32) — shown for RFQs ready to distribute */}
+            {data.state === "ready_to_quote" && (
+              <div className="mt-6">
+                <Separator className="mb-4" />
+                <Button
+                  onClick={() => setCarrierModalRfqId(data.id)}
+                  className="w-full bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Send to Carriers
+                </Button>
+              </div>
+            )}
           </>
         )}
       </SheetContent>
+
+      {/* Carrier selection modal (#32) */}
+      <CarrierSelectModal
+        rfqId={carrierModalRfqId}
+        onClose={() => setCarrierModalRfqId(null)}
+      />
     </Sheet>
   )
 }

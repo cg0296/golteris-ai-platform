@@ -1,4 +1,4 @@
-# Development Workflow — AI Agent Instructions
+h# Development Workflow — AI Agent Instructions
 
 This document defines how AI dev agents pick up, execute, and hand off work on the Golteris project. Every agent session must follow this workflow exactly.
 
@@ -129,9 +129,20 @@ Add a second comment to the GitHub issue with:
 
 After posting the completion comment, **move the issue status from `Agent WIP` to `Testing`** on the project board.
 
-### 3. Suggest the next task
+### 3. Continue working — pick up the next issue in Agent Work
 
-After completing your work, **evaluate the remaining open issues** and move the best next candidate from `Todo` to `Suggested Next` on the project board. Add a comment to that issue explaining your reasoning:
+After moving an issue to Testing, **check the board for more issues in `Agent Work`**. If there are more issues ready, **immediately pick up the next one** — move it to `Agent WIP`, post a plan comment, and start working. Do not stop and wait for human input between issues.
+
+This keeps the pipeline moving. The human has already approved everything in `Agent Work`, so you have permission to work through the entire bucket in one session.
+
+**Only stop when:**
+- No more issues are in `Agent Work`
+- You hit a blocker that requires human input
+- The human tells you to stop
+
+### 4. Suggest the next task (when Agent Work is empty)
+
+When you finish an issue and **no more issues are in `Agent Work`**, evaluate the remaining open issues and move the best next candidate from `Todo` to `Suggested Next` on the project board. Add a comment to that issue explaining your reasoning:
 
 ```markdown
 ## Suggested as Next Task
@@ -152,7 +163,7 @@ Rules for suggesting next:
 - Prefer issues in the current or next phase (don't skip ahead to Phase 9 while Phase 2 is incomplete).
 - If you cannot confidently recommend a next task, leave the board as-is and tell the human.
 
-### 4. Create a PR
+### 5. Create a PR
 
 - Push your branch and open a PR referencing the issue (`Closes #<number>`).
 - The PR description should summarize the changes — but the detailed testing instructions live in the issue comment, not the PR.

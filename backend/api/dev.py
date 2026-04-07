@@ -27,7 +27,9 @@ from backend.db.models import (
     ApprovalStatus,
     ApprovalType,
     AuditEvent,
+    Carrier,
     CarrierBid,
+    CarrierRfqSend,
     Job,
     Message,
     MessageDirection,
@@ -63,13 +65,45 @@ def reseed_demo_data(db: Session = Depends(get_db)):
     # --- Clear all tables (order matters due to foreign keys) ---
     db.query(Job).delete()
     db.query(ReviewQueue).delete()
+    db.query(CarrierRfqSend).delete()
     db.query(CarrierBid).delete()
     db.query(AuditEvent).delete()
     db.query(Approval).delete()
     db.query(AgentRun).delete()
     db.query(Message).delete()
     db.query(RFQ).delete()
+    db.query(Carrier).delete()
     db.commit()
+
+    # --- Carriers ---
+    carriers_data = [
+        ("Express Carriers", "dispatch@expresscarriers.com", "Mike Johnson", "555-0101",
+         ["Dry Van", "Flatbed"], [{"origin": "Seattle", "destination": "Portland"}, {"origin": "Chicago", "destination": "Dallas"}], True),
+        ("National Trucking", "quotes@nationaltrucking.com", "Sarah Williams", "555-0102",
+         ["Dry Van", "Reefer", "Flatbed"], [], True),
+        ("Southern Freight", "ops@southernfreight.com", "Carlos Martinez", "555-0103",
+         ["Flatbed"], [{"origin": "Houston", "destination": "Atlanta"}, {"origin": "Miami", "destination": "Charlotte"}], True),
+        ("Pacific Transport", "rates@pacifictransport.com", "Lisa Chang", "555-0104",
+         ["Dry Van", "Reefer"], [{"origin": "Los Angeles", "destination": "Phoenix"}, {"origin": "San Francisco", "destination": "Denver"}], False),
+        ("Midwest Haulers", "bids@midwesthaulers.com", "Tom Anderson", "555-0105",
+         ["Dry Van", "Flatbed"], [{"origin": "Detroit", "destination": "Nashville"}, {"origin": "Chicago", "destination": "Milwaukee"}], False),
+        ("Great Plains Logistics", "dispatch@greatplainslogistics.com", "Amy Roberts", "555-0106",
+         ["Dry Van"], [{"origin": "San Antonio", "destination": "El Paso"}], False),
+        ("Northeast Express", "quotes@northeastexpress.com", "David Park", "555-0107",
+         ["Reefer", "Dry Van"], [{"origin": "Boston", "destination": "New York"}, {"origin": "Columbus", "destination": "Indianapolis"}], False),
+        ("Coastal Carriers", "ops@coastalcarriers.com", "Nina Patel", "555-0108",
+         ["Reefer"], [{"origin": "Miami", "destination": "Charlotte"}], False),
+    ]
+
+    carriers = []
+    for name, email, contact, phone, equip, lanes, preferred in carriers_data:
+        carrier = Carrier(
+            name=name, email=email, contact_name=contact, phone=phone,
+            equipment_types=equip, lanes=lanes, preferred=preferred,
+        )
+        db.add(carrier)
+        carriers.append(carrier)
+    db.flush()
 
     # --- RFQs in various lifecycle states ---
     rfqs_data = [
@@ -260,6 +294,7 @@ def reseed_demo_data(db: Session = Depends(get_db)):
         "seeded": {
             "rfqs": len(rfqs),
             "messages": len(messages_data),
+            "carriers": len(carriers),
             "approvals": len(approvals_data),
             "carrier_bids": 3,
             "agent_runs": 6,
