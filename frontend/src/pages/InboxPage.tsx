@@ -238,10 +238,15 @@ export function InboxPage() {
         </div>
       )}
 
-      {/* RFQ detail drawer — opens when clicking a message with an attached RFQ */}
+      {/* RFQ detail modal (#110, #112) — J/K navigates prev/next across attached RFQs */}
       <RfqDetailDrawer
         rfqId={selectedRfqId}
         onClose={() => setSelectedRfqId(null)}
+        rfqIds={messages.data?.messages
+          ?.map((m: { rfq_id: number | null }) => m.rfq_id)
+          .filter((id: number | null): id is number => id != null)
+          .filter((id: number, i: number, arr: number[]) => arr.indexOf(id) === i)}
+        onSelectRfq={setSelectedRfqId}
       />
     </div>
   )

@@ -138,10 +138,12 @@ export function DashboardPage() {
         onPrev={handlePrev}
       />
 
-      {/* RFQ detail drawer (#27) */}
+      {/* RFQ detail modal (#27, #110, #112) — J/K navigates prev/next */}
       <RfqDetailDrawer
         rfqId={selectedRfqId}
         onClose={() => setSelectedRfqId(null)}
+        rfqIds={rfqs.data?.rfqs.map((r: { id: number }) => r.id)}
+        onSelectRfq={setSelectedRfqId}
       />
     </div>
   )

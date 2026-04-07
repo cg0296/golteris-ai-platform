@@ -17,7 +17,7 @@
  *   C4 — Timeline shows every action; "View system reasoning" disclosure
  */
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Send, FileText } from "lucide-react"
@@ -56,15 +56,50 @@ interface RfqDetailDrawerProps {
   rfqId: number | null
   /** Called when the drawer should close. */
   onClose: () => void
+  /** Ordered list of RFQ IDs for J/K navigation (#112). Optional — if omitted, J/K is disabled. */
+  rfqIds?: number[]
+  /** Called to navigate to a different RFQ (J/K keys). Falls back to onClose's parent setter. */
+  onSelectRfq?: (id: number) => void
 }
 
-export function RfqDetailDrawer({ rfqId, onClose }: RfqDetailDrawerProps) {
+export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDetailDrawerProps) {
   const { data, isLoading } = useRfqDetail(rfqId)
   const rankedBids = useRankedBids(rfqId)
   const quoteSheet = useQuoteSheet(rfqId)
   const isOpen = rfqId !== null
   const [carrierModalRfqId, setCarrierModalRfqId] = useState<number | null>(null)
   const [showQuoteSheet, setShowQuoteSheet] = useState(false)
+
+  /* J/K keyboard navigation — move to prev/next RFQ in the list (#112).
+     Only active when the modal is open and rfqIds are provided. */
+  const handleKeyNav = useCallback(
+    (e: KeyboardEvent) => {
+      if (!rfqId || !rfqIds?.length || !onSelectRfq) return
+      /* Don't intercept if user is typing in an input/textarea */
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === "INPUT" || tag === "TEXTAREA") return
+
+      const idx = rfqIds.indexOf(rfqId)
+      if (idx === -1) return
+
+      if (e.key === "j" || e.key === "J") {
+        /* J = next RFQ (down the list) */
+        const next = rfqIds[idx + 1]
+        if (next != null) onSelectRfq(next)
+      } else if (e.key === "k" || e.key === "K") {
+        /* K = previous RFQ (up the list) */
+        const prev = rfqIds[idx - 1]
+        if (prev != null) onSelectRfq(prev)
+      }
+    },
+    [rfqId, rfqIds, onSelectRfq]
+  )
+
+  useEffect(() => {
+    if (!isOpen) return
+    window.addEventListener("keydown", handleKeyNav)
+    return () => window.removeEventListener("keydown", handleKeyNav)
+  }, [isOpen, handleKeyNav])
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>

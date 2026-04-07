@@ -249,9 +249,12 @@ export function HistoryPage() {
         </div>
       )}
 
+      {/* RFQ detail modal (#110, #112) — J/K navigates prev/next */}
       <RfqDetailDrawer
         rfqId={selectedRfqId}
         onClose={() => setSelectedRfqId(null)}
+        rfqIds={history.data?.rfqs.map((r: { id: number }) => r.id)}
+        onSelectRfq={setSelectedRfqId}
       />
     </div>
   )
