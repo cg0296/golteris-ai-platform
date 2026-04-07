@@ -64,6 +64,13 @@ class DistributeRequest(BaseModel):
     carrier_ids: List[int]
 
 
+class PriceRequest(BaseModel):
+    """Request body for pricing an RFQ with a selected carrier bid."""
+    carrier_bid_id: int
+    manual_rate: float | None = None
+    override_reason: str | None = None
+
+
 @router.post("/api/rfqs/{rfq_id}/distribute")
 def distribute_rfq(
     rfq_id: int,
@@ -82,6 +89,43 @@ def distribute_rfq(
         raise HTTPException(status_code=400, detail=str(e))
 
     return result
+
+
+@router.post("/api/rfqs/{rfq_id}/price")
+def price_rfq(
+    rfq_id: int,
+    body: PriceRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Apply markup to a selected carrier bid and set the customer-facing rate (#35).
+
+    If manual_rate is provided, uses the broker's override (audited).
+    Otherwise applies the default 12% markup with $150 minimum margin.
+    """
+    from decimal import Decimal
+    from backend.services.pricing import calculate_customer_rate
+
+    try:
+        result = calculate_customer_rate(
+            db, rfq_id,
+            carrier_bid_id=body.carrier_bid_id,
+            manual_rate=Decimal(str(body.manual_rate)) if body.manual_rate else None,
+            override_reason=body.override_reason,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {
+        "carrier_bid_id": result.carrier_bid_id,
+        "carrier_name": result.carrier_name,
+        "carrier_rate": float(result.carrier_rate),
+        "markup_percent": float(result.markup_percent),
+        "markup_amount": float(result.markup_amount),
+        "customer_rate": float(result.customer_rate),
+        "margin": float(result.margin),
+        "is_manual_override": result.is_manual_override,
+    }
 
 
 @router.get("/api/rfqs/{rfq_id}/bids")
