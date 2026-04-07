@@ -166,6 +166,24 @@ class JobStatus(str, enum.Enum):
 # ---------------------------------------------------------------------------
 
 
+class User(Base):
+    """
+    User accounts for authentication (#54).
+
+    Stores login credentials and role. Passwords are hashed with bcrypt.
+    Roles control access: owner (full), operator (actions), viewer (read-only).
+    """
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(255), nullable=False, unique=True)
+    hashed_password = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False)
+    role = Column(String(50), nullable=False, default="operator")  # owner, operator, viewer
+    active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
 class Workflow(Base):
     """
     Workflow definitions with on/off toggle.
