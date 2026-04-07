@@ -171,6 +171,38 @@ def get_rfq_detail(
     }
 
 
+@router.get("/api/history")
+def get_history(
+    limit: int = Query(50, ge=1, le=200, description="Page size"),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
+    outcome: Optional[str] = Query(None, description="Filter by outcome: won, lost, cancelled"),
+    period: Optional[str] = Query(None, description="Time filter: today, week, month"),
+    db: Session = Depends(get_db),
+):
+    """
+    Return closed RFQs with stats for the History view (#30).
+
+    The stat strip shows aggregated performance metrics. The table shows
+    individual closed RFQs with outcome, quoted amount, and cycle time.
+    Historical entries are immutable per FR-DM-5.
+    """
+    from backend.services.dashboard import get_history_stats, list_closed_rfqs
+
+    stats = get_history_stats(db)
+    rfqs, total = list_closed_rfqs(
+        db, limit=limit, offset=offset,
+        outcome_filter=outcome, period=period,
+    )
+
+    return {
+        "stats": stats,
+        "rfqs": [_serialize_history_rfq(r) for r in rfqs],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
 @router.get("/api/messages")
 def get_messages(
     limit: int = Query(50, ge=1, le=200, description="Page size"),
@@ -388,6 +420,35 @@ def _serialize_bid(bid: CarrierBid) -> dict:
         "availability": bid.availability,
         "notes": bid.notes,
         "received_at": bid.received_at.isoformat() if bid.received_at else None,
+    }
+
+
+def _serialize_history_rfq(rfq: RFQ) -> dict:
+    """
+    Convert a closed RFQ to a JSON dict for the History table (#30).
+
+    Includes outcome, quoted amount, and cycle time (hours from creation
+    to close) so the broker can see performance at a glance.
+    """
+    cycle_hours = None
+    if rfq.closed_at and rfq.created_at:
+        delta = (rfq.closed_at - rfq.created_at).total_seconds() / 3600
+        cycle_hours = round(delta, 1)
+
+    return {
+        "id": rfq.id,
+        "customer_name": rfq.customer_name,
+        "customer_company": rfq.customer_company,
+        "origin": rfq.origin,
+        "destination": rfq.destination,
+        "equipment_type": rfq.equipment_type,
+        "state": rfq.state.value if rfq.state else None,
+        "state_label": _state_label(rfq.state) if rfq.state else None,
+        "outcome": rfq.outcome,
+        "quoted_amount": float(rfq.quoted_amount) if rfq.quoted_amount else None,
+        "cycle_hours": cycle_hours,
+        "closed_at": rfq.closed_at.isoformat() if rfq.closed_at else None,
+        "created_at": rfq.created_at.isoformat() if rfq.created_at else None,
     }
 
 
