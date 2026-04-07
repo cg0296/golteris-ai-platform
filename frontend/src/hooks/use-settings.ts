@@ -62,3 +62,40 @@ export function useKillSwitch() {
     },
   })
 }
+
+// --- Agent Controls (#44) ---
+
+export interface AgentConfig {
+  name: string
+  description: string
+  enabled: boolean
+  model: string
+}
+
+interface AgentControlsResponse {
+  agents: Record<string, AgentConfig>
+  models: { id: string; name: string; provider: string }[]
+  cost_caps: { daily: number; monthly: number }
+}
+
+export function useAgentControls() {
+  return useQuery({
+    queryKey: ["settings", "agents"],
+    queryFn: () => api.get<AgentControlsResponse>("/api/settings/agents"),
+  })
+}
+
+export function useUpdateAgent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (params: { agent_id: string; enabled?: boolean; model?: string }) =>
+      fetch(`${import.meta.env.DEV ? "http://localhost:8001" : ""}/api/settings/agents`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "agents"] })
+    },
+  })
+}
