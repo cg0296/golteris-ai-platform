@@ -63,24 +63,44 @@ def dashboard_summary(db: Session = Depends(get_db)):
 def get_rfqs(
     limit: int = Query(6, ge=1, le=200, description="Page size"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
+    state: Optional[str] = Query(None, description="Filter by state (e.g., ready_to_quote)"),
+    search: Optional[str] = Query(None, description="Search customer, origin, destination"),
+    include_terminal: bool = Query(False, description="Include won/lost/cancelled RFQs"),
     db: Session = Depends(get_db),
 ):
     """
-    List active RFQs sorted by most recently updated.
+    List RFQs sorted by most recently updated, with optional filters.
 
-    Default limit=6 matches the dashboard preview table. The "View all"
-    link on the dashboard passes a higher limit for the full RFQs page.
+    Default limit=6 matches the dashboard preview. The full RFQs page (#29)
+    uses higher limits with state filters and search for 500+ RFQ scale.
 
     Each RFQ includes a state_label field with the plain-English state name
     for display (C3 — "Waiting on carriers" not "waiting_on_carriers").
     """
-    rfqs, total = list_active_rfqs(db, limit=limit, offset=offset)
+    rfqs, total = list_active_rfqs(
+        db, limit=limit, offset=offset,
+        state_filter=state, search=search,
+        include_terminal=include_terminal,
+    )
     return {
         "rfqs": [_serialize_rfq(r) for r in rfqs],
         "total": total,
         "limit": limit,
         "offset": offset,
     }
+
+
+@router.get("/api/rfqs/counts")
+def get_rfq_counts(db: Session = Depends(get_db)):
+    """
+    Return RFQ counts grouped by state, for the filter pill badges (#29).
+
+    Used by the RFQs list page to show how many RFQs are in each state
+    without fetching all rows.
+    """
+    from backend.services.dashboard import count_rfqs_by_state
+    counts = count_rfqs_by_state(db)
+    return {"counts": counts}
 
 
 @router.get("/api/rfqs/{rfq_id}")

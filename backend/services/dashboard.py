@@ -116,22 +116,50 @@ def list_active_rfqs(
     db: Session,
     limit: int = 6,
     offset: int = 0,
+    state_filter: Optional[str] = None,
+    search: Optional[str] = None,
+    include_terminal: bool = False,
 ) -> tuple[list[RFQ], int]:
     """
-    Return non-terminal RFQs sorted by most recently updated, plus total count.
+    Return RFQs sorted by most recently updated, plus total count.
 
-    Used by the Active RFQs table on the dashboard (6-row preview).
-    The "View all" link navigates to the full RFQs page.
+    Used by both the dashboard preview (limit=6, active only) and the
+    full RFQs list page (#29) with state filter, search, and pagination.
 
     Args:
         db: Database session
         limit: Max rows to return (default 6 for dashboard preview)
         offset: Pagination offset
+        state_filter: Optional state value to filter by (e.g., "ready_to_quote")
+        search: Optional search string — matches customer_name, origin, destination
+        include_terminal: If True, include won/lost/cancelled RFQs
 
     Returns:
         Tuple of (rfq_list, total_count)
     """
-    base_query = db.query(RFQ).filter(RFQ.state.notin_(TERMINAL_STATES))
+    base_query = db.query(RFQ)
+
+    # By default exclude terminal states (dashboard behavior)
+    if not include_terminal:
+        base_query = base_query.filter(RFQ.state.notin_(TERMINAL_STATES))
+
+    # State filter — narrow to a specific state
+    if state_filter:
+        try:
+            state_enum = RFQState(state_filter)
+            base_query = base_query.filter(RFQ.state == state_enum)
+        except ValueError:
+            pass  # Invalid state value — ignore filter
+
+    # Search — match against customer name, origin, destination
+    if search:
+        search_term = f"%{search}%"
+        base_query = base_query.filter(
+            (RFQ.customer_name.ilike(search_term))
+            | (RFQ.origin.ilike(search_term))
+            | (RFQ.destination.ilike(search_term))
+            | (RFQ.customer_company.ilike(search_term))
+        )
 
     total = base_query.count()
     rfqs = (
@@ -142,6 +170,20 @@ def list_active_rfqs(
         .all()
     )
     return rfqs, total
+
+
+def count_rfqs_by_state(db: Session) -> dict[str, int]:
+    """
+    Return a count of RFQs grouped by state, for the filter pill badges.
+
+    Used by the RFQs list page (#29) to show how many RFQs are in each state.
+    """
+    rows = (
+        db.query(RFQ.state, func.count(RFQ.id))
+        .group_by(RFQ.state)
+        .all()
+    )
+    return {state.value: count for state, count in rows}
 
 
 def list_pending_approvals(
