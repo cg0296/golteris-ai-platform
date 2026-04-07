@@ -1,38 +1,45 @@
 /**
- * App.tsx — Root component for the Golteris broker console.
+ * App.tsx — Root layout shell for the Golteris broker console.
  *
- * This is a placeholder that confirms the frontend is deployed and working.
- * It will be replaced by the real dashboard layout when issue #17
- * (Build broker home dashboard) is implemented.
+ * Renders the navy sidebar (desktop) or hamburger overlay (mobile), a top bar
+ * with page title and system status, and an <Outlet/> for the active page.
+ *
+ * React Router handles client-side routing — the backend catch-all serves
+ * index.html for any path that doesn't match /api/* or /health.
  */
 
-function App() {
+import { useState } from "react"
+import { Outlet, useLocation } from "react-router-dom"
+import { Sidebar } from "@/components/layout/Sidebar"
+import { Topbar } from "@/components/layout/Topbar"
+import { MobileNav } from "@/components/layout/MobileNav"
+
+/** Map route paths to page titles for the top bar. */
+const pageTitles: Record<string, string> = {
+  "/": "Home",
+  "/inbox": "Inbox",
+  "/rfqs": "RFQs",
+  "/history": "History",
+  "/agent": "Agent",
+  "/settings": "Settings",
+}
+
+export default function App() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const location = useLocation()
+  const title = pageTitles[location.pathname] ?? "Golteris"
+
   return (
-    <div style={{
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      maxWidth: '600px',
-      margin: '80px auto',
-      padding: '0 20px',
-      color: '#1a1a2e',
-    }}>
-      <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>Golteris</h1>
-      <p style={{ color: '#666', marginBottom: '32px' }}>
-        Operational AI Workflow Platform
-      </p>
-      <div style={{
-        background: '#f0fdf4',
-        border: '1px solid #bbf7d0',
-        borderRadius: '8px',
-        padding: '16px 20px',
-        marginBottom: '16px',
-      }}>
-        <strong>Status:</strong> Deployed and running
+    <div className="flex h-screen bg-[#F5F7FA]">
+      <Sidebar />
+      <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+
+      <div className="flex flex-col flex-1 min-w-0">
+        <Topbar title={title} onMenuClick={() => setMobileNavOpen(true)} />
+        <main className="flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
       </div>
-      <p style={{ fontSize: '14px', color: '#999' }}>
-        The broker dashboard will be built in issue #17.
-      </p>
     </div>
   )
 }
-
-export default App
