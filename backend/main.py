@@ -44,6 +44,7 @@ from backend.api.workflows import router as workflows_router
 from backend.api.agent_controls import router as agent_controls_router
 from backend.api.auth import router as auth_router
 from backend.api.chat import router as chat_router
+from backend.api.jobs import router as jobs_router
 from backend.api.dev import router as dev_router
 
 
@@ -136,6 +137,7 @@ app.include_router(carriers_router)
 app.include_router(workflows_router)
 app.include_router(agent_controls_router)
 app.include_router(chat_router)
+app.include_router(jobs_router)
 app.include_router(dev_router)
 @app.get("/api")
 def api_root():
