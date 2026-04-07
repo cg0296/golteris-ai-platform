@@ -13,6 +13,7 @@ import { Outlet, useLocation } from "react-router-dom"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Topbar } from "@/components/layout/Topbar"
 import { MobileNav } from "@/components/layout/MobileNav"
+import { ChatBubble } from "@/components/layout/ChatBubble"
 
 /** Map route paths to page titles for the top bar. */
 const pageTitles: Record<string, string> = {
@@ -40,6 +41,9 @@ export default function App() {
           <Outlet />
         </main>
       </div>
+
+      {/* Global chat bubble (#106) — accessible from every page */}
+      <ChatBubble />
     </div>
   )
 }
