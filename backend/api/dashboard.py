@@ -1,9 +1,10 @@
 """
-backend/api/dashboard.py — FastAPI router for the broker home dashboard (#17).
+backend/api/dashboard.py — FastAPI router for the broker dashboard and RFQ views.
 
-Provides the REST API endpoints that power the four dashboard zones:
+Provides the REST API endpoints that power the dashboard and RFQ detail:
     GET /api/dashboard/summary      — KPI counts (needs_review, active_rfqs, etc.)
     GET /api/rfqs                   — Paginated RFQ list (active by default)
+    GET /api/rfqs/{id}              — Full RFQ detail for the drawer (#27)
     GET /api/approvals              — Paginated approval list (pending by default)
     GET /api/activity/recent        — Recent audit events for the activity feed
 
@@ -19,18 +20,27 @@ Called by:
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session, joinedload
 
 from backend.db.database import get_db
-from backend.db.models import Approval, AuditEvent, RFQ
+from backend.db.models import (
+    Approval,
+    AuditEvent,
+    CarrierBid,
+    Message,
+    RFQ,
+)
 from backend.services.dashboard import (
     get_kpi_summary,
     list_active_rfqs,
     list_pending_approvals,
     list_recent_activity,
 )
-from backend.services.rfq_state_machine import _state_label
+from backend.services.rfq_state_machine import (
+    _state_label,
+    get_allowed_transitions,
+)
 
 logger = logging.getLogger("golteris.api.dashboard")
 
@@ -70,6 +80,74 @@ def get_rfqs(
         "total": total,
         "limit": limit,
         "offset": offset,
+    }
+
+
+@router.get("/api/rfqs/{rfq_id}")
+def get_rfq_detail(
+    rfq_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get full RFQ detail for the RFQ detail drawer (#27).
+
+    Returns four sections matching FR-UI-5:
+    1. Summary — all extracted fields (customer, route, equipment, dates)
+    2. Current Status — state label, allowed transitions, confidence scores
+    3. Messages — full inbound/outbound thread sorted chronologically
+    4. Actions & History — audit events as a timeline
+
+    Also includes carrier bids and pending approvals for the drawer.
+
+    Cross-cutting constraints:
+        C3 — State labels use plain English via _state_label()
+        C4 — Timeline shows every action; system reasoning available via agent_calls
+    """
+    rfq = (
+        db.query(RFQ)
+        .options(
+            joinedload(RFQ.messages),
+            joinedload(RFQ.audit_events),
+            joinedload(RFQ.carrier_bids),
+            joinedload(RFQ.approvals),
+        )
+        .filter(RFQ.id == rfq_id)
+        .first()
+    )
+    if not rfq:
+        raise HTTPException(status_code=404, detail=f"RFQ {rfq_id} not found")
+
+    # Allowed next states for the "Next steps" section in the drawer
+    allowed = get_allowed_transitions(rfq.state)
+
+    return {
+        # Summary section
+        **_serialize_rfq_full(rfq),
+        # Current status with transitions
+        "allowed_transitions": [
+            {"state": s.value, "label": _state_label(s)} for s in allowed
+        ],
+        # Messages thread sorted chronologically
+        "messages": [
+            _serialize_message(m)
+            for m in sorted(rfq.messages, key=lambda m: m.received_at or m.created_at)
+        ],
+        # Actions & History timeline (newest first)
+        "timeline": [
+            _serialize_event(e)
+            for e in sorted(rfq.audit_events, key=lambda e: e.created_at, reverse=True)
+        ],
+        # Carrier bids
+        "carrier_bids": [
+            _serialize_bid(b)
+            for b in sorted(rfq.carrier_bids, key=lambda b: b.received_at, reverse=True)
+        ],
+        # Pending approvals
+        "pending_approvals": [
+            _serialize_approval(a)
+            for a in rfq.approvals
+            if a.status.value == "pending_approval"
+        ],
     }
 
 
@@ -180,4 +258,76 @@ def _serialize_event(event: AuditEvent) -> dict:
         "actor": event.actor,
         "description": event.description,
         "created_at": event.created_at.isoformat() if event.created_at else None,
+    }
+
+
+def _serialize_rfq_full(rfq: RFQ) -> dict:
+    """
+    Convert an RFQ to a full JSON dict for the detail drawer (#27).
+
+    Includes all extracted fields (not just the summary subset used in the
+    dashboard table). The drawer's Summary section shows these fields as
+    a definition list.
+    """
+    return {
+        "id": rfq.id,
+        "customer_name": rfq.customer_name,
+        "customer_email": rfq.customer_email,
+        "customer_company": rfq.customer_company,
+        "origin": rfq.origin,
+        "destination": rfq.destination,
+        "equipment_type": rfq.equipment_type,
+        "truck_count": rfq.truck_count,
+        "commodity": rfq.commodity,
+        "weight_lbs": rfq.weight_lbs,
+        "pickup_date": rfq.pickup_date.isoformat() if rfq.pickup_date else None,
+        "delivery_date": rfq.delivery_date.isoformat() if rfq.delivery_date else None,
+        "special_requirements": rfq.special_requirements,
+        "state": rfq.state.value if rfq.state else None,
+        "state_label": _state_label(rfq.state) if rfq.state else None,
+        "confidence_scores": rfq.confidence_scores,
+        "outcome": rfq.outcome,
+        "quoted_amount": float(rfq.quoted_amount) if rfq.quoted_amount else None,
+        "closed_at": rfq.closed_at.isoformat() if rfq.closed_at else None,
+        "updated_at": rfq.updated_at.isoformat() if rfq.updated_at else None,
+        "created_at": rfq.created_at.isoformat() if rfq.created_at else None,
+    }
+
+
+def _serialize_message(msg: Message) -> dict:
+    """
+    Convert a Message to a JSON dict for the detail drawer's Messages section.
+
+    Direction is included so the frontend can style inbound vs outbound
+    messages differently (IN tag vs OUT tag per the proof-of-concept).
+    """
+    return {
+        "id": msg.id,
+        "direction": msg.direction.value if msg.direction else None,
+        "sender": msg.sender,
+        "recipients": msg.recipients,
+        "subject": msg.subject,
+        "body": msg.body,
+        "received_at": msg.received_at.isoformat() if msg.received_at else None,
+    }
+
+
+def _serialize_bid(bid: CarrierBid) -> dict:
+    """
+    Convert a CarrierBid to a JSON dict for the detail drawer.
+
+    Shows carrier name, rate, and terms so the broker can compare bids
+    directly in the RFQ context.
+    """
+    return {
+        "id": bid.id,
+        "carrier_name": bid.carrier_name,
+        "carrier_email": bid.carrier_email,
+        "rate": float(bid.rate) if bid.rate else None,
+        "currency": bid.currency,
+        "rate_type": bid.rate_type,
+        "terms": bid.terms,
+        "availability": bid.availability,
+        "notes": bid.notes,
+        "received_at": bid.received_at.isoformat() if bid.received_at else None,
     }

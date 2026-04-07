@@ -15,9 +15,11 @@ import type { ActivityEvent } from "@/types/api"
 interface ActivityFeedProps {
   events: ActivityEvent[]
   isLoading: boolean
+  /** Called when an event is clicked — opens the RFQ detail drawer (#27). */
+  onEventClick?: (rfqId: number | null) => void
 }
 
-export function ActivityFeed({ events, isLoading }: ActivityFeedProps) {
+export function ActivityFeed({ events, isLoading, onEventClick }: ActivityFeedProps) {
   return (
     <Card className="shadow-sm">
       <CardHeader className="pb-3">
@@ -44,7 +46,11 @@ export function ActivityFeed({ events, isLoading }: ActivityFeedProps) {
         ) : (
           <div className="max-h-[400px] overflow-y-auto">
             {events.map((event) => (
-              <ActivityRow key={event.id} event={event} />
+              <ActivityRow
+                key={event.id}
+                event={event}
+                onClick={() => onEventClick?.(event.rfq_id)}
+              />
             ))}
           </div>
         )}

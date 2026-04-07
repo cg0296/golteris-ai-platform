@@ -24,6 +24,7 @@ import { UrgentActions } from "@/components/dashboard/UrgentActions"
 import { ActiveRfqsTable } from "@/components/dashboard/ActiveRfqsTable"
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed"
 import { ApprovalModal } from "@/components/dashboard/ApprovalModal"
+import { RfqDetailDrawer } from "@/components/dashboard/RfqDetailDrawer"
 import { useDashboardSummary } from "@/hooks/use-dashboard-summary"
 import { useActiveRfqs } from "@/hooks/use-active-rfqs"
 import { usePendingApprovals } from "@/hooks/use-pending-approvals"
@@ -45,6 +46,9 @@ export function DashboardPage() {
 
   // Approval modal state — which approval is currently open
   const [selectedApproval, setSelectedApproval] = useState<ApprovalItem | null>(null)
+
+  // RFQ detail drawer state — which RFQ ID is open (#27)
+  const [selectedRfqId, setSelectedRfqId] = useState<number | null>(null)
 
   // Open the approval modal when clicking an urgent action
   const handleOpenApproval = useCallback(
@@ -114,10 +118,12 @@ export function DashboardPage() {
           rfqs={rfqs.data?.rfqs ?? []}
           total={rfqs.data?.total ?? 0}
           isLoading={rfqs.isLoading}
+          onRowClick={(id) => setSelectedRfqId(id)}
         />
         <ActivityFeed
           events={activity.data?.events ?? []}
           isLoading={activity.isLoading}
+          onEventClick={(rfqId) => rfqId && setSelectedRfqId(rfqId)}
         />
       </div>
 
@@ -128,6 +134,12 @@ export function DashboardPage() {
         onActionComplete={handleActionComplete}
         onNext={handleNext}
         onPrev={handlePrev}
+      />
+
+      {/* RFQ detail drawer (#27) */}
+      <RfqDetailDrawer
+        rfqId={selectedRfqId}
+        onClose={() => setSelectedRfqId(null)}
       />
     </div>
   )
