@@ -1,5 +1,5 @@
 /**
- * pages/InboxPage.tsx — Inbox view showing all messages with routing badges (#28).
+ * pages/InboxPage.tsx — Inbox view showing all messages with routing badges (#28, #111).
  *
  * Shows every inbound message and how Golteris routed it:
  * - Attached to an existing RFQ
@@ -7,8 +7,8 @@
  * - Sent to the review queue (ambiguous match)
  * - Ignored (filtered out)
  *
- * The broker uses this to verify that message routing is trustworthy.
- * Clicking a row opens the attached RFQ's detail drawer.
+ * Clicking a message row opens the full email thread in a modal (#111).
+ * From the thread modal, the broker can jump to the attached RFQ detail.
  *
  * Cross-cutting constraints:
  *   C3 — Routing labels use plain English ("Attached to RFQ" not "attached")
@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { RfqDetailDrawer } from "@/components/dashboard/RfqDetailDrawer"
+import { MessageThreadModal } from "@/components/dashboard/MessageThreadModal"
 import { useMessageList, useMessageCounts } from "@/hooks/use-messages"
 import { formatRelativeTime, cn } from "@/lib/utils"
 
@@ -53,6 +54,8 @@ export function InboxPage() {
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(0)
   const [selectedRfqId, setSelectedRfqId] = useState<number | null>(null)
+  /* Message thread modal state (#111) — which message's thread is open */
+  const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null)
 
   const [debouncedSearch, setDebouncedSearch] = useState("")
   useMemo(() => {
@@ -164,11 +167,8 @@ export function InboxPage() {
               {messages.data?.messages.map((msg) => (
                 <TableRow
                   key={msg.id}
-                  className={cn(
-                    "hover:bg-muted/50",
-                    msg.rfq_id && "cursor-pointer"
-                  )}
-                  onClick={() => msg.rfq_id && setSelectedRfqId(msg.rfq_id)}
+                  className="hover:bg-muted/50 cursor-pointer"
+                  onClick={() => setSelectedMessageId(msg.id)}
                 >
                   <TableCell className="py-3">
                     <p className="text-sm font-medium truncate max-w-[200px]">
@@ -238,7 +238,14 @@ export function InboxPage() {
         </div>
       )}
 
-      {/* RFQ detail modal (#110, #112) — J/K navigates prev/next across attached RFQs */}
+      {/* Email thread modal (#111) — opens when clicking any message row */}
+      <MessageThreadModal
+        messageId={selectedMessageId}
+        onClose={() => setSelectedMessageId(null)}
+        onOpenRfq={(rfqId) => setSelectedRfqId(rfqId)}
+      />
+
+      {/* RFQ detail modal (#110, #112) — accessible from thread modal's RFQ link */}
       <RfqDetailDrawer
         rfqId={selectedRfqId}
         onClose={() => setSelectedRfqId(null)}

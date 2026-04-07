@@ -241,6 +241,46 @@ def get_message_counts(db: Session = Depends(get_db)):
     return {"counts": counts}
 
 
+@router.get("/api/messages/{message_id}/thread")
+def get_message_thread(message_id: int, db: Session = Depends(get_db)):
+    """
+    Return a single message and its full thread (#111).
+
+    The thread is all messages sharing the same rfq_id, sorted chronologically.
+    If the message has no rfq_id, only the clicked message is returned.
+    Used by the Inbox email thread viewer modal.
+    """
+    msg = db.query(Message).filter(Message.id == message_id).first()
+    if not msg:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    # Build the thread: all messages on the same RFQ, sorted oldest-first
+    if msg.rfq_id:
+        thread = (
+            db.query(Message)
+            .filter(Message.rfq_id == msg.rfq_id)
+            .order_by(Message.received_at.asc())
+            .all()
+        )
+    else:
+        thread = [msg]
+
+    rfq = msg.rfq
+    return {
+        "message": _serialize_inbox_message(msg),
+        "thread": [_serialize_inbox_message(m) for m in thread],
+        "rfq": {
+            "id": rfq.id,
+            "customer_name": rfq.customer_name,
+            "customer_company": rfq.customer_company,
+            "state_label": _state_label(rfq.state) if rfq.state else None,
+            "origin": rfq.origin,
+            "destination": rfq.destination,
+        } if rfq else None,
+    }
+
+
 @router.get("/api/approvals")
 def get_approvals(
     status: Optional[str] = Query("pending_approval", description="Filter by status"),
