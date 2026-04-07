@@ -237,14 +237,22 @@ def extract_rfq(
             fail_run(db, run.id, "LLM did not return tool-use result")
             return None
 
-        # Create the RFQ from extracted fields
-        rfq = _create_rfq_from_extraction(db, message, extracted)
-
-        # Link the message to the new RFQ
-        message.rfq_id = rfq.id
+        # If the message is already linked to an RFQ (reply/clarification),
+        # update the existing RFQ instead of creating a new one.
+        if message.rfq_id:
+            rfq = db.query(RFQ).filter(RFQ.id == message.rfq_id).first()
+            if rfq:
+                rfq = _update_rfq_from_extraction(db, rfq, extracted)
+                logger.info("Updated existing RFQ %d with new details from message %d", rfq.id, message_id)
+            else:
+                rfq = _create_rfq_from_extraction(db, message, extracted)
+                message.rfq_id = rfq.id
+        else:
+            # Create a brand new RFQ
+            rfq = _create_rfq_from_extraction(db, message, extracted)
+            message.rfq_id = rfq.id
 
         # Log an audit event for the RFQ detail timeline (C4)
-        # Uses plain English per C3 — "Pulled quote request from email"
         _log_audit_event(db, rfq, message, extracted)
 
         # Update the run with the RFQ ID now that we have one
@@ -360,6 +368,68 @@ def _create_rfq_from_extraction(
     db.add(rfq)
     db.flush()  # Get the ID before committing
 
+    return rfq
+
+
+def _update_rfq_from_extraction(
+    db: Session,
+    rfq: RFQ,
+    extracted: dict[str, Any],
+) -> RFQ:
+    """
+    Update an existing RFQ with newly extracted fields from a reply/clarification.
+
+    Only fills in fields that were previously null or had low confidence.
+    Re-evaluates the state after updating — may promote from needs_clarification
+    to ready_to_quote if the reply filled in the missing details.
+    """
+    confidence = extracted.get("confidence", {})
+
+    # Update fields that are currently null or were low confidence
+    field_map = {
+        "customer_name": "customer_name",
+        "customer_company": "customer_company",
+        "origin": "origin",
+        "destination": "destination",
+        "equipment_type": "equipment_type",
+        "truck_count": "truck_count",
+        "commodity": "commodity",
+        "weight_lbs": "weight_lbs",
+        "special_requirements": "special_requirements",
+    }
+
+    for extract_key, rfq_attr in field_map.items():
+        new_val = extracted.get(extract_key)
+        old_val = getattr(rfq, rfq_attr)
+        if new_val and (not old_val):
+            setattr(rfq, rfq_attr, new_val)
+
+    # Update dates
+    pickup = _parse_date(extracted.get("pickup_date"))
+    delivery = _parse_date(extracted.get("delivery_date"))
+    if pickup and not rfq.pickup_date:
+        rfq.pickup_date = pickup
+    if delivery and not rfq.delivery_date:
+        rfq.delivery_date = delivery
+
+    # Merge confidence scores
+    if rfq.confidence_scores and confidence:
+        merged = {**rfq.confidence_scores, **confidence}
+        rfq.confidence_scores = merged
+    elif confidence:
+        rfq.confidence_scores = confidence
+
+    # Re-evaluate state — may promote to ready_to_quote
+    new_state = _determine_initial_state(extracted, confidence)
+    if new_state == RFQState.READY_TO_QUOTE and rfq.state == RFQState.NEEDS_CLARIFICATION:
+        from backend.services.rfq_state_machine import transition_rfq
+        try:
+            transition_rfq(db, rfq.id, RFQState.READY_TO_QUOTE, actor="extraction_agent",
+                          reason="Clarification reply filled in missing details")
+        except Exception:
+            pass
+
+    db.flush()
     return rfq
 
 

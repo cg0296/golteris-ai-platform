@@ -330,17 +330,25 @@ def _apply_match(db: Session, message: Message, result: MatchResult) -> None:
         message.id, result.rfq_id, result.method, result.confidence,
     )
 
-    # Auto-detect carrier replies (#102) — if the RFQ is waiting on carriers
-    # and this message is from an external sender (not the broker), it's likely
-    # a carrier responding with a bid. Enqueue the bid parser.
+    # Smart routing based on RFQ state — determine what to do with the attached message
     if result.rfq_id:
         rfq = db.query(RFQ).filter(RFQ.id == result.rfq_id).first()
-        if rfq and rfq.state in (RFQState.WAITING_ON_CARRIERS, RFQState.QUOTES_RECEIVED):
-            # Check it's not from the broker's own address
-            broker_emails = ["jillian@beltmann.com", "agents@golteris.com"]
-            sender_lower = (message.sender or "").lower()
-            if not any(be in sender_lower for be in broker_emails):
-                from backend.worker import enqueue_job
+        broker_emails = ["jillian@beltmann.com", "agents@golteris.com"]
+        sender_lower = (message.sender or "").lower()
+        is_broker = any(be in sender_lower for be in broker_emails)
+
+        if rfq and not is_broker:
+            from backend.worker import enqueue_job
+
+            if rfq.state == RFQState.NEEDS_CLARIFICATION:
+                # Shipper replied with more details — re-extract to update RFQ fields
+                enqueue_job(db, "extraction", {"message_id": message.id}, rfq_id=rfq.id)
+                logger.info(
+                    "Message %d is a clarification reply for RFQ %d — re-extraction enqueued",
+                    message.id, rfq.id,
+                )
+            elif rfq.state in (RFQState.WAITING_ON_CARRIERS, RFQState.QUOTES_RECEIVED):
+                # Auto-detect carrier replies (#102) — parse the bid
                 enqueue_job(db, "parse_carrier_bid", {"message_id": message.id}, rfq_id=rfq.id)
                 logger.info(
                     "Message %d looks like a carrier reply for RFQ %d — bid parsing enqueued",
