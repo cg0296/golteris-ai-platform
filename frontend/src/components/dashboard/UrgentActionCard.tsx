@@ -70,7 +70,7 @@ export function UrgentActionCard({
         disabled={isApproving}
         className="shrink-0 bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white"
       >
-        {isApproving ? "Approving..." : "Approve"}
+        {isApproving ? "Opening..." : "Review"}
       </Button>
     </div>
   )

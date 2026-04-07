@@ -7,7 +7,7 @@
  * (Vite on :5173, FastAPI on :8000) CORS is already configured.
  */
 
-const BASE_URL = import.meta.env.DEV ? "http://localhost:8000" : ""
+const BASE_URL = import.meta.env.DEV ? "http://localhost:8001" : ""
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
