@@ -200,7 +200,16 @@ if os.path.isdir(FRONTEND_DIR):
         Any request that doesn't match /api/*, /health, or /assets/* gets
         the React index.html. React Router then handles client-side routing
         (e.g., /rfqs/42 opens the RFQ detail drawer in the SPA).
+
+        IMPORTANT: Paths starting with "api/" are excluded so that FastAPI's
+        API routers handle those requests (including POST/PUT/DELETE methods).
+        Without this guard, this GET catch-all intercepts API paths and
+        returns index.html, causing "Method Not Allowed" on non-GET requests.
         """
+        # Never intercept API routes — let FastAPI routers handle them
+        if full_path.startswith("api/") or full_path == "api":
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Not found")
         # Check if the requested file exists in the build output (e.g., favicon.ico)
         file_path = os.path.join(FRONTEND_DIR, full_path)
         if os.path.isfile(file_path):
