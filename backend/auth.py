@@ -21,7 +21,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from sqlalchemy.orm import Session
 
 from backend.db.database import get_db
@@ -32,21 +32,18 @@ SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "golteris-dev-secret-change-in-pro
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 # Bearer token extractor
 security = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
-    """Hash a password with bcrypt."""
-    return pwd_context.hash(password)
+    """Hash a password with bcrypt (using bcrypt lib directly — passlib is incompatible with newer bcrypt versions)."""
+    return _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """Verify a password against its hash."""
-    return pwd_context.verify(plain, hashed)
+    """Verify a password against its bcrypt hash."""
+    return _bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
 
 def create_access_token(user_id: int, email: str, role: str) -> str:
