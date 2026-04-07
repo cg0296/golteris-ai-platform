@@ -39,6 +39,9 @@ from datetime import datetime
 # Add project root to path for imports when running as `python -m backend.worker`
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from dotenv import load_dotenv
+load_dotenv()  # Load .env for Graph creds, cost caps, DB URL
+
 from sqlalchemy import text
 
 from backend.db.database import SessionLocal
@@ -128,7 +131,7 @@ def pick_next_job(db) -> Job:
     result = db.execute(
         text(
             "SELECT id FROM jobs "
-            "WHERE status = 'pending' "
+            "WHERE status = 'PENDING' "
             "ORDER BY created_at ASC "
             "LIMIT 1 "
             "FOR UPDATE SKIP LOCKED"

@@ -24,6 +24,9 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file for local dev (Graph creds, cost caps, etc.)
+
 from fastapi import FastAPI
 
 logger = logging.getLogger("golteris.web")
