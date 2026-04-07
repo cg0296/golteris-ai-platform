@@ -202,6 +202,28 @@ def list_recent_activity(
     )
 
 
+def get_approval_detail(db: Session, approval_id: int) -> Optional[Approval]:
+    """
+    Return a single approval with its related RFQ, for the approval modal.
+
+    The modal needs the full draft_body, draft_subject, reason, and RFQ
+    context (customer name, route) to display the "SHIPPER WROTE" and
+    "AGENT DRAFTED" sections.
+
+    Args:
+        approval_id: ID of the approval to fetch
+
+    Returns:
+        Approval object with eager-loaded RFQ, or None if not found.
+    """
+    return (
+        db.query(Approval)
+        .options(joinedload(Approval.rfq))
+        .filter(Approval.id == approval_id)
+        .first()
+    )
+
+
 def approve_approval(
     db: Session,
     approval_id: int,
@@ -241,6 +263,94 @@ def approve_approval(
         event_type="approval_approved",
         actor=resolved_by,
         description=f"Approved {approval.approval_type.value.replace('_', ' ')} draft",
+        event_data={
+            "approval_id": approval.id,
+            "approval_type": approval.approval_type.value,
+        },
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(approval)
+    return approval
+
+
+def reject_approval(
+    db: Session,
+    approval_id: int,
+    resolved_by: str = "broker",
+) -> Optional[Approval]:
+    """
+    Reject a pending approval — the draft will NOT be sent.
+
+    C2 enforcement: rejecting is a deliberate human action that prevents
+    outbound communication. The broker chose not to send this draft.
+
+    Args:
+        approval_id: ID of the approval to reject
+        resolved_by: Who rejected
+
+    Returns:
+        Updated Approval object, or None if not found / not pending.
+    """
+    approval = db.query(Approval).filter(Approval.id == approval_id).first()
+    if not approval:
+        return None
+    if approval.status != ApprovalStatus.PENDING_APPROVAL:
+        return None
+
+    approval.status = ApprovalStatus.REJECTED
+    approval.resolved_by = resolved_by
+    approval.resolved_at = datetime.now(timezone.utc)
+
+    event = AuditEvent(
+        rfq_id=approval.rfq_id,
+        event_type="approval_rejected",
+        actor=resolved_by,
+        description=f"Rejected {approval.approval_type.value.replace('_', ' ')} draft",
+        event_data={
+            "approval_id": approval.id,
+            "approval_type": approval.approval_type.value,
+        },
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(approval)
+    return approval
+
+
+def skip_approval(
+    db: Session,
+    approval_id: int,
+    resolved_by: str = "broker",
+) -> Optional[Approval]:
+    """
+    Skip a pending approval — it stays in the queue for later review.
+
+    The broker wants to come back to this one. The approval remains
+    visible but moves to 'skipped' status. It can be re-opened later.
+
+    Args:
+        approval_id: ID of the approval to skip
+        resolved_by: Who skipped
+
+    Returns:
+        Updated Approval object, or None if not found / not pending.
+    """
+    approval = db.query(Approval).filter(Approval.id == approval_id).first()
+    if not approval:
+        return None
+    if approval.status != ApprovalStatus.PENDING_APPROVAL:
+        return None
+
+    approval.status = ApprovalStatus.SKIPPED
+    approval.resolved_by = resolved_by
+    approval.resolved_at = datetime.now(timezone.utc)
+
+    event = AuditEvent(
+        rfq_id=approval.rfq_id,
+        event_type="approval_skipped",
+        actor=resolved_by,
+        description=f"Skipped {approval.approval_type.value.replace('_', ' ')} draft",
         event_data={
             "approval_id": approval.id,
             "approval_type": approval.approval_type.value,

@@ -74,3 +74,29 @@ export interface ActivityEvent {
 export interface ActivityResponse {
   events: ActivityEvent[]
 }
+
+/** GET /api/approvals/{id} — full detail for the approval modal */
+export interface ApprovalDetail {
+  id: number
+  rfq_id: number
+  approval_type: string
+  draft_body: string
+  draft_subject: string | null
+  draft_recipient: string | null
+  reason: string | null
+  status: string
+  created_at: string
+  rfq: {
+    id: number
+    customer_name: string | null
+    customer_company: string | null
+    origin: string | null
+    destination: string | null
+  } | null
+  original_message: {
+    sender: string
+    subject: string | null
+    body: string
+    received_at: string | null
+  } | null
+}

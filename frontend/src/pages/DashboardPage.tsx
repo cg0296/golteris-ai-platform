@@ -1,46 +1,86 @@
 /**
- * pages/DashboardPage.tsx — Broker home dashboard (#17).
+ * pages/DashboardPage.tsx — Broker home dashboard (#17, #26).
  *
  * The default landing page showing four zones:
  * 1. KPI strip — Needs Review, Active RFQs, Quotes Received, Time Saved
- * 2. Urgent Actions — Pending approvals with inline approve buttons
+ * 2. Urgent Actions — Pending approvals with inline buttons that open the modal
  * 3. Active RFQs table — 6-row preview with "View all" link
  * 4. Activity feed — Recent audit events with live indicator
  *
- * All data is fetched via React Query hooks with 10-second polling.
- * Approving an action invalidates all queries so KPIs refresh immediately.
+ * The approval modal (#26) opens when clicking an urgent action. It supports
+ * four actions (Send As-Is, Edit, Reject, Skip) with keyboard shortcuts
+ * (Enter, E, R, S, J/K, Esc) for mouse-free queue clearing (FR-HI-3).
  *
  * Cross-cutting constraints:
- *   C2 — Approve button gates outbound sends (calls POST /api/approvals/{id}/approve)
+ *   C2 — All approval actions are deliberate human choices (click or keypress)
  *   C3 — All state labels are plain English (provided by backend)
  *   C5 — Time Saved uses defensible agent run durations
  */
 
-import { useState } from "react"
+import { useCallback, useState } from "react"
+import { toast } from "sonner"
 import { KpiStrip } from "@/components/dashboard/KpiStrip"
 import { UrgentActions } from "@/components/dashboard/UrgentActions"
 import { ActiveRfqsTable } from "@/components/dashboard/ActiveRfqsTable"
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed"
+import { ApprovalModal } from "@/components/dashboard/ApprovalModal"
 import { useDashboardSummary } from "@/hooks/use-dashboard-summary"
 import { useActiveRfqs } from "@/hooks/use-active-rfqs"
 import { usePendingApprovals } from "@/hooks/use-pending-approvals"
 import { useRecentActivity } from "@/hooks/use-recent-activity"
-import { useApproveAction } from "@/hooks/use-approve-action"
+import type { ApprovalItem } from "@/types/api"
+
+/** Toast messages for each approval action (C3 — plain English). */
+const actionToasts: Record<string, { title: string; description: string }> = {
+  approve: { title: "Approved", description: "Draft approved and queued for sending" },
+  reject: { title: "Rejected", description: "Draft rejected — it will not be sent" },
+  skip: { title: "Skipped", description: "Draft skipped — you can review it later" },
+}
 
 export function DashboardPage() {
   const summary = useDashboardSummary()
   const rfqs = useActiveRfqs()
   const approvals = usePendingApprovals()
   const activity = useRecentActivity()
-  const approve = useApproveAction()
-  const [approvingId, setApprovingId] = useState<number | null>(null)
 
-  const handleApprove = (id: number) => {
-    setApprovingId(id)
-    approve.mutate(id, {
-      onSettled: () => setApprovingId(null),
-    })
-  }
+  // Approval modal state — which approval is currently open
+  const [selectedApproval, setSelectedApproval] = useState<ApprovalItem | null>(null)
+
+  // Open the approval modal when clicking an urgent action
+  const handleOpenApproval = useCallback(
+    (id: number) => {
+      const found = approvals.data?.approvals.find((a) => a.id === id)
+      if (found) setSelectedApproval(found)
+    },
+    [approvals.data]
+  )
+
+  // After an action, show toast and close (or advance to next)
+  const handleActionComplete = useCallback(
+    (action: "approve" | "reject" | "skip") => {
+      const msg = actionToasts[action]
+      toast.success(msg.title, { description: msg.description })
+      setSelectedApproval(null)
+    },
+    []
+  )
+
+  // J/K queue navigation — cycle through pending approvals
+  const handleNext = useCallback(() => {
+    const list = approvals.data?.approvals ?? []
+    if (list.length === 0) return
+    const currentIdx = list.findIndex((a) => a.id === selectedApproval?.id)
+    const nextIdx = (currentIdx + 1) % list.length
+    setSelectedApproval(list[nextIdx])
+  }, [approvals.data, selectedApproval])
+
+  const handlePrev = useCallback(() => {
+    const list = approvals.data?.approvals ?? []
+    if (list.length === 0) return
+    const currentIdx = list.findIndex((a) => a.id === selectedApproval?.id)
+    const prevIdx = currentIdx <= 0 ? list.length - 1 : currentIdx - 1
+    setSelectedApproval(list[prevIdx])
+  }, [approvals.data, selectedApproval])
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-7xl">
@@ -59,13 +99,13 @@ export function DashboardPage() {
       {/* KPI strip — 4 cards */}
       <KpiStrip data={summary.data} isLoading={summary.isLoading} />
 
-      {/* Urgent Actions */}
+      {/* Urgent Actions — clicking opens the approval modal */}
       <UrgentActions
         approvals={approvals.data?.approvals ?? []}
         total={approvals.data?.total ?? 0}
         isLoading={approvals.isLoading}
-        onApprove={handleApprove}
-        approvingId={approvingId}
+        onApprove={handleOpenApproval}
+        approvingId={null}
       />
 
       {/* Bottom row: Active RFQs table + Activity feed */}
@@ -80,6 +120,15 @@ export function DashboardPage() {
           isLoading={activity.isLoading}
         />
       </div>
+
+      {/* Approval modal (#26) */}
+      <ApprovalModal
+        approval={selectedApproval}
+        onClose={() => setSelectedApproval(null)}
+        onActionComplete={handleActionComplete}
+        onNext={handleNext}
+        onPrev={handlePrev}
+      />
     </div>
   )
 }

@@ -35,10 +35,13 @@ from backend.db.models import (
 )
 from backend.services.dashboard import (
     approve_approval,
+    get_approval_detail,
     get_kpi_summary,
     list_active_rfqs,
     list_pending_approvals,
     list_recent_activity,
+    reject_approval,
+    skip_approval,
 )
 
 
@@ -336,3 +339,114 @@ class TestApproveApproval:
         result = approve_approval(db, approval_id, resolved_body="Edited version")
         assert result.resolved_body == "Edited version"
         assert result.status == ApprovalStatus.APPROVED
+
+
+# ---------------------------------------------------------------------------
+# Reject Action tests (#26)
+# ---------------------------------------------------------------------------
+
+
+class TestRejectApproval:
+    """Tests for reject_approval — reject from approval modal."""
+
+    def test_reject_pending(self, db):
+        """Rejecting a pending item flips status to rejected."""
+        rfq = _make_rfq(db)
+        db.add(Approval(rfq_id=rfq.id, approval_type=ApprovalType.CUSTOMER_REPLY,
+                        draft_body="Draft", status=ApprovalStatus.PENDING_APPROVAL))
+        db.commit()
+        approval_id = db.query(Approval).first().id
+
+        result = reject_approval(db, approval_id)
+        assert result is not None
+        assert result.status == ApprovalStatus.REJECTED
+        assert result.resolved_at is not None
+
+    def test_reject_creates_audit_event(self, db):
+        """Rejecting creates an audit event (C4)."""
+        rfq = _make_rfq(db)
+        db.add(Approval(rfq_id=rfq.id, approval_type=ApprovalType.CARRIER_RFQ,
+                        draft_body="Draft", status=ApprovalStatus.PENDING_APPROVAL))
+        db.commit()
+        approval_id = db.query(Approval).first().id
+
+        reject_approval(db, approval_id)
+        events = db.query(AuditEvent).filter(
+            AuditEvent.event_type == "approval_rejected"
+        ).all()
+        assert len(events) == 1
+
+    def test_reject_already_resolved_returns_none(self, db):
+        """Cannot reject an already-resolved item."""
+        rfq = _make_rfq(db)
+        db.add(Approval(rfq_id=rfq.id, approval_type=ApprovalType.CUSTOMER_REPLY,
+                        draft_body="Draft", status=ApprovalStatus.APPROVED))
+        db.commit()
+        approval_id = db.query(Approval).first().id
+
+        result = reject_approval(db, approval_id)
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Skip Action tests (#26)
+# ---------------------------------------------------------------------------
+
+
+class TestSkipApproval:
+    """Tests for skip_approval — skip from approval modal."""
+
+    def test_skip_pending(self, db):
+        """Skipping a pending item flips status to skipped."""
+        rfq = _make_rfq(db)
+        db.add(Approval(rfq_id=rfq.id, approval_type=ApprovalType.CUSTOMER_REPLY,
+                        draft_body="Draft", status=ApprovalStatus.PENDING_APPROVAL))
+        db.commit()
+        approval_id = db.query(Approval).first().id
+
+        result = skip_approval(db, approval_id)
+        assert result is not None
+        assert result.status == ApprovalStatus.SKIPPED
+        assert result.resolved_at is not None
+
+    def test_skip_creates_audit_event(self, db):
+        """Skipping creates an audit event (C4)."""
+        rfq = _make_rfq(db)
+        db.add(Approval(rfq_id=rfq.id, approval_type=ApprovalType.CUSTOMER_QUOTE,
+                        draft_body="Draft", status=ApprovalStatus.PENDING_APPROVAL))
+        db.commit()
+        approval_id = db.query(Approval).first().id
+
+        skip_approval(db, approval_id)
+        events = db.query(AuditEvent).filter(
+            AuditEvent.event_type == "approval_skipped"
+        ).all()
+        assert len(events) == 1
+
+
+# ---------------------------------------------------------------------------
+# Approval Detail tests (#26)
+# ---------------------------------------------------------------------------
+
+
+class TestGetApprovalDetail:
+    """Tests for get_approval_detail — full approval for modal display."""
+
+    def test_returns_approval_with_rfq(self, db):
+        """Detail includes the related RFQ via eager load."""
+        rfq = _make_rfq(db, customer_name="Acme Corp")
+        db.add(Approval(rfq_id=rfq.id, approval_type=ApprovalType.CUSTOMER_REPLY,
+                        draft_body="Hello Acme", draft_subject="Re: Quote",
+                        reason="First email", status=ApprovalStatus.PENDING_APPROVAL))
+        db.commit()
+        approval_id = db.query(Approval).first().id
+
+        result = get_approval_detail(db, approval_id)
+        assert result is not None
+        assert result.draft_body == "Hello Acme"
+        assert result.rfq.customer_name == "Acme Corp"
+
+    def test_nonexistent_returns_none(self, db):
+        """Nonexistent ID returns None."""
+        result = get_approval_detail(db, 9999)
+        assert result is None
