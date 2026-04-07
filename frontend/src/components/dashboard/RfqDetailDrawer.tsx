@@ -1,8 +1,10 @@
 /**
- * components/dashboard/RfqDetailDrawer.tsx — RFQ detail drawer (#27).
+ * components/dashboard/RfqDetailDrawer.tsx — RFQ detail modal (#27, #110).
  *
- * A right-sliding sheet that opens when the broker clicks an RFQ row
+ * A large centered modal that opens when the broker clicks an RFQ row
  * anywhere in the app (Home, RFQs list, Inbox, History, Activity feed).
+ * Replaced the narrow right-side drawer with a near-full-screen panel
+ * to give more room for details, timelines, and actions (#110).
  *
  * Four sections per FR-UI-5:
  * 1. Summary — route, equipment, dates, contact (definition list)
@@ -66,7 +68,7 @@ export function RfqDetailDrawer({ rfqId, onClose }: RfqDetailDrawerProps) {
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto p-6">
+      <SheetContent side="center" className="overflow-y-auto p-6">
         {isLoading || !data ? (
           <div className="space-y-4 pt-8">
             <div className="h-8 w-48 bg-muted/50 rounded animate-pulse" />
