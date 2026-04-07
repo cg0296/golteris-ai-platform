@@ -156,6 +156,15 @@ def distribute_to_carriers(
         db.flush()
         send_ids.append(send.id)
 
+    # Transition RFQ to "Waiting on carriers" since carrier RFQs are being sent out
+    from backend.services.rfq_state_machine import transition_rfq, RFQState as SM_RFQState
+    try:
+        transition_rfq(db, rfq.id, SM_RFQState.WAITING_ON_CARRIERS, actor="system",
+                        reason=f"Carrier RFQ distributed to {len(carriers)} carrier(s)")
+    except Exception:
+        # If already in waiting_on_carriers or transition not allowed, continue anyway
+        pass
+
     # Audit event
     event = AuditEvent(
         rfq_id=rfq.id,
