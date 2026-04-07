@@ -128,6 +128,28 @@ def price_rfq(
     }
 
 
+@router.post("/api/rfqs/{rfq_id}/generate-quote")
+def generate_quote(
+    rfq_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Generate a customer-facing quote and create a pending approval (#36).
+
+    Uses the RFQ's quoted_amount (set by pricing engine #35) to generate
+    a professional email template. The broker reviews in the approval modal
+    before sending (C2 gate).
+    """
+    from backend.services.customer_quote import generate_customer_quote
+
+    try:
+        result = generate_customer_quote(db, rfq_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return result
+
+
 @router.get("/api/rfqs/{rfq_id}/bids")
 def get_ranked_bids(rfq_id: int, db: Session = Depends(get_db)):
     """
