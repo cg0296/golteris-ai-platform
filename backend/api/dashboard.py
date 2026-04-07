@@ -171,6 +171,44 @@ def get_rfq_detail(
     }
 
 
+@router.get("/api/messages")
+def get_messages(
+    limit: int = Query(50, ge=1, le=200, description="Page size"),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
+    routing_status: Optional[str] = Query(None, description="Filter by routing status"),
+    search: Optional[str] = Query(None, description="Search sender or subject"),
+    db: Session = Depends(get_db),
+):
+    """
+    List messages sorted by most recently received, with optional filters.
+
+    Used by the Inbox view (#28) to show every inbound message and how
+    Golteris routed it. Each message includes a routing badge and a link
+    to the attached RFQ (if any).
+    """
+    from backend.services.dashboard import list_messages
+    messages, total = list_messages(
+        db, limit=limit, offset=offset,
+        routing_status=routing_status, search=search,
+    )
+    return {
+        "messages": [_serialize_inbox_message(m) for m in messages],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.get("/api/messages/counts")
+def get_message_counts(db: Session = Depends(get_db)):
+    """
+    Return message counts grouped by routing_status, for filter pill badges (#28).
+    """
+    from backend.services.dashboard import count_messages_by_routing
+    counts = count_messages_by_routing(db)
+    return {"counts": counts}
+
+
 @router.get("/api/approvals")
 def get_approvals(
     status: Optional[str] = Query("pending_approval", description="Filter by status"),
@@ -350,4 +388,38 @@ def _serialize_bid(bid: CarrierBid) -> dict:
         "availability": bid.availability,
         "notes": bid.notes,
         "received_at": bid.received_at.isoformat() if bid.received_at else None,
+    }
+
+
+def _serialize_inbox_message(msg: Message) -> dict:
+    """
+    Convert a Message to a JSON dict for the Inbox view (#28).
+
+    Includes routing_status badge and attached RFQ context (customer name)
+    so the broker can see at a glance how each message was handled.
+    """
+    rfq = msg.rfq
+    # Plain-English routing labels (C3)
+    routing_labels = {
+        "attached": "Attached to RFQ",
+        "new_rfq": "New RFQ created",
+        "needs_review": "Needs review",
+        "ignored": "Ignored",
+    }
+    routing_value = msg.routing_status.value if msg.routing_status else None
+    return {
+        "id": msg.id,
+        "rfq_id": msg.rfq_id,
+        "direction": msg.direction.value if msg.direction else None,
+        "sender": msg.sender,
+        "subject": msg.subject,
+        "body": msg.body,
+        "routing_status": routing_value,
+        "routing_label": routing_labels.get(routing_value, routing_value),
+        "received_at": msg.received_at.isoformat() if msg.received_at else None,
+        "rfq": {
+            "id": rfq.id,
+            "customer_name": rfq.customer_name,
+            "state_label": _state_label(rfq.state) if rfq.state else None,
+        } if rfq else None,
     }
