@@ -128,22 +128,25 @@ def distribute_to_carriers(
     subject = f"RFQ: {rfq.origin} to {rfq.destination} — {rfq.equipment_type}"
     body_template = _generate_carrier_rfq_body(rfq)
 
-    # Create one batch approval (C2 gate)
-    approval = Approval(
-        rfq_id=rfq.id,
-        approval_type=ApprovalType.CARRIER_RFQ,
-        draft_body=body_template,
-        draft_subject=subject,
-        draft_recipient=carrier_names,
-        reason=f"Carrier RFQ to {len(carriers)} carrier(s)",
-        status=ApprovalStatus.PENDING_APPROVAL,
-    )
-    db.add(approval)
-    db.flush()
-
-    # Create per-carrier send tracking rows
+    # Create one approval PER carrier with the carrier's actual email address.
+    # Each approval gates one outbound send (C2). The broker approves the batch
+    # by approving each one, and the send pipeline emails the real address.
+    approval_ids = []
     send_ids = []
     for carrier in carriers:
+        approval = Approval(
+            rfq_id=rfq.id,
+            approval_type=ApprovalType.CARRIER_RFQ,
+            draft_body=body_template,
+            draft_subject=subject,
+            draft_recipient=carrier.email,  # Real email address, not name
+            reason=f"Carrier RFQ to {carrier.name}",
+            status=ApprovalStatus.PENDING_APPROVAL,
+        )
+        db.add(approval)
+        db.flush()
+        approval_ids.append(approval.id)
+
         send = CarrierRfqSend(
             rfq_id=rfq.id,
             carrier_id=carrier.id,
@@ -172,7 +175,7 @@ def distribute_to_carriers(
         actor="system",
         description=f"Carrier RFQ prepared for {len(carriers)} carrier(s): {carrier_names}",
         event_data={
-            "approval_id": approval.id,
+            "approval_ids": approval_ids,
             "carrier_ids": carrier_ids,
             "carrier_names": [c.name for c in carriers],
         },
@@ -181,7 +184,7 @@ def distribute_to_carriers(
     db.commit()
 
     return {
-        "approval_id": approval.id,
+        "approval_ids": approval_ids,
         "carrier_count": len(carriers),
         "send_ids": send_ids,
     }
