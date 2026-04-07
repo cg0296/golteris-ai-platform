@@ -1,36 +1,84 @@
 /**
- * pages/SettingsPage.tsx — Settings page with demo reseed button (#88).
+ * pages/SettingsPage.tsx — Settings page (#31, #44, #88).
  *
- * Currently provides a "Reset Demo Data" button that clears and reseeds
- * the database with realistic Beltmann demo scenarios. Future issues
- * will add workflow toggles (#31) and agent controls (#44).
+ * The broker's control center:
+ * - Workflow toggles (C1 — on/off per workflow)
+ * - Global kill switch (C1 — stop everything)
+ * - System status (cost caps, mailbox, worker)
+ * - Demo data reseed
+ *
+ * C1: The broker must be able to stop all agent work at any time.
  */
 
 import { useState } from "react"
-import { RotateCcw, AlertTriangle, Settings } from "lucide-react"
+import {
+  RotateCcw,
+  AlertTriangle,
+  Settings,
+  Power,
+  Mail,
+  DollarSign,
+  AlertOctagon,
+  CheckCircle,
+  XCircle,
+} from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 import { api } from "@/lib/api"
+import {
+  useWorkflows,
+  useSystemStatus,
+  useToggleWorkflow,
+  useKillSwitch,
+} from "@/hooks/use-settings"
 
 export function SettingsPage() {
-  const [isReseeding, setIsReseeding] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
+  const workflows = useWorkflows()
+  const status = useSystemStatus()
+  const toggleWorkflow = useToggleWorkflow()
+  const killSwitch = useKillSwitch()
   const queryClient = useQueryClient()
+
+  const [showReseedConfirm, setShowReseedConfirm] = useState(false)
+  const [showKillConfirm, setShowKillConfirm] = useState(false)
+  const [isReseeding, setIsReseeding] = useState(false)
+
+  const handleToggle = (id: number, currentlyEnabled: boolean) => {
+    const action = currentlyEnabled ? "disabled" : "enabled"
+    toggleWorkflow.mutate(
+      { id, enabled: !currentlyEnabled },
+      {
+        onSuccess: () => toast.success(`Workflow ${action}`),
+      }
+    )
+  }
+
+  const handleKillSwitch = () => {
+    setShowKillConfirm(false)
+    killSwitch.mutate(undefined, {
+      onSuccess: () => {
+        toast.error("Kill switch activated", {
+          description: "All workflows have been disabled",
+        })
+      },
+    })
+  }
 
   const handleReseed = async () => {
     setIsReseeding(true)
-    setShowConfirm(false)
+    setShowReseedConfirm(false)
     try {
       const result = await api.post<{ status: string; seeded: Record<string, number> }>(
         "/api/dev/reseed"
       )
-      // Invalidate all cached queries so the UI refreshes everywhere
       queryClient.invalidateQueries()
-      const counts = result.seeded
+      const c = result.seeded
       toast.success("Demo data reset", {
-        description: `Seeded ${counts.rfqs} RFQs, ${counts.messages} messages, ${counts.approvals} approvals`,
+        description: `Seeded ${c.rfqs} RFQs, ${c.messages} messages, ${c.carriers} carriers`,
       })
     } catch (err) {
       toast.error("Reseed failed", {
@@ -48,7 +96,146 @@ export function SettingsPage() {
         Settings
       </h2>
 
-      {/* Demo Data section */}
+      {/* Workflow Toggles (C1) */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Power className="h-4 w-4" />
+              Workflow Controls
+            </CardTitle>
+            {status.data && (
+              <Badge variant="secondary" className="text-xs">
+                {status.data.workflows.enabled} of {status.data.workflows.total} active
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {workflows.isLoading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-12 bg-muted/50 rounded animate-pulse" />
+              ))}
+            </div>
+          ) : (workflows.data?.workflows ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No workflows configured</p>
+          ) : (
+            <>
+              {workflows.data?.workflows.map((wf) => (
+                <div key={wf.id} className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="text-sm font-medium">{wf.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {wf.enabled ? "Running — processing jobs" : "Disabled — no new jobs"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleToggle(wf.id, wf.enabled)}
+                    disabled={toggleWorkflow.isPending}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      wf.enabled ? "bg-green-500" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        wf.enabled ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
+
+              <Separator />
+
+              {/* Kill Switch */}
+              {showKillConfirm ? (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <AlertOctagon className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                    <p className="text-sm text-red-800">
+                      This will immediately disable ALL workflows. No new jobs will be processed
+                      until you re-enable them individually.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleKillSwitch}
+                      disabled={killSwitch.isPending}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      {killSwitch.isPending ? "Stopping..." : "Confirm — Stop Everything"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowKillConfirm(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowKillConfirm(true)}
+                  className="text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  <AlertOctagon className="h-4 w-4 mr-2" />
+                  Kill Switch — Stop All Workflows
+                </Button>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* System Status */}
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base">System Status</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Mailbox */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">Email Provider</p>
+                <p className="text-xs text-muted-foreground">
+                  {status.data?.mailbox.provider ?? "Loading..."}
+                  {status.data?.mailbox.email && ` — ${status.data.mailbox.email}`}
+                </p>
+              </div>
+            </div>
+            {status.data?.mailbox.connected ? (
+              <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                <CheckCircle className="h-3 w-3 mr-1" /> Connected
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="bg-gray-100 text-gray-600 text-xs">
+                <XCircle className="h-3 w-3 mr-1" /> Not connected
+              </Badge>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Cost Caps */}
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">LLM Cost Caps</p>
+              <p className="text-xs text-muted-foreground">
+                Daily: ${status.data?.cost_caps.daily ?? "—"} · Monthly: ${status.data?.cost_caps.monthly ?? "—"}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Demo Data */}
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="text-base">Demo Data</CardTitle>
@@ -56,39 +243,28 @@ export function SettingsPage() {
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Reset all data to a fresh demo state with realistic Beltmann scenarios.
-            This clears everything and reseeds RFQs, messages, approvals, and activity.
           </p>
-
-          {showConfirm ? (
+          {showReseedConfirm ? (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                 <p className="text-sm text-amber-800">
                   This will delete all existing data and replace it with demo data.
-                  This cannot be undone.
                 </p>
               </div>
               <div className="flex gap-2">
                 <Button
+                  size="sm"
                   onClick={handleReseed}
                   disabled={isReseeding}
                   className="bg-red-600 hover:bg-red-700 text-white"
-                  size="sm"
                 >
-                  {isReseeding ? (
-                    <>
-                      <RotateCcw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                      Reseeding...
-                    </>
-                  ) : (
-                    "Yes, reset all data"
-                  )}
+                  {isReseeding ? "Reseeding..." : "Yes, reset all data"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowConfirm(false)}
-                  disabled={isReseeding}
+                  onClick={() => setShowReseedConfirm(false)}
                 >
                   Cancel
                 </Button>
@@ -97,36 +273,13 @@ export function SettingsPage() {
           ) : (
             <Button
               variant="outline"
-              onClick={() => setShowConfirm(true)}
+              onClick={() => setShowReseedConfirm(true)}
               className="text-amber-700 border-amber-300 hover:bg-amber-50"
             >
               <RotateCcw className="h-4 w-4 mr-2" />
               Reset Demo Data
             </Button>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Placeholder for future settings */}
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base">Workflow Controls</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Workflow toggles and kill switch coming in issue #31.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base">Agent Permissions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Per-agent permissions and cost caps coming in issue #44.
-          </p>
         </CardContent>
       </Card>
     </div>
