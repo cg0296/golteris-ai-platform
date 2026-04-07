@@ -157,17 +157,26 @@ def get_quote_sheet(rfq_id: int, db: Session = Depends(get_db)):
 
     # Parse the tool-use response to extract the structured quote sheet.
     # The response is a stringified Anthropic Message object with ToolUseBlock.
-    # We need to extract the 'input' dict from the tool call.
+    # We extract the 'input' dict by finding "input=" and brace-counting.
     try:
-        import ast, re
+        import ast
         resp = call.response
 
-        # Strategy 1: Find input={...} pattern and use ast.literal_eval
-        # Match from "input=" to the matching closing brace
-        match = re.search(r"input=(\{[^}]*(?:\{[^}]*\}[^}]*)*\})", resp)
-        if match:
-            # Replace Python None/True/False with JSON equivalents for parsing
-            input_str = match.group(1)
+        # Find "input=" and extract the full dict by counting braces
+        idx = resp.find("input=")
+        if idx >= 0:
+            start = resp.index("{", idx)
+            depth = 0
+            end = start
+            for i in range(start, len(resp)):
+                if resp[i] == "{":
+                    depth += 1
+                elif resp[i] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        end = i + 1
+                        break
+            input_str = resp[start:end]
             sheet_data = ast.literal_eval(input_str)
         elif resp.startswith("{"):
             sheet_data = json.loads(resp)
