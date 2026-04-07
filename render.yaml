@@ -56,6 +56,15 @@ services:
         value: "50.00"
       - key: ANTHROPIC_MONTHLY_COST_CAP
         value: "500.00"
+      # Microsoft Graph API — for outbound email sending (#25)
+      - key: MS_GRAPH_TENANT_ID
+        sync: false
+      - key: MS_GRAPH_CLIENT_ID
+        sync: false
+      - key: MS_GRAPH_CLIENT_SECRET
+        sync: false
+      - key: MS_GRAPH_USER_EMAIL
+        sync: false
 
   # ---------------------------------------------------------------------------
   # Background Worker — job queue processor and mailbox poller
@@ -85,6 +94,19 @@ services:
         value: "50.00"
       - key: ANTHROPIC_MONTHLY_COST_CAP
         value: "500.00"
+      # Microsoft Graph API — email ingestion and sending
+      - key: MS_GRAPH_TENANT_ID
+        sync: false
+      - key: MS_GRAPH_CLIENT_ID
+        sync: false
+      - key: MS_GRAPH_CLIENT_SECRET
+        sync: false
+      - key: MS_GRAPH_USER_EMAIL
+        sync: false
+      - key: MS_GRAPH_FILTER_RECIPIENT
+        sync: false
+      - key: MS_GRAPH_MAIL_FOLDER
+        value: "agent-golteris"
       # Worker poll interval in seconds (default 10)
       - key: WORKER_POLL_INTERVAL
         value: "10"
