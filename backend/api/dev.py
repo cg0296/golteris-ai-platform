@@ -45,6 +45,22 @@ logger = logging.getLogger("golteris.api.dev")
 router = APIRouter(prefix="/api/dev", tags=["dev"])
 
 
+@router.post("/clear")
+def clear_all_data(db: Session = Depends(get_db)):
+    """Clear all data without reseeding. Clean slate for live demo."""
+    db.query(Job).delete()
+    db.query(ReviewQueue).delete()
+    db.query(CarrierRfqSend).delete()
+    db.query(CarrierBid).delete()
+    db.query(AuditEvent).delete()
+    db.query(Approval).delete()
+    db.query(AgentRun).delete()
+    db.query(Message).delete()
+    db.query(RFQ).delete()
+    db.commit()
+    return {"status": "ok", "message": "All data cleared"}
+
+
 @router.post("/reseed")
 def reseed_demo_data(db: Session = Depends(get_db)):
     """

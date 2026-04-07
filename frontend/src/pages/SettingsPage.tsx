@@ -49,6 +49,8 @@ export function SettingsPage() {
   const queryClient = useQueryClient()
 
   const [showReseedConfirm, setShowReseedConfirm] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
   const [showKillConfirm, setShowKillConfirm] = useState(false)
   const [isReseeding, setIsReseeding] = useState(false)
 
@@ -337,14 +339,48 @@ export function SettingsPage() {
               </div>
             </div>
           ) : (
-            <Button
-              variant="outline"
-              onClick={() => setShowReseedConfirm(true)}
-              className="text-amber-700 border-amber-300 hover:bg-amber-50"
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset Demo Data
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowReseedConfirm(true)}
+                className="text-amber-700 border-amber-300 hover:bg-amber-50"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset Demo Data
+              </Button>
+              {showClearConfirm ? (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      setIsClearing(true)
+                      setShowClearConfirm(false)
+                      try {
+                        await api.post("/api/dev/clear")
+                        queryClient.invalidateQueries()
+                        toast.success("All data cleared")
+                      } catch { toast.error("Clear failed") }
+                      finally { setIsClearing(false) }
+                    }}
+                    disabled={isClearing}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    {isClearing ? "Clearing..." : "Confirm Clear"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowClearConfirm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowClearConfirm(true)}
+                  className="text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  Clear All Data
+                </Button>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
