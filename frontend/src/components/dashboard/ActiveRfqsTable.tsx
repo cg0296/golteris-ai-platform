@@ -35,12 +35,15 @@ interface ActiveRfqsTableProps {
   rfqs: RfqSummary[]
   total: number
   isLoading: boolean
+  /** Called when a row is clicked — opens the RFQ detail drawer (#27). */
+  onRowClick?: (rfqId: number) => void
 }
 
 export function ActiveRfqsTable({
   rfqs,
   total,
   isLoading,
+  onRowClick,
 }: ActiveRfqsTableProps) {
   return (
     <Card className="shadow-sm">
@@ -87,7 +90,7 @@ export function ActiveRfqsTable({
               </TableHeader>
               <TableBody>
                 {rfqs.map((rfq) => (
-                  <TableRow key={rfq.id} className="cursor-pointer hover:bg-muted/50">
+                  <TableRow key={rfq.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onRowClick?.(rfq.id)}>
                     <TableCell className="text-sm font-medium py-2">
                       {rfq.customer_name ?? "Unknown"}
                       {rfq.customer_company && (

@@ -39,14 +39,21 @@ function getEventIcon(eventType: string): { icon: LucideIcon; color: string } {
 
 interface ActivityRowProps {
   event: ActivityEvent
+  onClick?: () => void
 }
 
-export function ActivityRow({ event }: ActivityRowProps) {
+export function ActivityRow({ event, onClick }: ActivityRowProps) {
   const { icon: Icon, color } = getEventIcon(event.event_type)
   const [iconColor, iconBg] = color.split(" ")
 
   return (
-    <div className="flex items-start gap-3 py-2.5 border-b last:border-0">
+    <div
+      className={cn(
+        "flex items-start gap-3 py-2.5 border-b last:border-0",
+        onClick && "cursor-pointer hover:bg-muted/30 -mx-1 px-1 rounded"
+      )}
+      onClick={onClick}
+    >
       <div
         className={cn(
           "flex items-center justify-center h-7 w-7 rounded-full shrink-0 mt-0.5",

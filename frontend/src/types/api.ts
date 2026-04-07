@@ -75,6 +75,67 @@ export interface ActivityResponse {
   events: ActivityEvent[]
 }
 
+/** Message in the RFQ detail drawer's Messages section */
+export interface RfqMessage {
+  id: number
+  direction: "inbound" | "outbound" | null
+  sender: string
+  recipients: string | null
+  subject: string | null
+  body: string
+  received_at: string | null
+}
+
+/** Carrier bid in the RFQ detail drawer */
+export interface CarrierBidItem {
+  id: number
+  carrier_name: string
+  carrier_email: string | null
+  rate: number | null
+  currency: string | null
+  rate_type: string | null
+  terms: string | null
+  availability: string | null
+  notes: string | null
+  received_at: string | null
+}
+
+/** Allowed state transition for the Current Status section */
+export interface AllowedTransition {
+  state: string
+  label: string
+}
+
+/** GET /api/rfqs/{id} — full detail for the RFQ drawer */
+export interface RfqDetail {
+  id: number
+  customer_name: string | null
+  customer_email: string | null
+  customer_company: string | null
+  origin: string | null
+  destination: string | null
+  equipment_type: string | null
+  truck_count: number | null
+  commodity: string | null
+  weight_lbs: number | null
+  pickup_date: string | null
+  delivery_date: string | null
+  special_requirements: string | null
+  state: string
+  state_label: string
+  confidence_scores: Record<string, number> | null
+  outcome: string | null
+  quoted_amount: number | null
+  closed_at: string | null
+  updated_at: string
+  created_at: string
+  allowed_transitions: AllowedTransition[]
+  messages: RfqMessage[]
+  timeline: ActivityEvent[]
+  carrier_bids: CarrierBidItem[]
+  pending_approvals: ApprovalItem[]
+}
+
 /** GET /api/approvals/{id} — full detail for the approval modal */
 export interface ApprovalDetail {
   id: number
