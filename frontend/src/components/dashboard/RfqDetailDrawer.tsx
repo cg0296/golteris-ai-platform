@@ -29,6 +29,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CarrierSelectModal } from "./CarrierSelectModal"
 import { useRfqDetail } from "@/hooks/use-rfq-detail"
+import { useRankedBids, type RankedBid } from "@/hooks/use-ranked-bids"
 import { formatRelativeTime } from "@/lib/utils"
 import type { RfqDetail, RfqMessage, ActivityEvent, CarrierBidItem } from "@/types/api"
 
@@ -54,6 +55,7 @@ interface RfqDetailDrawerProps {
 
 export function RfqDetailDrawer({ rfqId, onClose }: RfqDetailDrawerProps) {
   const { data, isLoading } = useRfqDetail(rfqId)
+  const rankedBids = useRankedBids(rfqId)
   const isOpen = rfqId !== null
   const [carrierModalRfqId, setCarrierModalRfqId] = useState<number | null>(null)
 
@@ -131,11 +133,11 @@ export function RfqDetailDrawer({ rfqId, onClose }: RfqDetailDrawerProps) {
               </TabsContent>
             </Tabs>
 
-            {/* Carrier bids (shown if any exist) */}
-            {data.carrier_bids.length > 0 && (
+            {/* Ranked carrier bids (#34) — shown if any bids exist */}
+            {(rankedBids.data?.total ?? 0) > 0 && (
               <div className="mt-6">
                 <Separator className="mb-4" />
-                <BidsSection bids={data.carrier_bids} />
+                <RankedBidsSection bids={rankedBids.data?.bids ?? []} />
               </div>
             )}
 
@@ -370,27 +372,53 @@ function TimelineSection({ events }: { events: ActivityEvent[] }) {
 }
 
 
-/** Carrier bids section — shown below tabs when bids exist. */
-function BidsSection({ bids }: { bids: CarrierBidItem[] }) {
+/** Ranked carrier bids section (#34) — shows bids with ranking tags. */
+function RankedBidsSection({ bids }: { bids: RankedBid[] }) {
+  const tagStyles: Record<string, string> = {
+    best_value: "bg-green-100 text-green-800",
+    runner_up: "bg-blue-100 text-blue-800",
+    outlier_high: "bg-red-100 text-red-800",
+    outlier_low: "bg-amber-100 text-amber-800",
+  }
+  const tagLabels: Record<string, string> = {
+    best_value: "Best Value",
+    runner_up: "Runner Up",
+    outlier_high: "Outlier (High)",
+    outlier_low: "Outlier (Low)",
+  }
+
   return (
     <div>
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-        Carrier Bids ({bids.length})
+        Carrier Bids — Ranked ({bids.length})
       </p>
       <div className="space-y-2">
         {bids.map((bid) => (
           <div
             key={bid.id}
-            className="flex items-center justify-between border rounded-lg p-3"
+            className={`flex items-center justify-between border rounded-lg p-3 ${
+              bid.tag === "best_value" ? "border-green-300 bg-green-50/50" : ""
+            }`}
           >
-            <div>
-              <p className="text-sm font-medium">{bid.carrier_name}</p>
-              {bid.terms && (
-                <p className="text-xs text-muted-foreground">{bid.terms}</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono text-muted-foreground">#{bid.rank}</span>
+                <p className="text-sm font-medium">{bid.carrier_name}</p>
+                {bid.tag && (
+                  <Badge variant="secondary" className={`text-[10px] ${tagStyles[bid.tag] ?? ""}`}>
+                    {tagLabels[bid.tag] ?? bid.tag}
+                  </Badge>
+                )}
+              </div>
+              {bid.reason && (
+                <p className="text-xs text-muted-foreground mt-0.5">{bid.reason}</p>
+              )}
+              {bid.availability && (
+                <p className="text-xs text-muted-foreground">{bid.availability}</p>
               )}
             </div>
-            <div className="text-right">
-              {bid.rate && (
+            <div className="text-right shrink-0 ml-4">
+              {bid.rate != null && (
                 <p className="text-sm font-bold text-[#0E2841]">
                   ${bid.rate.toLocaleString()}
                 </p>
