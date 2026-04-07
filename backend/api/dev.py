@@ -37,6 +37,7 @@ from backend.db.models import (
     RFQ,
     RFQState,
     ReviewQueue,
+    Workflow,
 )
 
 logger = logging.getLogger("golteris.api.dev")
@@ -73,7 +74,18 @@ def reseed_demo_data(db: Session = Depends(get_db)):
     db.query(Message).delete()
     db.query(RFQ).delete()
     db.query(Carrier).delete()
+    db.query(Workflow).delete()
     db.commit()
+
+    # --- Workflows (C1 enforcement) ---
+    workflows_data = [
+        ("Inbound Quote Processing", True),
+        ("Carrier Distribution", True),
+        ("Follow-up Automation", False),
+    ]
+    for wf_name, enabled in workflows_data:
+        db.add(Workflow(name=wf_name, enabled=enabled))
+    db.flush()
 
     # --- Carriers ---
     carriers_data = [
@@ -294,6 +306,7 @@ def reseed_demo_data(db: Session = Depends(get_db)):
         "seeded": {
             "rfqs": len(rfqs),
             "messages": len(messages_data),
+            "workflows": len(workflows_data),
             "carriers": len(carriers),
             "approvals": len(approvals_data),
             "carrier_bids": 3,
