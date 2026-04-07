@@ -14,7 +14,7 @@
  */
 
 import { useState, useMemo } from "react"
-import { Search } from "lucide-react"
+import { Search, Download } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   Table,
@@ -28,6 +28,7 @@ import { RfqDetailDrawer } from "@/components/dashboard/RfqDetailDrawer"
 import { useRfqList, useRfqCounts } from "@/hooks/use-rfq-list"
 import { formatRelativeTime } from "@/lib/utils"
 import { cn } from "@/lib/utils"
+import { exportToCsv } from "@/lib/export"
 
 /** State filter options with plain-English labels (C3) and colors. */
 const STATE_FILTERS = [
@@ -101,16 +102,45 @@ export function RfqsPage() {
           )}
         </h2>
 
-        {/* Search input */}
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search shipper, route..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#0F9ED5]/30 focus:border-[#0F9ED5]"
-          />
+        {/* Search + Export */}
+        <div className="flex items-center gap-2">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search shipper, route..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#0F9ED5]/30 focus:border-[#0F9ED5]"
+            />
+          </div>
+          {/* Export CSV button (#108) */}
+          <button
+            onClick={() => {
+              const data = rfqs.data?.rfqs ?? []
+              exportToCsv(
+                data,
+                [
+                  { key: "id", label: "RFQ #" },
+                  { key: "customer_name", label: "Customer" },
+                  { key: "customer_company", label: "Company" },
+                  { key: "origin", label: "Origin" },
+                  { key: "destination", label: "Destination" },
+                  { key: "equipment_type", label: "Equipment" },
+                  { key: "truck_count", label: "Trucks" },
+                  { key: "state_label", label: "Status" },
+                  { key: "created_at", label: "Created" },
+                ],
+                `golteris-rfqs-${new Date().toISOString().slice(0, 10)}`
+              )
+            }}
+            disabled={!rfqs.data?.rfqs.length}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs border rounded-md bg-white hover:bg-muted/50 disabled:opacity-40"
+            title="Download as CSV"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </button>
         </div>
       </div>
 
