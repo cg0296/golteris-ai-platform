@@ -20,7 +20,7 @@ Called by:
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import func
@@ -253,6 +253,128 @@ def count_messages_by_routing(db: Session) -> dict[str, int]:
         .all()
     )
     return {status.value: count for status, count in rows}
+
+
+def get_history_stats(db: Session) -> dict:
+    """
+    Return the four stat strip values for the History view (#30).
+
+    Stats:
+        completed_today (int): RFQs that reached a terminal state today
+        avg_time_to_quote_hours (float): Average hours from RFQ creation to quote_sent
+        approvals_this_week (int): Approvals resolved in the last 7 days
+        time_saved_hours (float): Total agent run duration this week, in hours
+
+    C5 — time_saved uses real agent_run duration_ms (defensible metric).
+    """
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=today_start.weekday())
+
+    # Completed today — RFQs closed today
+    completed_today = (
+        db.query(func.count(RFQ.id))
+        .filter(
+            RFQ.state.in_(TERMINAL_STATES),
+            RFQ.closed_at >= today_start,
+        )
+        .scalar()
+    ) or 0
+
+    # Avg time to quote — average hours from creation to closed_at for quote_sent/won/lost
+    from sqlalchemy import extract
+    avg_query = (
+        db.query(
+            func.avg(
+                func.extract("epoch", RFQ.closed_at) - func.extract("epoch", RFQ.created_at)
+            )
+        )
+        .filter(
+            RFQ.closed_at.isnot(None),
+            RFQ.state.in_([RFQState.WON, RFQState.LOST, RFQState.QUOTE_SENT]),
+        )
+        .scalar()
+    )
+    avg_time_to_quote_hours = round((avg_query or 0) / 3600, 1)
+
+    # Approvals this week
+    approvals_this_week = (
+        db.query(func.count(Approval.id))
+        .filter(
+            Approval.resolved_at >= week_start,
+            Approval.status.in_([ApprovalStatus.APPROVED, ApprovalStatus.REJECTED]),
+        )
+        .scalar()
+    ) or 0
+
+    # Time saved this week (hours) — sum of completed agent run durations
+    total_duration_ms = (
+        db.query(func.coalesce(func.sum(AgentRun.duration_ms), 0))
+        .filter(
+            AgentRun.status == AgentRunStatus.COMPLETED,
+            AgentRun.finished_at >= week_start,
+        )
+        .scalar()
+    ) or 0
+    time_saved_hours = round(total_duration_ms / 3600000, 1)
+
+    return {
+        "completed_today": completed_today,
+        "avg_time_to_quote_hours": avg_time_to_quote_hours,
+        "approvals_this_week": approvals_this_week,
+        "time_saved_hours": time_saved_hours,
+    }
+
+
+def list_closed_rfqs(
+    db: Session,
+    limit: int = 50,
+    offset: int = 0,
+    outcome_filter: Optional[str] = None,
+    period: Optional[str] = None,
+) -> tuple[list[RFQ], int]:
+    """
+    Return closed RFQs (won/lost/cancelled) for the History view (#30).
+
+    Args:
+        db: Database session
+        limit: Max rows
+        offset: Pagination offset
+        outcome_filter: Filter by outcome state (won/lost/cancelled)
+        period: Time range filter (today/week/month)
+
+    Returns:
+        Tuple of (rfq_list, total_count)
+    """
+    base_query = db.query(RFQ).filter(RFQ.state.in_(TERMINAL_STATES))
+
+    if outcome_filter:
+        try:
+            state_enum = RFQState(outcome_filter)
+            base_query = base_query.filter(RFQ.state == state_enum)
+        except ValueError:
+            pass
+
+    if period:
+        now = datetime.utcnow()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        if period == "today":
+            base_query = base_query.filter(RFQ.closed_at >= today_start)
+        elif period == "week":
+            week_start = today_start - timedelta(days=today_start.weekday())
+            base_query = base_query.filter(RFQ.closed_at >= week_start)
+        elif period == "month":
+            month_start = today_start.replace(day=1)
+            base_query = base_query.filter(RFQ.closed_at >= month_start)
+
+    total = base_query.count()
+    rfqs = (
+        base_query
+        .order_by(RFQ.closed_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return rfqs, total
 
 
 def list_pending_approvals(
