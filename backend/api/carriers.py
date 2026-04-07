@@ -128,6 +128,49 @@ def price_rfq(
     }
 
 
+@router.post("/api/rfqs/{rfq_id}/outcome")
+def set_rfq_outcome(
+    rfq_id: int,
+    body: dict,
+    db: Session = Depends(get_db),
+):
+    """
+    Mark an RFQ as Won, Lost, or Cancelled (#100).
+
+    Transitions the RFQ to the terminal state, sets the outcome field,
+    records closed_at, and creates an audit event.
+    """
+    from backend.services.rfq_state_machine import transition_rfq
+    from backend.db.models import RFQState, AuditEvent
+    from datetime import datetime, timezone
+
+    outcome = body.get("outcome", "").lower()
+    if outcome not in ("won", "lost", "cancelled"):
+        raise HTTPException(status_code=400, detail=f"Invalid outcome: {outcome}. Must be won, lost, or cancelled.")
+
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    if not rfq:
+        raise HTTPException(status_code=404, detail=f"RFQ {rfq_id} not found")
+
+    state_map = {"won": RFQState.WON, "lost": RFQState.LOST, "cancelled": RFQState.CANCELLED}
+    target_state = state_map[outcome]
+
+    try:
+        transition_rfq(db, rfq_id, target_state, actor="broker", reason=body.get("reason", f"Marked as {outcome}"))
+    except Exception:
+        # Use override if normal transition isn't allowed from current state
+        from backend.services.rfq_state_machine import override_rfq_state
+        override_rfq_state(db, rfq_id, target_state, actor="broker", reason=body.get("reason", f"Marked as {outcome}"))
+
+    # Set outcome fields
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    rfq.outcome = outcome
+    rfq.closed_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return {"id": rfq_id, "state": outcome, "closed_at": rfq.closed_at.isoformat()}
+
+
 @router.get("/api/rfqs/{rfq_id}/quote-sheet")
 def get_quote_sheet(rfq_id: int, db: Session = Depends(get_db)):
     """
