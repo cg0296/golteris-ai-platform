@@ -33,6 +33,8 @@ from backend.db.models import (
     ApprovalStatus,
     AuditEvent,
     CarrierBid,
+    Message,
+    MessageRoutingStatus,
     RFQ,
     RFQState,
     ReviewQueue,
@@ -184,6 +186,73 @@ def count_rfqs_by_state(db: Session) -> dict[str, int]:
         .all()
     )
     return {state.value: count for state, count in rows}
+
+
+def list_messages(
+    db: Session,
+    limit: int = 50,
+    offset: int = 0,
+    routing_status: Optional[str] = None,
+    search: Optional[str] = None,
+) -> tuple[list[Message], int]:
+    """
+    Return messages sorted by most recently received, with optional filters.
+
+    Used by the Inbox view (#28) to show every inbound message and how
+    Golteris routed it (attached, new_rfq, needs_review, ignored).
+
+    Args:
+        db: Database session
+        limit: Max rows to return
+        offset: Pagination offset
+        routing_status: Filter by routing status (e.g., "attached", "needs_review")
+        search: Search sender or subject (case-insensitive)
+
+    Returns:
+        Tuple of (message_list, total_count)
+    """
+    base_query = db.query(Message)
+
+    if routing_status:
+        try:
+            status_enum = MessageRoutingStatus(routing_status)
+            base_query = base_query.filter(Message.routing_status == status_enum)
+        except ValueError:
+            pass
+
+    if search:
+        search_term = f"%{search}%"
+        base_query = base_query.filter(
+            (Message.sender.ilike(search_term))
+            | (Message.subject.ilike(search_term))
+        )
+
+    total = base_query.count()
+    messages = (
+        base_query
+        .options(joinedload(Message.rfq))
+        .order_by(Message.received_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return messages, total
+
+
+def count_messages_by_routing(db: Session) -> dict[str, int]:
+    """
+    Return message counts grouped by routing_status, for filter pill badges.
+
+    Used by the Inbox view (#28) to show how many messages are in each
+    routing category.
+    """
+    rows = (
+        db.query(Message.routing_status, func.count(Message.id))
+        .filter(Message.routing_status.isnot(None))
+        .group_by(Message.routing_status)
+        .all()
+    )
+    return {status.value: count for status, count in rows}
 
 
 def list_pending_approvals(
