@@ -27,6 +27,10 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 load_dotenv()  # Load .env file for local dev (Graph creds, cost caps, etc.)
 
+# Set up structured JSON logging (#52) — must be before any logger usage
+from backend.logging_config import setup_logging
+setup_logging(os.environ.get("LOG_LEVEL", "INFO"))
+
 from fastapi import FastAPI
 
 logger = logging.getLogger("golteris.web")
@@ -46,6 +50,8 @@ from backend.api.auth import router as auth_router
 from backend.api.chat import router as chat_router
 from backend.api.jobs import router as jobs_router
 from backend.api.dev import router as dev_router
+from backend.api.metrics import router as metrics_router
+from backend.middleware import RequestIdMiddleware
 
 
 @asynccontextmanager
@@ -104,6 +110,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request ID middleware (#52) — generates a unique ID per request for log tracing
+app.add_middleware(RequestIdMiddleware)
+
 
 # ---------------------------------------------------------------------------
 # Health endpoint — used by Render for health checks and by CI for smoke tests.
@@ -138,6 +147,7 @@ app.include_router(workflows_router)
 app.include_router(agent_controls_router)
 app.include_router(chat_router)
 app.include_router(jobs_router)
+app.include_router(metrics_router)
 app.include_router(dev_router)
 @app.get("/api")
 def api_root():

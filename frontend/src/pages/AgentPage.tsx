@@ -24,6 +24,7 @@ import { MemoryTab } from "@/components/agent/MemoryTab"
 import { ScheduleTab } from "@/components/agent/ScheduleTab"
 import { ChatTab } from "@/components/agent/ChatTab"
 import { GuidanceTab } from "@/components/agent/GuidanceTab"
+import { MetricsTab } from "@/components/agent/MetricsTab"
 
 export function AgentPage() {
   return (
@@ -33,8 +34,9 @@ export function AgentPage() {
         Agent
       </h2>
 
-      <Tabs defaultValue="timeline">
-        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-7">
+      <Tabs defaultValue="metrics">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+          <TabsTrigger value="metrics" className="text-xs">Metrics</TabsTrigger>
           <TabsTrigger value="timeline" className="text-xs">Timeline</TabsTrigger>
           <TabsTrigger value="decisions" className="text-xs">Decisions</TabsTrigger>
           <TabsTrigger value="tasks" className="text-xs">Tasks</TabsTrigger>
@@ -44,6 +46,9 @@ export function AgentPage() {
           <TabsTrigger value="guidance" className="text-xs hidden lg:block">Guidance</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="metrics" className="mt-4">
+          <MetricsTab />
+        </TabsContent>
         <TabsContent value="timeline" className="mt-4">
           <TimelineTab />
         </TabsContent>
