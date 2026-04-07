@@ -142,7 +142,7 @@ export function RfqDetailDrawer({ rfqId, onClose }: RfqDetailDrawerProps) {
             {(rankedBids.data?.total ?? 0) > 0 && (
               <div className="mt-6">
                 <Separator className="mb-4" />
-                <RankedBidsSection bids={rankedBids.data?.bids ?? []} />
+                <RankedBidsSection bids={rankedBids.data?.bids ?? []} rfqId={data.id} />
               </div>
             )}
 
@@ -448,8 +448,40 @@ function TimelineSection({ events }: { events: ActivityEvent[] }) {
 }
 
 
-/** Ranked carrier bids section (#34) — shows bids with ranking tags. */
-function RankedBidsSection({ bids }: { bids: RankedBid[] }) {
+/** Ranked carrier bids section (#34, #101) — shows bids with ranking tags and pricing action. */
+function RankedBidsSection({ bids, rfqId }: { bids: RankedBid[]; rfqId: number }) {
+  const [pricingResult, setPricingResult] = useState<Record<string, unknown> | null>(null)
+  const [isPricing, setIsPricing] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const queryClient = useQueryClient()
+
+  const handleSelectBid = async (bidId: number) => {
+    setIsPricing(true)
+    try {
+      const res = await fetch(
+        `${import.meta.env.DEV ? "http://localhost:8001" : ""}/api/rfqs/${rfqId}/price`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ carrier_bid_id: bidId }) }
+      )
+      const data = await res.json()
+      setPricingResult(data)
+      queryClient.invalidateQueries({ queryKey: ["rfq", "detail"] })
+      toast.success("Pricing applied", { description: `Customer rate: $${data.customer_rate?.toLocaleString()}` })
+    } catch { toast.error("Pricing failed") }
+    finally { setIsPricing(false) }
+  }
+
+  const handleGenerateQuote = async () => {
+    setIsGenerating(true)
+    try {
+      await fetch(
+        `${import.meta.env.DEV ? "http://localhost:8001" : ""}/api/rfqs/${rfqId}/generate-quote`,
+        { method: "POST", headers: { "Content-Type": "application/json" } }
+      )
+      queryClient.invalidateQueries()
+      toast.success("Customer quote generated", { description: "Review it in Urgent Actions" })
+    } catch { toast.error("Quote generation failed") }
+    finally { setIsGenerating(false) }
+  }
   const tagStyles: Record<string, string> = {
     best_value: "bg-green-100 text-green-800",
     runner_up: "bg-blue-100 text-blue-800",
@@ -493,21 +525,53 @@ function RankedBidsSection({ bids }: { bids: RankedBid[] }) {
                 <p className="text-xs text-muted-foreground">{bid.availability}</p>
               )}
             </div>
-            <div className="text-right shrink-0 ml-4">
+            <div className="text-right shrink-0 ml-4 space-y-1">
               {bid.rate != null && (
                 <p className="text-sm font-bold text-[#0E2841]">
                   ${bid.rate.toLocaleString()}
                 </p>
               )}
-              {bid.received_at && (
-                <p className="text-xs text-muted-foreground">
-                  {formatRelativeTime(bid.received_at)}
-                </p>
-              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleSelectBid(bid.id)}
+                disabled={isPricing}
+                className="text-xs"
+              >
+                {isPricing ? "..." : "Select & Price"}
+              </Button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Pricing result (#101) */}
+      {pricingResult && (
+        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pricing Applied</p>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground">Carrier Rate</p>
+              <p className="font-medium">${Number(pricingResult.carrier_rate).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Markup</p>
+              <p className="font-medium">${Number(pricingResult.markup_amount).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Customer Rate</p>
+              <p className="font-bold text-[#0E2841]">${Number(pricingResult.customer_rate).toLocaleString()}</p>
+            </div>
+          </div>
+          <Button
+            onClick={handleGenerateQuote}
+            disabled={isGenerating}
+            className="w-full mt-2 bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white"
+          >
+            {isGenerating ? "Generating..." : "Generate Customer Quote"}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
