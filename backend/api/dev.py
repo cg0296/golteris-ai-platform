@@ -48,12 +48,14 @@ router = APIRouter(prefix="/api/dev", tags=["dev"])
 @router.post("/clear")
 def clear_all_data(db: Session = Depends(get_db)):
     """Clear all data without reseeding. Clean slate for live demo."""
+    from backend.db.models import AgentCall
     db.query(Job).delete()
     db.query(ReviewQueue).delete()
     db.query(CarrierRfqSend).delete()
     db.query(CarrierBid).delete()
     db.query(AuditEvent).delete()
     db.query(Approval).delete()
+    db.query(AgentCall).delete()
     db.query(AgentRun).delete()
     db.query(Message).delete()
     db.query(RFQ).delete()
