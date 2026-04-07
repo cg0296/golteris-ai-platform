@@ -624,6 +624,81 @@ class ReviewQueue(Base):
     )
 
 
+class CarrierSendStatus(str, enum.Enum):
+    """Status of an individual carrier RFQ send in a distribution batch."""
+    PENDING_APPROVAL = "pending_approval"  # Awaiting broker approval
+    QUEUED = "queued"                      # Approved, send job enqueued
+    SENT = "sent"                          # Email sent successfully
+    FAILED = "failed"                      # Send failed (bounce, auth error)
+
+
+class Carrier(Base):
+    """
+    Carrier directory — trucking companies that Beltmann sends RFQs to.
+
+    Each carrier has contact info, equipment capabilities, and lane coverage.
+    The distribution service (#32) matches carriers to RFQs based on equipment
+    type and origin/destination lanes. Preferred carriers are shown first.
+    """
+    __tablename__ = "carriers"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False)
+    # Contact info
+    contact_name = Column(String(255))
+    phone = Column(String(50))
+    # Capabilities — JSONB arrays for flexible matching
+    # e.g., ["Dry Van", "Flatbed"] or ["Reefer"]
+    equipment_types = Column(JSONB, default=list)
+    # Lane coverage — JSONB array of {origin, destination} objects
+    # e.g., [{"origin": "Chicago", "destination": "Dallas"}]
+    lanes = Column(JSONB, default=list)
+    # Preferred carrier flag — shown first in selection UI
+    preferred = Column(Boolean, nullable=False, default=False)
+    # Active flag — inactive carriers are hidden from selection
+    active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_carriers_active", "active"),
+    )
+
+
+class CarrierRfqSend(Base):
+    """
+    Tracks individual carrier sends within a distribution batch (#32).
+
+    One row per carrier per RFQ distribution. Links to the approval
+    (C2 gate) and tracks delivery status per carrier.
+    """
+    __tablename__ = "carrier_rfq_sends"
+
+    id = Column(Integer, primary_key=True)
+    rfq_id = Column(Integer, ForeignKey("rfqs.id"), nullable=False)
+    carrier_id = Column(Integer, ForeignKey("carriers.id"), nullable=False)
+    # The approval that gates this send (C2)
+    approval_id = Column(Integer, ForeignKey("approvals.id"), nullable=True)
+    # Per-carrier send status
+    status = Column(
+        Enum(CarrierSendStatus, name="carrier_send_status", create_constraint=True),
+        nullable=False,
+        default=CarrierSendStatus.PENDING_APPROVAL,
+    )
+    # Personalized email content for this carrier
+    email_subject = Column(String(1000))
+    email_body = Column(Text)
+    # Delivery tracking
+    sent_at = Column(DateTime)
+    error_message = Column(Text)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_carrier_rfq_sends_rfq_id", "rfq_id"),
+        Index("ix_carrier_rfq_sends_carrier_id", "carrier_id"),
+    )
+
+
 class Job(Base):
     """
     Postgres-backed job queue for the background worker (#47).

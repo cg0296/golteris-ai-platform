@@ -36,6 +36,7 @@ from backend.db.models import Base
 from backend.api.agent_runs import router as agent_runs_router
 from backend.api.dashboard import router as dashboard_router
 from backend.api.approvals import router as approvals_router
+from backend.api.carriers import router as carriers_router
 from backend.api.dev import router as dev_router
 
 
@@ -123,6 +124,7 @@ def health_check():
 app.include_router(agent_runs_router)
 app.include_router(dashboard_router)
 app.include_router(approvals_router)
+app.include_router(carriers_router)
 app.include_router(dev_router)
 @app.get("/api")
 def api_root():
