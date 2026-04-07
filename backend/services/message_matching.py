@@ -330,6 +330,23 @@ def _apply_match(db: Session, message: Message, result: MatchResult) -> None:
         message.id, result.rfq_id, result.method, result.confidence,
     )
 
+    # Auto-detect carrier replies (#102) — if the RFQ is waiting on carriers
+    # and this message is from an external sender (not the broker), it's likely
+    # a carrier responding with a bid. Enqueue the bid parser.
+    if result.rfq_id:
+        rfq = db.query(RFQ).filter(RFQ.id == result.rfq_id).first()
+        if rfq and rfq.state in (RFQState.WAITING_ON_CARRIERS, RFQState.QUOTES_RECEIVED):
+            # Check it's not from the broker's own address
+            broker_emails = ["jillian@beltmann.com", "agents@golteris.com"]
+            sender_lower = (message.sender or "").lower()
+            if not any(be in sender_lower for be in broker_emails):
+                from backend.worker import enqueue_job
+                enqueue_job(db, "parse_carrier_bid", {"message_id": message.id}, rfq_id=rfq.id)
+                logger.info(
+                    "Message %d looks like a carrier reply for RFQ %d — bid parsing enqueued",
+                    message.id, rfq.id,
+                )
+
 
 def _send_to_review_queue(db: Session, message: Message, result: MatchResult) -> None:
     """
