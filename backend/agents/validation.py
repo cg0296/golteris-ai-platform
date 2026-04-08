@@ -214,6 +214,17 @@ def draft_followup(
     analysis = detect_missing_info(db, rfq_id)
     if not analysis["needs_followup"]:
         logger.info("RFQ %d has all required fields — no follow-up needed", rfq_id)
+        # If the RFQ is still in needs_clarification, promote it and enqueue quote sheet
+        if rfq.state == RFQState.NEEDS_CLARIFICATION:
+            from backend.services.rfq_state_machine import transition_rfq
+            from backend.worker import enqueue_job
+            try:
+                transition_rfq(db, rfq.id, RFQState.READY_TO_QUOTE, actor="validation_agent",
+                              reason="All required fields now present")
+                enqueue_job(db, "quote_sheet", {"rfq_id": rfq.id}, rfq_id=rfq.id)
+                logger.info("RFQ %d promoted to ready_to_quote — quote sheet enqueued", rfq_id)
+            except Exception as e:
+                logger.warning("Could not promote RFQ %d: %s", rfq_id, e)
         return None
 
     # Start an agent run

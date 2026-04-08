@@ -426,6 +426,9 @@ def _update_rfq_from_extraction(
         try:
             transition_rfq(db, rfq.id, RFQState.READY_TO_QUOTE, actor="extraction_agent",
                           reason="Clarification reply filled in missing details")
+            # Refresh the ORM object so the chaining code in extract_rfq()
+            # sees the updated state and enqueues quote_sheet (not validation)
+            db.refresh(rfq)
         except Exception:
             pass
 
