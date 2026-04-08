@@ -147,6 +147,9 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
             {/* Pending actions for this RFQ — approve/reject inline */}
             <RfqPendingActions rfqId={data.id} />
 
+            {/* Reply actions — redraft or manual reply */}
+            <RfqReplyActions rfqId={data.id} customerEmail={data.customer_email} customerName={data.customer_name} />
+
             <Tabs defaultValue="summary" className="mt-2">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="summary" className="text-xs">Summary</TabsTrigger>
@@ -870,6 +873,120 @@ function RfqPendingActions({ rfqId }: { rfqId: number }) {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+
+/** Reply actions — redraft or manual reply when no pending approval exists. */
+function RfqReplyActions({ rfqId, customerEmail, customerName }: { rfqId: number; customerEmail: string | null; customerName: string | null }) {
+  const queryClient = useQueryClient()
+  const [showManual, setShowManual] = useState(false)
+  const [manualTo, setManualTo] = useState(customerEmail ?? "")
+  const [manualSubject, setManualSubject] = useState(`Re: Quote Request — ${customerName ?? ""}`)
+  const [manualBody, setManualBody] = useState("")
+  const [isRedrafting, setIsRedrafting] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+
+  /* Check if there are already pending approvals — if so, don't show these buttons */
+  const approvals = useQuery({
+    queryKey: ["approvals", "rfq-reply-check", rfqId],
+    queryFn: () => api.get<{ approvals: Array<{ rfq_id: number; status: string }>; total: number }>("/api/approvals?status=pending_approval"),
+  })
+  const hasPending = (approvals.data?.approvals ?? []).some((a) => a.rfq_id === rfqId)
+  if (hasPending) return null
+
+  const handleRedraft = async () => {
+    setIsRedrafting(true)
+    try {
+      await api.post(`/api/rfqs/${rfqId}/redraft`)
+      queryClient.invalidateQueries()
+      toast.success("New draft generated — check above")
+    } catch {
+      toast.error("Failed to redraft")
+    } finally {
+      setIsRedrafting(false)
+    }
+  }
+
+  const handleManualSend = async () => {
+    if (!manualTo || !manualBody) return
+    setIsSending(true)
+    try {
+      await api.post(`/api/rfqs/${rfqId}/manual-reply`, {
+        to: manualTo,
+        subject: manualSubject,
+        body: manualBody,
+      })
+      queryClient.invalidateQueries()
+      toast.success("Reply queued for sending")
+      setShowManual(false)
+      setManualBody("")
+    } catch {
+      toast.error("Failed to send")
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  return (
+    <div className="my-3">
+      {showManual ? (
+        <div className="rounded-lg border p-3 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase">Manual Reply</p>
+          <input
+            value={manualTo}
+            onChange={(e) => setManualTo(e.target.value)}
+            placeholder="To"
+            className="w-full px-2 py-1.5 text-sm border rounded-md"
+          />
+          <input
+            value={manualSubject}
+            onChange={(e) => setManualSubject(e.target.value)}
+            placeholder="Subject"
+            className="w-full px-2 py-1.5 text-sm border rounded-md"
+          />
+          <textarea
+            value={manualBody}
+            onChange={(e) => setManualBody(e.target.value)}
+            placeholder="Write your reply..."
+            className="w-full px-2 py-1.5 text-sm border rounded-md min-h-[100px] resize-y"
+          />
+          <div className="flex gap-1.5">
+            <Button
+              size="sm"
+              onClick={handleManualSend}
+              disabled={!manualBody || isSending}
+              className="bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white h-8 px-3"
+            >
+              {isSending ? "Sending..." : <><Send className="h-3.5 w-3.5 mr-1" /> Send Reply</>}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowManual(false)} className="h-8 px-2">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRedraft}
+            disabled={isRedrafting}
+            className="h-8 px-3"
+          >
+            {isRedrafting ? "Drafting..." : "Redraft with AI"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowManual(true)}
+            className="h-8 px-3"
+          >
+            Write Reply
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

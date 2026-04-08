@@ -116,6 +116,70 @@ class PriceRequest(BaseModel):
     override_reason: str | None = None
 
 
+@router.post("/api/rfqs/{rfq_id}/redraft")
+def redraft_rfq(rfq_id: int, db: Session = Depends(get_db)):
+    """
+    Trigger the AI to generate a new draft for this RFQ.
+
+    Used when the broker rejected the previous draft and wants a fresh one.
+    Calls the validation agent to draft a new follow-up.
+    """
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    if not rfq:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="RFQ not found")
+
+    try:
+        from backend.agents.validation import draft_followup
+        result = draft_followup(db, rfq_id)
+        return {"status": "ok", "message": "New draft generated — check Urgent Actions", "result": result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@router.post("/api/rfqs/{rfq_id}/manual-reply")
+def manual_reply(rfq_id: int, body: dict, db: Session = Depends(get_db)):
+    """
+    Send a manual reply for this RFQ (broker-written, not AI-drafted).
+
+    Creates an approval record with the broker's text, auto-approves it,
+    and queues for sending. C2: still goes through the send pipeline.
+    """
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    if not rfq:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="RFQ not found")
+
+    to = body.get("to", rfq.customer_email or "")
+    subject = body.get("subject", f"Re: {rfq.customer_name or 'Quote Request'}")
+    email_body = body.get("body", "")
+
+    if not to or not email_body:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="'to' and 'body' are required")
+
+    # Create an auto-approved approval for the manual reply
+    from backend.db.models import Approval, ApprovalType, ApprovalStatus
+    approval = Approval(
+        rfq_id=rfq_id,
+        approval_type=ApprovalType.CUSTOMER_REPLY,
+        draft_body=email_body,
+        draft_subject=subject,
+        draft_recipient=to,
+        reason="Manual reply by broker",
+        status=ApprovalStatus.APPROVED,
+        approved_by="operator",
+    )
+    db.add(approval)
+    db.commit()
+
+    # Enqueue the send job
+    from backend.worker import enqueue_job
+    enqueue_job(db, "send_outbound_email", {"approval_id": approval.id})
+
+    return {"status": "ok", "message": f"Reply queued for sending to {to}", "approval_id": approval.id}
+
+
 @router.post("/api/rfqs/{rfq_id}/distribute")
 def distribute_rfq(
     rfq_id: int,
