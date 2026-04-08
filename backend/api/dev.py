@@ -366,6 +366,12 @@ def run_migration(db = Depends(get_db)):
     migrations = [
         ("users", "org_id", "ALTER TABLE users ADD COLUMN org_id INTEGER"),
         ("rfqs", "org_id", "ALTER TABLE rfqs ADD COLUMN org_id INTEGER"),
+        ("agent_calls", "provider", "ALTER TABLE agent_calls ADD COLUMN provider VARCHAR(100)"),
+        ("agent_calls", "model", "ALTER TABLE agent_calls ADD COLUMN model VARCHAR(100)"),
+        ("agent_calls", "system_prompt", "ALTER TABLE agent_calls ADD COLUMN system_prompt TEXT"),
+        ("agent_calls", "user_prompt", "ALTER TABLE agent_calls ADD COLUMN user_prompt TEXT"),
+        ("agent_calls", "response", "ALTER TABLE agent_calls ADD COLUMN response TEXT"),
+        ("agent_calls", "error_message", "ALTER TABLE agent_calls ADD COLUMN error_message TEXT"),
     ]
     for table, col, sql in migrations:
         try:
