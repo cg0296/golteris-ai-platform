@@ -388,6 +388,18 @@ def run_migration(db = Depends(get_db)):
     return {"results": results}
 
 
+@router.post("/reset-jobs")
+def reset_stuck_jobs(db = Depends(get_db)):
+    """Reset stuck running jobs back to pending."""
+    from backend.db.models import Job, JobStatus
+    stuck = db.query(Job).filter(Job.status == JobStatus.RUNNING).all()
+    for j in stuck:
+        j.status = JobStatus.PENDING
+        j.started_at = None
+    db.commit()
+    return {"reset": len(stuck)}
+
+
 @router.post("/create-admin")
 def create_admin_user(db = Depends(get_db)):
     """Create admin user without bcrypt dependency check."""
