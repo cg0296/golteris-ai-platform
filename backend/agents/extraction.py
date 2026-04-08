@@ -412,15 +412,29 @@ def _update_rfq_from_extraction(
     if delivery and not rfq.delivery_date:
         rfq.delivery_date = delivery
 
-    # Merge confidence scores
+    # Merge confidence scores — only UPGRADE, never downgrade.
+    # When re-extracting from a short reply like "yea 1 truck", the LLM
+    # can't find origin/destination in that text and returns 0.0 confidence.
+    # Without this guard, those 0.0 scores overwrite the original good scores
+    # from the first extraction, trapping the RFQ in a clarification loop.
     if rfq.confidence_scores and confidence:
-        merged = {**rfq.confidence_scores, **confidence}
+        merged = dict(rfq.confidence_scores)
+        for field_name, new_score in confidence.items():
+            old_score = merged.get(field_name, 0.0)
+            merged[field_name] = max(old_score, new_score)
         rfq.confidence_scores = merged
     elif confidence:
         rfq.confidence_scores = confidence
 
-    # Re-evaluate state — may promote to ready_to_quote
-    new_state = _determine_initial_state(extracted, confidence)
+    # Re-evaluate state using the MERGED confidence (not just the new extraction's)
+    merged_confidence = rfq.confidence_scores or confidence or {}
+    # Build a merged extracted dict that reflects what the RFQ actually has
+    merged_extracted = {}
+    for key in ["origin", "destination", "equipment_type", "truck_count", "commodity", "weight_lbs"]:
+        merged_extracted[key] = getattr(rfq, key, None)
+    merged_extracted["confidence"] = merged_confidence
+
+    new_state = _determine_initial_state(merged_extracted, merged_confidence)
     if new_state == RFQState.READY_TO_QUOTE and rfq.state == RFQState.NEEDS_CLARIFICATION:
         from backend.services.rfq_state_machine import transition_rfq
         try:
