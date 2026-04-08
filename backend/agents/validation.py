@@ -106,17 +106,23 @@ DRAFT_FOLLOWUP_TOOL = ToolDefinition(
 )
 
 
-FOLLOWUP_SYSTEM_PROMPT = """You are a freight broker assistant drafting a follow-up email to a customer whose quote request is missing information.
+FOLLOWUP_SYSTEM_PROMPT = """You are a freight broker drafting a follow-up email to a customer whose quote request is missing information.
 
-Rules:
-- Be professional, friendly, and concise — this is a business email from a logistics broker.
-- Address the customer by name if known.
-- Reference their original request so they know what this is about.
-- Clearly list ONLY the specific missing items — don't ask for information they already provided.
-- If a field was ambiguous (not missing, but unclear), ask for clarification rather than saying it's "missing."
-- Keep the tone helpful, not demanding — "Could you let us know..." not "You failed to provide..."
-- Sign off as the Beltmann team.
-- Do NOT include any internal system language, confidence scores, field names, or technical jargon.
+CRITICAL TONE RULES:
+- Write like a real person, not a corporate template. Short, casual, professional.
+- If this is a FOLLOW-UP reply (the customer already responded once), keep it very short — 2-4 sentences max. No greeting fluff, no "thank you for reaching out", no sign-off block. Just ask the question like you're replying in a quick email thread.
+- Only the FIRST email to a new customer should have a full greeting, context, and sign-off.
+- Never pad with filler like "We'd love to help" or "feel free to reply here or give us a call" — the customer already knows they can reply.
+- Ask for ONLY the specific missing items. Don't re-list what they already provided.
+- Use plain language. "Where's the pickup?" not "Could you share the city and state where the load will be picked up?"
+
+FOLLOW-UP REPLY EXAMPLES (when only 1-2 fields missing):
+  "Got it, thanks! Where's the pickup location?"
+  "Thanks Yonnas — just need the pickup city and we'll get quotes rolling."
+  "Perfect. What's the pickup city/state? We'll get on it."
+
+FIRST EMAIL EXAMPLES (when 3+ fields missing):
+  Keep it to one short paragraph + a bullet list of what's needed. Sign off briefly.
 
 Use the draft_followup_email tool to return your draft."""
 
@@ -217,8 +223,21 @@ def draft_followup(
     )
 
     try:
+        # Check if we've already emailed this customer (follow-up vs first contact).
+        # Follow-ups should be short and conversational, not a full formal email.
+        from backend.db.models import Message, MessageDirection
+        prior_outbound = (
+            db.query(Message)
+            .filter(
+                Message.rfq_id == rfq_id,
+                Message.direction == MessageDirection.OUTBOUND,
+            )
+            .count()
+        )
+        is_followup = prior_outbound > 0
+
         # Build the prompt describing what's missing
-        user_prompt = _build_followup_prompt(rfq, analysis)
+        user_prompt = _build_followup_prompt(rfq, analysis, is_followup)
 
         # Call the LLM to draft the email
         response = call_llm(
@@ -273,7 +292,7 @@ def draft_followup(
         raise
 
 
-def _build_followup_prompt(rfq: RFQ, analysis: dict) -> str:
+def _build_followup_prompt(rfq: RFQ, analysis: dict, is_followup: bool = False) -> str:
     """
     Build the user prompt describing the RFQ and what's missing.
 
@@ -281,6 +300,12 @@ def _build_followup_prompt(rfq: RFQ, analysis: dict) -> str:
     a relevant, personalized follow-up — not a generic template.
     """
     lines = []
+
+    if is_followup:
+        lines.append("THIS IS A FOLLOW-UP REPLY — the customer already responded to a previous email.")
+        lines.append("Keep it SHORT (2-4 sentences). No formal greeting or sign-off. Just ask what's still needed.")
+        lines.append("")
+
     lines.append(f"Customer: {rfq.customer_name or 'Unknown'} ({rfq.customer_email or 'no email'})")
     lines.append(f"Company: {rfq.customer_company or 'Unknown'}")
     lines.append("")
