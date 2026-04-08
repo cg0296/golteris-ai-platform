@@ -116,16 +116,19 @@ class GraphMailboxProvider(MailboxProvider):
             }
 
             # If a specific folder is configured (e.g., "agent-golteris" from an
-            # Outlook rule), only fetch from that folder. Otherwise scan all mail.
+            # Outlook rule), only fetch from that folder. Otherwise fetch from
+            # Inbox only — NOT all folders. Fetching all folders picks up Sent
+            # Items, which causes a feedback loop: outbound replies get re-ingested
+            # as new inbound messages and re-processed by the pipeline.
             if self.mail_folder:
                 folder_id = self._resolve_folder_id(token)
                 if folder_id:
                     url = f"{GRAPH_BASE_URL}/users/{self.user_email}/mailFolders/{folder_id}/messages"
                 else:
-                    logger.warning("Folder '%s' not found — falling back to all messages", self.mail_folder)
-                    url = f"{GRAPH_BASE_URL}/users/{self.user_email}/messages"
+                    logger.warning("Folder '%s' not found — falling back to Inbox", self.mail_folder)
+                    url = f"{GRAPH_BASE_URL}/users/{self.user_email}/mailFolders/inbox/messages"
             else:
-                url = f"{GRAPH_BASE_URL}/users/{self.user_email}/messages"
+                url = f"{GRAPH_BASE_URL}/users/{self.user_email}/mailFolders/inbox/messages"
 
             response = requests.get(
                 url,

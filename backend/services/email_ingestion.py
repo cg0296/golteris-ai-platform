@@ -65,8 +65,23 @@ def ingest_new_messages(
     )
 
     persisted = []
+    # Build set of our own mailbox addresses so we can skip self-sent emails.
+    # When the system sends an outbound reply, it can land back in the same
+    # mailbox (e.g., Sent Items, or delivery loop). Without this filter,
+    # outbound replies get re-ingested as new inbound and re-processed.
+    own_addresses = _get_own_mailbox_addresses(db)
+
     for msg_data in inbound:
         try:
+            # Skip emails FROM our own mailbox — prevents feedback loop
+            # where outbound replies get re-ingested as new inbound messages
+            if _is_from_own_address(msg_data.sender, own_addresses):
+                logger.debug(
+                    "Skipping self-sent email from %s: %s",
+                    msg_data.sender, msg_data.subject,
+                )
+                continue
+
             # Content screening — reject profanity, sexual content, spam
             if _is_inappropriate_content(msg_data):
                 logger.warning(
@@ -212,6 +227,61 @@ def _is_inappropriate_content(msg: InboundMessage) -> bool:
             return True
 
     return False
+
+
+def _get_own_mailbox_addresses(db: Session) -> set[str]:
+    """
+    Collect all email addresses that belong to our own mailboxes.
+
+    Used to filter out self-sent emails so outbound replies don't get
+    re-ingested as new inbound messages (feedback loop prevention).
+
+    Includes:
+    - All active mailbox addresses from the database
+    - The MS_GRAPH_USER_EMAIL env var (legacy config)
+    - The MS_GRAPH_FILTER_RECIPIENT env var (alias address)
+    """
+    addresses = set()
+
+    # From env vars (legacy/fallback config)
+    graph_user = os.environ.get("MS_GRAPH_USER_EMAIL", "")
+    if graph_user:
+        addresses.add(graph_user.lower())
+    graph_filter = os.environ.get("MS_GRAPH_FILTER_RECIPIENT", "")
+    if graph_filter:
+        addresses.add(graph_filter.lower())
+    imap_user = os.environ.get("IMAP_USER", "")
+    if imap_user:
+        addresses.add(imap_user.lower())
+
+    # From database mailboxes
+    try:
+        from backend.db.models import Mailbox
+        mailboxes = db.query(Mailbox).filter(Mailbox.active == True).all()
+        for mb in mailboxes:
+            if mb.email:
+                addresses.add(mb.email.lower())
+    except Exception:
+        pass  # Table might not exist yet
+
+    return addresses
+
+
+def _is_from_own_address(sender: str, own_addresses: set[str]) -> bool:
+    """
+    Check if a message sender matches one of our own mailbox addresses.
+
+    Handles the "Display Name <email>" format that Graph returns.
+    """
+    if not sender or not own_addresses:
+        return False
+
+    # Extract bare email from "Display Name <email>" format
+    import re
+    match = re.search(r'<([^>]+)>', sender)
+    email = (match.group(1) if match else sender).strip().lower()
+
+    return email in own_addresses
 
 
 def get_providers_from_db(db: Session) -> list[MailboxProvider]:
