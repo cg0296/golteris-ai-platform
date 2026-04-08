@@ -194,6 +194,12 @@ class GraphMailboxProvider(MailboxProvider):
             return {"success": False, "message_id": None, "error": "Failed to get Graph access token"}
 
         try:
+            # Extract raw email address — Graph API rejects display name format
+            # like "Name <email>" and needs just the bare address.
+            import re
+            email_match = re.search(r'<([^>]+)>', to)
+            clean_to = email_match.group(1) if email_match else to.strip()
+
             # Build the Graph API sendMail payload
             mail_payload: dict = {
                 "message": {
@@ -203,7 +209,7 @@ class GraphMailboxProvider(MailboxProvider):
                         "content": body,
                     },
                     "toRecipients": [
-                        {"emailAddress": {"address": to}}
+                        {"emailAddress": {"address": clean_to}}
                     ],
                 },
                 "saveToSentItems": True,
