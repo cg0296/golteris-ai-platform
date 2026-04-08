@@ -14,12 +14,15 @@ import { Sidebar } from "@/components/layout/Sidebar"
 import { Topbar } from "@/components/layout/Topbar"
 import { MobileNav } from "@/components/layout/MobileNav"
 import { ChatBubble } from "@/components/layout/ChatBubble"
+import { ActionBar } from "@/components/layout/ActionBar"
 
 /** Map route paths to page titles for the top bar. */
 const pageTitles: Record<string, string> = {
   "/": "Home",
   "/inbox": "Inbox",
   "/rfqs": "RFQs",
+  "/carriers": "Carriers",
+  "/customers": "Customers",
   "/history": "History",
   "/agent": "Agent",
   "/settings": "Settings",
@@ -42,6 +45,9 @@ export default function App() {
           <Outlet />
         </main>
       </div>
+
+      {/* Global action bar (#140) — pending approvals from any page */}
+      <ActionBar />
 
       {/* Global chat bubble (#106) — accessible from every page */}
       <ChatBubble />

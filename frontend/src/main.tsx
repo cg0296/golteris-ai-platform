@@ -25,6 +25,8 @@ import { HistoryPage } from "./pages/HistoryPage"
 import { AgentPage } from "./pages/AgentPage"
 import { SettingsPage } from "./pages/SettingsPage"
 import { AdminPage } from "./pages/AdminPage"
+import { CarriersPage } from "./pages/CarriersPage"
+import { CustomersPage } from "./pages/CustomersPage"
 import "./index.css"
 
 const queryClient = new QueryClient({
@@ -64,6 +66,8 @@ function AuthGate() {
         <Route path="rfqs" element={<RfqsPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="agent" element={<AgentPage />} />
+        <Route path="carriers" element={<CarriersPage />} />
+        <Route path="customers" element={<CustomersPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="admin" element={<AdminPage />} />
       </Route>

@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CarrierSelectModal } from "./CarrierSelectModal"
+import { PipelineProgress } from "./PipelineProgress"
 import { useRfqDetail } from "@/hooks/use-rfq-detail"
 import { useRankedBids, type RankedBid } from "@/hooks/use-ranked-bids"
 import { useQuoteSheet } from "@/hooks/use-quote-sheet"
@@ -138,6 +139,9 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
                 </p>
               )}
             </SheetHeader>
+
+            {/* Pipeline progress indicator (#139) — shows at a glance where this RFQ is */}
+            <PipelineProgress state={data.state} createdAt={data.created_at} />
 
             <Tabs defaultValue="summary" className="mt-2">
               <TabsList className="grid w-full grid-cols-4">
