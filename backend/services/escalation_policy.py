@@ -79,7 +79,12 @@ class EscalationPolicy:
             in markets where city names repeat across states).
     """
     default_threshold: float = DEFAULT_THRESHOLD
-    field_thresholds: dict[str, float] = field(default_factory=dict)
+    # Origin/destination only need city/metro area level — a city name alone
+    # (without state) is still usable for quoting, so threshold is lower.
+    field_thresholds: dict[str, float] = field(default_factory=lambda: {
+        "origin": 0.70,
+        "destination": 0.70,
+    })
 
     def get_threshold(self, field_name: str) -> float:
         """Get the effective threshold for a specific field."""
