@@ -37,6 +37,9 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from backend.db.models import (
+    Approval,
+    ApprovalStatus,
+    ApprovalType,
     AuditEvent,
     Carrier,
     CarrierRfqSend,
@@ -437,6 +440,11 @@ def _apply_match(db: Session, message: Message, result: MatchResult) -> None:
                     "Message %d looks like a carrier reply for RFQ %d — bid parsing enqueued",
                     message.id, rfq.id,
                 )
+            elif rfq.state == RFQState.QUOTE_SENT:
+                # Customer responded to our quote (#145) — transition to
+                # waiting_on_broker so it shows up as needing action, and
+                # create an approval so it appears in Urgent Actions
+                _handle_quote_response(db, rfq, message)
 
 
 def _send_to_review_queue(db: Session, message: Message, result: MatchResult) -> None:
@@ -463,6 +471,67 @@ def _send_to_review_queue(db: Session, message: Message, result: MatchResult) ->
     logger.info(
         "Message %d sent to review queue: %d candidates, reason=%s",
         message.id, len(result.candidates), result.reason,
+    )
+
+
+def _handle_quote_response(db: Session, rfq: RFQ, message: Message) -> None:
+    """
+    Handle a customer reply to a sent quote (#145).
+
+    When the customer responds after we sent them a quote, the broker
+    needs to see it and decide: mark as Won, Lost, or reply back.
+
+    Creates:
+    - State transition to waiting_on_broker
+    - Audit event for the timeline
+    - Approval record so it appears in Urgent Actions
+    """
+    from backend.services.rfq_state_machine import transition_rfq
+
+    # Transition to waiting_on_broker so the RFQ shows as needing action
+    try:
+        transition_rfq(
+            db, rfq.id, RFQState.WAITING_ON_BROKER,
+            actor="matching_service",
+            reason="Customer responded to quote",
+        )
+    except Exception as e:
+        logger.warning("Could not transition RFQ %d to waiting_on_broker: %s", rfq.id, e)
+
+    # Create an approval so it shows in Urgent Actions — the broker
+    # can see the customer's reply and decide next steps
+    # Truncate long reply bodies for the draft preview
+    reply_preview = (message.body or "")[:500]
+    approval = Approval(
+        rfq_id=rfq.id,
+        approval_type=ApprovalType.CUSTOMER_REPLY,
+        draft_body=reply_preview,
+        draft_subject=message.subject or "Customer response",
+        draft_recipient=_extract_email(message.sender) or "",
+        reason="Customer responded to your quote — review and take action",
+        status=ApprovalStatus.PENDING_APPROVAL,
+    )
+    db.add(approval)
+
+    # Audit event for the timeline
+    sender_name = message.sender.split("<")[0].strip() if "<" in (message.sender or "") else message.sender
+    event = AuditEvent(
+        rfq_id=rfq.id,
+        event_type="customer_quote_response",
+        actor="matching_service",
+        description=f"Customer {sender_name} responded to quote — review needed",
+        event_data={
+            "message_id": message.id,
+            "sender": message.sender,
+            "subject": message.subject,
+        },
+    )
+    db.add(event)
+    db.commit()
+
+    logger.info(
+        "RFQ %d: customer responded to quote (message %d) — moved to waiting_on_broker",
+        rfq.id, message.id,
     )
 
 
