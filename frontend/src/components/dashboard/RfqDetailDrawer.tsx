@@ -18,9 +18,9 @@
  */
 
 import { useState, useEffect, useCallback } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQueryClient, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Send, FileText, Mail, ChevronDown, ChevronRight } from "lucide-react"
+import { Send, FileText, Mail, ChevronDown, ChevronRight, Check, X, AlertCircle } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -34,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CarrierSelectModal } from "./CarrierSelectModal"
 import { PipelineProgress } from "./PipelineProgress"
 import { useRfqDetail } from "@/hooks/use-rfq-detail"
+import { api } from "@/lib/api"
 import { useRankedBids, type RankedBid } from "@/hooks/use-ranked-bids"
 import { useQuoteSheet } from "@/hooks/use-quote-sheet"
 import { formatRelativeTime } from "@/lib/utils"
@@ -142,6 +143,9 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
 
             {/* Pipeline progress indicator (#139) — shows at a glance where this RFQ is */}
             <PipelineProgress state={data.state} createdAt={data.created_at} />
+
+            {/* Pending actions for this RFQ — approve/reject inline */}
+            <RfqPendingActions rfqId={data.id} />
 
             <Tabs defaultValue="summary" className="mt-2">
               <TabsList className="grid w-full grid-cols-4">
@@ -709,5 +713,97 @@ function OutcomeButton({
     >
       {isPending ? "..." : label}
     </Button>
+  )
+}
+
+
+/** Pending actions section — shows approvals waiting for this RFQ. */
+function RfqPendingActions({ rfqId }: { rfqId: number }) {
+  const queryClient = useQueryClient()
+  const [actioning, setActioning] = useState<number | null>(null)
+
+  const approvals = useQuery({
+    queryKey: ["approvals", "rfq", rfqId],
+    queryFn: () => api.get<{ approvals: Array<{
+      id: number; approval_type: string; status: string; reason: string | null;
+      draft_subject: string | null; draft_body: string | null; draft_recipient: string | null;
+      rfq_id: number; created_at: string;
+    }>; total: number }>("/api/approvals?status=pending_approval"),
+  })
+
+  const typeLabels: Record<string, string> = {
+    customer_reply: "Customer Reply",
+    carrier_rfq: "Carrier RFQ",
+    customer_quote: "Customer Quote",
+  }
+
+  /* Filter to only approvals for this RFQ */
+  const rfqApprovals = (approvals.data?.approvals ?? []).filter((a) => a.rfq_id === rfqId)
+
+  if (rfqApprovals.length === 0) return null
+
+  const handleAction = async (id: number, action: "approve" | "reject") => {
+    setActioning(id)
+    try {
+      await api.post(`/api/approvals/${id}/${action}`, {
+        approved_by: "operator",
+        reason: action === "reject" ? "Rejected from RFQ detail" : undefined,
+      })
+      queryClient.invalidateQueries()
+      toast.success(action === "approve" ? "Approved and queued for sending" : "Rejected")
+    } catch {
+      toast.error(`Failed to ${action}`)
+    } finally {
+      setActioning(null)
+    }
+  }
+
+  return (
+    <div className="my-3 space-y-2">
+      {rfqApprovals.map((a) => (
+        <div key={a.id} className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                <span className="text-xs font-semibold text-amber-800">
+                  {typeLabels[a.approval_type] ?? a.approval_type} — Needs your approval
+                </span>
+              </div>
+              {a.draft_subject && (
+                <p className="text-xs text-muted-foreground mb-1">To: {a.draft_recipient} · {a.draft_subject}</p>
+              )}
+              {a.draft_body && (
+                <p className="text-sm whitespace-pre-wrap bg-white border rounded p-2 mt-1 max-h-32 overflow-y-auto">
+                  {a.draft_body}
+                </p>
+              )}
+              {a.reason && (
+                <p className="text-xs text-muted-foreground mt-1">{a.reason}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0 pt-1">
+              <Button
+                size="sm"
+                onClick={() => handleAction(a.id, "approve")}
+                disabled={actioning !== null}
+                className="bg-green-600 hover:bg-green-700 text-white h-8 px-3"
+              >
+                {actioning === a.id ? "..." : <><Check className="h-3.5 w-3.5 mr-1" /> Send</>}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleAction(a.id, "reject")}
+                disabled={actioning !== null}
+                className="text-red-600 border-red-300 hover:bg-red-50 h-8 px-2"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
