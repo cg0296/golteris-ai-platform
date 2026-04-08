@@ -151,14 +151,11 @@ class MessageRoutingStatus(str, enum.Enum):
 
 
 class MailboxProviderType(str, enum.Enum):
-    """
-    Supported email provider types for mailbox connections (#48).
-    Each maps to a MailboxProvider implementation in backend/email/.
-    """
-    FILE = "file"           # Seed/demo file provider
-    IMAP = "imap"           # Universal IMAP (any provider)
-    GMAIL = "gmail"         # Gmail API with OAuth
-    GRAPH = "graph"         # Microsoft Graph API with OAuth
+    """Supported email provider types for mailbox connections (#48)."""
+    FILE = "file"
+    IMAP = "imap"
+    GMAIL = "gmail"
+    GRAPH = "graph"
 
 
 class JobStatus(str, enum.Enum):
@@ -177,9 +174,23 @@ class JobStatus(str, enum.Enum):
 # ---------------------------------------------------------------------------
 
 
+class Organization(Base):
+    """Tenant organization for multi-tenant isolation (#55)."""
+    __tablename__ = "organizations"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    slug = Column(String(100), nullable=False, unique=True)
+    settings = Column(JSONB, nullable=False, default=dict)
+    active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    users = relationship("User", back_populates="organization")
+
+
 class User(Base):
     """
-    User accounts for authentication (#54).
+    User accounts for authentication (#54, #55).
 
     Stores login credentials and role. Passwords are hashed with bcrypt.
     Roles control access: owner (full), operator (actions), viewer (read-only).
@@ -187,12 +198,15 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
     email = Column(String(255), nullable=False, unique=True)
     hashed_password = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
-    role = Column(String(50), nullable=False, default="operator")  # owner, operator, viewer
+    role = Column(String(50), nullable=False, default="operator")
     active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    organization = relationship("Organization", back_populates="users")
 
 
 class Workflow(Base):
@@ -242,6 +256,7 @@ class RFQ(Base):
     __tablename__ = "rfqs"
 
     id = Column(Integer, primary_key=True)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
     # Customer / shipper info — extracted from the email or set manually
     customer_name = Column(String(255))
     customer_email = Column(String(255))
@@ -782,49 +797,63 @@ class Job(Base):
     )
 
 
+class AgentMemory(Base):
+    """
+    Learned patterns and preferences from broker-approved drafts (#49).
+
+    When the broker edits a draft before approving, the system compares the
+    original and edited versions to extract style, tone, and vocabulary
+    preferences. These memories are applied to future draft generation to
+    make agents gradually sound more like the broker.
+
+    The broker can review, approve, reject, or delete learned memories
+    from the Agent → Memory view (#40).
+
+    Categories:
+        style — Language patterns (e.g., "Always sign off with 'Best regards'")
+        preference — Broker preferences (e.g., "Prefer flat rates over per-mile")
+        customer — Customer-specific knowledge (e.g., "Tom at Reynolds always needs tarping")
+        lane — Route patterns (e.g., "Chicago to Dallas usually runs $2,800-3,200")
+        pricing — Markup rules (e.g., "15% markup for new customers, 10% for repeat")
+    """
+    __tablename__ = "agent_memories"
+
+    id = Column(Integer, primary_key=True)
+    # Category of the learned pattern
+    category = Column(String(50), nullable=False)  # style, preference, customer, lane, pricing
+    # What was learned — plain English description
+    content = Column(Text, nullable=False)
+    # Where it was learned from — e.g., "Approval #42 — edited draft for Tom Reynolds"
+    source = Column(Text)
+    # Link to the approval that triggered this learning (if applicable)
+    approval_id = Column(Integer, ForeignKey("approvals.id"), nullable=True)
+    # Whether the broker has reviewed and approved this memory
+    # pending = just learned, approved = broker confirmed, rejected = broker dismissed
+    status = Column(String(20), nullable=False, default="pending")
+    # Confidence score (0.0–1.0) — how strongly the system believes this pattern
+    confidence = Column(Numeric(3, 2), default=Decimal("0.80"))
+    # How many times this memory has been applied to drafts
+    times_applied = Column(Integer, nullable=False, default=0)
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Mailbox(Base):
-    """
-    Per-mailbox configuration for email provider connections (#48).
-
-    Each row represents a connected mailbox with its provider type,
-    credentials (encrypted in production), polling interval, and status.
-    Replaces env-var-only provider selection with database-backed config
-    that the broker can manage from Settings.
-
-    The provider factory reads from this table to instantiate the correct
-    MailboxProvider implementation. Env vars still work as a fallback for
-    backwards compatibility and simple deployments.
-
-    Cross-cutting constraints:
-        C1 — active flag controls whether the worker polls this mailbox
-        FR-EI-2 — Supports any email provider via the provider_type enum
-    """
+    """Per-mailbox configuration for email provider connections (#48)."""
     __tablename__ = "mailboxes"
 
     id = Column(Integer, primary_key=True)
-    # Human-readable label (e.g., "Beltmann Main Inbox", "Support Alias")
     name = Column(String(200), nullable=False)
-    # Email address associated with this mailbox
     email = Column(String(500), nullable=False)
-    # Which provider implementation to use
     provider_type = Column(
         Enum(MailboxProviderType, name="mailbox_provider_type", create_constraint=True),
         nullable=False,
     )
-    # Provider-specific config stored as JSONB. Contents vary by provider:
-    #   IMAP: {"host": "...", "port": 993, "username": "...", "password": "...", "folder": "INBOX"}
-    #   Gmail: {"client_id": "...", "client_secret": "...", "refresh_token": "...", "token": "..."}
-    #   Graph: {"tenant_id": "...", "client_id": "...", "client_secret": "...", "user_email": "...", "folder": "...", "filter_recipient": "..."}
-    #   File: {"seed_dir": "seed/beltmann/shipper_emails"}
     config = Column(JSONB, nullable=False, default=dict)
-    # Whether the worker should poll this mailbox (C1 — human control)
     active = Column(Boolean, nullable=False, default=True)
-    # How often to poll in seconds (default: 60s per FR-WK-1)
     poll_interval_seconds = Column(Integer, nullable=False, default=60)
-    # Last time the mailbox was successfully polled
     last_polled_at = Column(DateTime)
-    # Last error message if polling failed
     last_error = Column(Text)
-    # Timestamps
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
