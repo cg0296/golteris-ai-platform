@@ -16,8 +16,10 @@ import {
   Clock,
   Bot,
   Settings,
+  Shield,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/lib/auth"
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
@@ -28,7 +30,13 @@ const navItems = [
   { to: "/settings", icon: Settings, label: "Settings" },
 ]
 
+/** Admin nav item — only visible to admin role users. */
+const adminItem = { to: "/admin", icon: Shield, label: "Admin" }
+
 export function Sidebar() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === "admin" || user?.role === "owner"
+
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-56 bg-[#0E2841] text-white min-h-screen">
       {/* Logo */}
@@ -39,7 +47,7 @@ export function Sidebar() {
 
       {/* Nav items */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {[...navItems, ...(isAdmin ? [adminItem] : [])].map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

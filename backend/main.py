@@ -47,6 +47,7 @@ from backend.api.chat import router as chat_router
 from backend.api.jobs import router as jobs_router
 from backend.api.dev import router as dev_router
 from backend.api.mailboxes import router as mailboxes_router
+from backend.api.admin import router as admin_router
 from backend.api.metrics import router as metrics_router
 from backend.api.summary import router as summary_router
 from backend.api.memories import router as memories_router
@@ -165,6 +166,7 @@ app.include_router(organizations_router)
 app.include_router(metering_router)
 app.include_router(billing_router)
 app.include_router(onboarding_router)
+app.include_router(admin_router)
 @app.get("/api")
 def api_root():
     """

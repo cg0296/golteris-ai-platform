@@ -23,6 +23,7 @@ const pageTitles: Record<string, string> = {
   "/history": "History",
   "/agent": "Agent",
   "/settings": "Settings",
+  "/admin": "Admin",
 }
 
 export default function App() {
