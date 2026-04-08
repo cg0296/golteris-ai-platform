@@ -147,8 +147,8 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
             {/* Pending actions for this RFQ — approve/reject inline */}
             <RfqPendingActions rfqId={data.id} />
 
-            {/* Reply actions — redraft or manual reply (available on all active states) */}
-            {!["won", "lost", "cancelled"].includes(data.state) && (
+            {/* Reply actions — only during clarification exchange with the customer */}
+            {data.state === "needs_clarification" && (
               <RfqReplyActions rfqId={data.id} customerEmail={data.customer_email} customerName={data.customer_name} />
             )}
 
