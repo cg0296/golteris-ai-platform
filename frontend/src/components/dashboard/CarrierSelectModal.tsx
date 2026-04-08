@@ -18,7 +18,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
+import { Plus } from "lucide-react"
 import { useMatchingCarriers, useDistributeRfq } from "@/hooks/use-carriers"
+import { api } from "@/lib/api"
+import { useQueryClient } from "@tanstack/react-query"
 import type { CarrierItem } from "@/hooks/use-carriers"
 
 interface CarrierSelectModalProps {
@@ -28,8 +31,14 @@ interface CarrierSelectModalProps {
 
 export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newName, setNewName] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+  const [newEquipment, setNewEquipment] = useState("")
+  const [adding, setAdding] = useState(false)
   const carriers = useMatchingCarriers(rfqId)
   const distribute = useDistributeRfq()
+  const queryClient = useQueryClient()
 
   const isOpen = rfqId !== null
 
@@ -59,6 +68,38 @@ export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) 
   }
 
   const selectNone = () => setSelectedIds(new Set())
+
+  const handleAddCarrier = async () => {
+    if (!newName.trim() || !newEmail.trim()) return
+    setAdding(true)
+    try {
+      const result = await api.post<{ id: number }>("/api/carriers", {
+        name: newName.trim(),
+        email: newEmail.trim(),
+        equipment_types: newEquipment.trim()
+          ? newEquipment.split(",").map((s) => s.trim())
+          : [],
+      })
+      // Refetch carrier list so the new carrier appears immediately
+      await queryClient.invalidateQueries({ queryKey: ["carriers", "match", rfqId] })
+      // Pre-select the new carrier
+      if (result?.id) {
+        setSelectedIds((prev) => new Set([...prev, result.id]))
+      }
+      // Reset form
+      setNewName("")
+      setNewEmail("")
+      setNewEquipment("")
+      setShowAddForm(false)
+      toast.success(`Added ${newName.trim()}`)
+    } catch (err) {
+      toast.error("Failed to add carrier", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
+    } finally {
+      setAdding(false)
+    }
+  }
 
   const handleDistribute = () => {
     if (!rfqId || selectedIds.size === 0) return
@@ -99,6 +140,56 @@ export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) 
           </p>
         ) : (
           <div className="space-y-3">
+            {/* Add Carrier inline form */}
+            {showAddForm ? (
+              <div className="border rounded-lg p-3 space-y-2 bg-muted/20">
+                <p className="text-xs font-semibold text-muted-foreground uppercase">New Carrier</p>
+                <input
+                  type="text"
+                  placeholder="Carrier name *"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full text-sm border rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]"
+                  autoFocus
+                />
+                <input
+                  type="email"
+                  placeholder="Email address *"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="w-full text-sm border rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]"
+                />
+                <input
+                  type="text"
+                  placeholder="Equipment types (comma-separated, e.g. Flatbed, Reefer)"
+                  value={newEquipment}
+                  onChange={(e) => setNewEquipment(e.target.value)}
+                  className="w-full text-sm border rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleAddCarrier}
+                    disabled={!newName.trim() || !newEmail.trim() || adding}
+                    className="bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white"
+                  >
+                    {adding ? "Adding..." : "Add Carrier"}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowAddForm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="flex items-center gap-1.5 text-xs text-[#0F9ED5] hover:underline"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add a carrier
+              </button>
+            )}
+
             {/* Select all / none */}
             <div className="flex gap-2 text-xs">
               <button onClick={selectAll} className="text-[#0F9ED5] hover:underline">
