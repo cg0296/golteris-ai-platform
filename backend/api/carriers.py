@@ -40,6 +40,51 @@ def get_carriers(db: Session = Depends(get_db)):
     }
 
 
+@router.post("/api/carriers")
+def create_carrier(body: dict, db: Session = Depends(get_db)):
+    """Create a new carrier (#137)."""
+    carrier = Carrier(
+        name=body.get("name", ""),
+        email=body.get("email", ""),
+        contact_name=body.get("contact_name", ""),
+        phone=body.get("phone", ""),
+        equipment_types=body.get("equipment_types", []),
+        lanes=body.get("lanes", []),
+        preferred=body.get("preferred", False),
+    )
+    db.add(carrier)
+    db.commit()
+    db.refresh(carrier)
+    return _serialize_carrier(carrier)
+
+
+@router.patch("/api/carriers/{carrier_id}")
+def update_carrier(carrier_id: int, body: dict, db: Session = Depends(get_db)):
+    """Update a carrier (#137)."""
+    carrier = db.query(Carrier).filter(Carrier.id == carrier_id).first()
+    if not carrier:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Carrier not found")
+    for key in ["name", "email", "contact_name", "phone", "equipment_types", "lanes", "preferred"]:
+        if key in body:
+            setattr(carrier, key, body[key])
+    db.commit()
+    db.refresh(carrier)
+    return _serialize_carrier(carrier)
+
+
+@router.delete("/api/carriers/{carrier_id}")
+def delete_carrier(carrier_id: int, db: Session = Depends(get_db)):
+    """Delete a carrier (#137)."""
+    carrier = db.query(Carrier).filter(Carrier.id == carrier_id).first()
+    if not carrier:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Carrier not found")
+    db.delete(carrier)
+    db.commit()
+    return {"status": "ok"}
+
+
 @router.get("/api/carriers/match/{rfq_id}")
 def get_matching(rfq_id: int, db: Session = Depends(get_db)):
     """

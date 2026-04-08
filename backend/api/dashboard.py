@@ -300,6 +300,51 @@ def get_approvals(
     }
 
 
+@router.get("/api/customers")
+def get_customers(db: Session = Depends(get_db)):
+    """
+    List unique customers derived from RFQ data (#138).
+
+    Groups RFQs by customer_email to build a customer list with
+    RFQ counts, last activity, and state breakdown.
+    """
+    from sqlalchemy import func, case
+
+    results = (
+        db.query(
+            RFQ.customer_email,
+            RFQ.customer_name,
+            RFQ.customer_company,
+            func.count(RFQ.id).label("rfq_count"),
+            func.max(RFQ.created_at).label("last_rfq_at"),
+        )
+        .filter(RFQ.customer_email.isnot(None))
+        .group_by(RFQ.customer_email, RFQ.customer_name, RFQ.customer_company)
+        .order_by(func.max(RFQ.created_at).desc())
+        .all()
+    )
+
+    customers = []
+    for row in results:
+        # Get state counts for this customer
+        state_counts = (
+            db.query(RFQ.state, func.count(RFQ.id))
+            .filter(RFQ.customer_email == row.customer_email)
+            .group_by(RFQ.state)
+            .all()
+        )
+        customers.append({
+            "customer_name": row.customer_name,
+            "customer_email": row.customer_email,
+            "customer_company": row.customer_company,
+            "rfq_count": row.rfq_count,
+            "last_rfq_at": row.last_rfq_at.isoformat() if row.last_rfq_at else None,
+            "states": {s.value: c for s, c in state_counts},
+        })
+
+    return {"customers": customers, "total": len(customers)}
+
+
 @router.get("/api/activity/recent")
 def get_recent_activity(
     limit: int = Query(20, ge=1, le=100, description="Max events to return"),
