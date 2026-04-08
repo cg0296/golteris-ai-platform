@@ -10,7 +10,11 @@ export function cn(...inputs: ClassValue[]) {
  * Uses simple thresholds — no external dependency needed.
  */
 export function formatRelativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
+  // Server returns naive UTC timestamps without a Z suffix. Without the Z,
+  // JavaScript's Date() interprets the string as local time, causing every
+  // timestamp to appear as "just now" for users west of UTC (#149).
+  const utcIso = iso.endsWith("Z") ? iso : iso + "Z"
+  const diff = Date.now() - new Date(utcIso).getTime()
   const seconds = Math.floor(diff / 1000)
   if (seconds < 60) return "just now"
   const minutes = Math.floor(seconds / 60)
