@@ -345,3 +345,32 @@ def reseed_demo_data(db: Session = Depends(get_db)):
             "audit_events": len(events),
         },
     }
+
+
+@router.get("/debug-auth")
+def debug_auth(db = Depends(get_db)):
+    """Temporary debug endpoint to test auth."""
+    try:
+        from backend.db.models import User
+        count = db.query(User).count()
+        return {"user_count": count, "status": "ok"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.post("/create-admin")
+def create_admin_user(db = Depends(get_db)):
+    """Create admin user without bcrypt dependency check."""
+    try:
+        from backend.db.models import User
+        import bcrypt
+        existing = db.query(User).filter(User.email == "curt@golteris.com").first()
+        if existing:
+            return {"status": "exists", "id": existing.id, "role": existing.role}
+        hashed = bcrypt.hashpw(b"admin2026", bcrypt.gensalt()).decode()
+        user = User(email="curt@golteris.com", hashed_password=hashed, name="Curt", role="admin")
+        db.add(user)
+        db.commit()
+        return {"status": "created", "id": user.id}
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
