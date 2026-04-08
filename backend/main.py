@@ -46,6 +46,7 @@ from backend.api.auth import router as auth_router
 from backend.api.chat import router as chat_router
 from backend.api.jobs import router as jobs_router
 from backend.api.dev import router as dev_router
+from backend.api.metering import router as metering_router
 
 
 @asynccontextmanager
@@ -139,6 +140,7 @@ app.include_router(agent_controls_router)
 app.include_router(chat_router)
 app.include_router(jobs_router)
 app.include_router(dev_router)
+app.include_router(metering_router)
 @app.get("/api")
 def api_root():
     """
