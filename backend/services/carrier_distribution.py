@@ -123,10 +123,13 @@ def distribute_to_carriers(
     if not carriers:
         raise ValueError("No valid carriers selected")
 
+    # Get the broker's name for the email signature
+    broker_name = _get_broker_name(db)
+
     # Generate the carrier RFQ email template
     carrier_names = ", ".join(c.name for c in carriers)
     subject = f"RFQ: {rfq.origin} to {rfq.destination} — {rfq.equipment_type}"
-    body_template = _generate_carrier_rfq_body(rfq)
+    body_template = _generate_carrier_rfq_body(rfq, broker_name)
 
     # Create one approval PER carrier with the carrier's actual email address.
     # Each approval gates one outbound send (C2). The broker approves the batch
@@ -190,7 +193,19 @@ def distribute_to_carriers(
     }
 
 
-def _generate_carrier_rfq_body(rfq: RFQ) -> str:
+def _get_broker_name(db: Session) -> str:
+    """Get the active broker's first name for email signatures."""
+    try:
+        from backend.db.models import User
+        user = db.query(User).filter(User.active == True).order_by(User.id.desc()).first()
+        if user and user.name:
+            return user.name.split()[0]
+    except Exception:
+        pass
+    return "Beltmann Logistics"
+
+
+def _generate_carrier_rfq_body(rfq: RFQ, broker_name: str = "Beltmann Logistics") -> str:
     """
     Generate a carrier RFQ email body from RFQ fields.
 
@@ -222,7 +237,8 @@ def _generate_carrier_rfq_body(rfq: RFQ) -> str:
         "",
         "Please reply with your best rate and availability.",
         "",
-        "Thank you,",
+        f"Thank you,",
+        f"{broker_name}",
         "Beltmann Logistics",
     ])
     return "\n".join(lines)

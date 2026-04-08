@@ -116,13 +116,15 @@ CRITICAL TONE RULES:
 - Ask for ONLY the specific missing items. Don't re-list what they already provided.
 - Use plain language. "Where's the pickup?" not "Could you share the city and state where the load will be picked up?"
 
+SIGNATURE: Sign off using the broker name provided in the prompt (e.g., "Thanks, Jillian" or "— Curt"). Do NOT say "The Beltmann Team" — use the real person's name.
+
 FOLLOW-UP REPLY EXAMPLES (when only 1-2 fields missing):
-  "Got it, thanks! Where's the pickup location?"
-  "Thanks Yonnas — just need the pickup city and we'll get quotes rolling."
+  "Got it, thanks! Where's the pickup location? — Jillian"
+  "Thanks Yonnas — just need the pickup city and we'll get quotes rolling. — Curt"
   "Perfect. What's the pickup city/state? We'll get on it."
 
 FIRST EMAIL EXAMPLES (when 3+ fields missing):
-  Keep it to one short paragraph + a bullet list of what's needed. Sign off briefly.
+  Keep it to one short paragraph + a bullet list of what's needed. Sign off with the broker's first name.
 
 Use the draft_followup_email tool to return your draft."""
 
@@ -236,8 +238,12 @@ def draft_followup(
         )
         is_followup = prior_outbound > 0
 
+        # Get the broker's name for the email signature — pulled from the
+        # most recently active user account so emails sign off as a real person
+        broker_name = _get_broker_name(db)
+
         # Build the prompt describing what's missing
-        user_prompt = _build_followup_prompt(rfq, analysis, is_followup)
+        user_prompt = _build_followup_prompt(rfq, analysis, is_followup, broker_name)
 
         # Call the LLM to draft the email
         response = call_llm(
@@ -292,7 +298,30 @@ def draft_followup(
         raise
 
 
-def _build_followup_prompt(rfq: RFQ, analysis: dict, is_followup: bool = False) -> str:
+def _get_broker_name(db: Session) -> str:
+    """
+    Get the name of the active broker user for email signatures.
+
+    Pulls from the users table so emails sign off as a real person
+    (e.g., "— Curt") instead of "The Beltmann Team".
+    """
+    try:
+        from backend.db.models import User
+        user = (
+            db.query(User)
+            .filter(User.active == True)
+            .order_by(User.id.desc())
+            .first()
+        )
+        if user and user.name:
+            # Use first name only for casual sign-off
+            return user.name.split()[0]
+    except Exception:
+        pass
+    return "Beltmann Team"
+
+
+def _build_followup_prompt(rfq: RFQ, analysis: dict, is_followup: bool = False, broker_name: str = "Beltmann Team") -> str:
     """
     Build the user prompt describing the RFQ and what's missing.
 
@@ -303,9 +332,11 @@ def _build_followup_prompt(rfq: RFQ, analysis: dict, is_followup: bool = False) 
 
     if is_followup:
         lines.append("THIS IS A FOLLOW-UP REPLY — the customer already responded to a previous email.")
-        lines.append("Keep it SHORT (2-4 sentences). No formal greeting or sign-off. Just ask what's still needed.")
+        lines.append("Keep it SHORT (2-4 sentences). No formal greeting or sign-off block. Just ask what's still needed.")
         lines.append("")
 
+    lines.append(f"Broker name for signature: {broker_name}")
+    lines.append("")
     lines.append(f"Customer: {rfq.customer_name or 'Unknown'} ({rfq.customer_email or 'no email'})")
     lines.append(f"Company: {rfq.customer_company or 'Unknown'}")
     lines.append("")

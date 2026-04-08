@@ -25,6 +25,7 @@ Called by:
 """
 
 import logging
+import os
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
@@ -149,11 +150,14 @@ def _handle_send_success(
     RFQ's message thread. Creates an AuditEvent so the broker sees
     "Email sent to [recipient]" in the timeline.
     """
-    # Persist the outbound message in the RFQ thread
+    # Persist the outbound message in the RFQ thread.
+    # Use the broker's name + sending address for the sender field.
+    broker_name = _get_broker_name(db)
+    send_address = os.environ.get("MS_GRAPH_USER_EMAIL", "agents@golteris.com")
     outbound_msg = Message(
         rfq_id=approval.rfq_id,
         direction=MessageDirection.OUTBOUND,
-        sender="jillian@beltmann.com",  # The broker's sending identity
+        sender=f"{broker_name} <{send_address}>",
         recipients=to,
         subject=subject,
         body=body,
@@ -180,6 +184,18 @@ def _handle_send_success(
     db.commit()
 
     logger.info("Email sent successfully for approval %d", approval.id)
+
+
+def _get_broker_name(db: Session) -> str:
+    """Get the active broker's first name for outbound message records."""
+    try:
+        from backend.db.models import User
+        user = db.query(User).filter(User.active == True).order_by(User.id.desc()).first()
+        if user and user.name:
+            return user.name.split()[0]
+    except Exception:
+        pass
+    return "Beltmann Logistics"
 
 
 def _handle_send_failure(

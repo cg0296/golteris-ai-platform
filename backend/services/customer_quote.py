@@ -69,9 +69,12 @@ def generate_customer_quote(
     if not rfq.customer_email:
         raise ValueError(f"RFQ {rfq_id} has no customer email address")
 
+    # Get the broker's name for the email signature
+    broker_name = _get_broker_name(db)
+
     # Generate the quote email
     subject = f"Quote: {rfq.origin} to {rfq.destination} — {rfq.equipment_type}"
-    body = _generate_quote_body(rfq)
+    body = _generate_quote_body(rfq, broker_name)
 
     # Create the approval (C2 gate — broker must approve before sending)
     approval = Approval(
@@ -111,7 +114,19 @@ def generate_customer_quote(
     }
 
 
-def _generate_quote_body(rfq: RFQ) -> str:
+def _get_broker_name(db: Session) -> str:
+    """Get the active broker's first name for email signatures."""
+    try:
+        from backend.db.models import User
+        user = db.query(User).filter(User.active == True).order_by(User.id.desc()).first()
+        if user and user.name:
+            return user.name.split()[0]
+    except Exception:
+        pass
+    return "Beltmann Logistics"
+
+
+def _generate_quote_body(rfq: RFQ, broker_name: str = "Jillian") -> str:
     """
     Generate a professional customer-facing quote email (C3 — business language).
 
@@ -151,7 +166,7 @@ def _generate_quote_body(rfq: RFQ) -> str:
         "If you have any questions or need adjustments, please don't hesitate to reach out.",
         "",
         "Best regards,",
-        "Jillian",
+        f"{broker_name}",
         "Beltmann Logistics",
     ])
 
