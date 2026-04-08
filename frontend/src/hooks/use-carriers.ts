@@ -32,9 +32,10 @@ export function useMatchingCarriers(rfqId: number | null) {
 export function useDistributeRfq() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (params: { rfqId: number; carrierIds: number[] }) =>
+    mutationFn: (params: { rfqId: number; carrierIds: number[]; attachQuoteSheet?: boolean }) =>
       api.post(`/api/rfqs/${params.rfqId}/distribute`, {
         carrier_ids: params.carrierIds,
+        attach_quote_sheet: params.attachQuoteSheet ?? false,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["approvals"] })

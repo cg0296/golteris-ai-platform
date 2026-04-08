@@ -115,6 +115,15 @@ def send_approved_email(db: Session, approval_id: int) -> None:
         if original:
             reply_to_message_id = original.message_id_header
 
+    # Check if a quote sheet should be attached (#152)
+    attachment = None
+    if approval.reason and "[ATTACH_QUOTE_SHEET]" in approval.reason and approval.rfq_id:
+        try:
+            attachment = _generate_quote_sheet_attachment(db, approval.rfq_id)
+            logger.info("Quote sheet attachment generated for approval %d", approval_id)
+        except Exception as e:
+            logger.warning("Could not generate quote sheet attachment: %s", e)
+
     # Send via the configured provider
     provider = get_provider_from_config()
     logger.info(
@@ -127,6 +136,7 @@ def send_approved_email(db: Session, approval_id: int) -> None:
         subject=email_subject,
         body=email_body,
         reply_to_message_id=reply_to_message_id,
+        attachment=attachment,
     )
 
     if result["success"]:
@@ -184,6 +194,95 @@ def _handle_send_success(
     db.commit()
 
     logger.info("Email sent successfully for approval %d", approval.id)
+
+
+def _generate_quote_sheet_attachment(db: Session, rfq_id: int) -> dict | None:
+    """
+    Generate an Excel quote sheet as an attachment dict (#152).
+
+    Returns a dict with filename, content_type, and base64-encoded data
+    that the email provider can attach to the outbound email.
+    """
+    import base64
+    from io import BytesIO
+
+    # Reuse the download endpoint logic to generate the Excel bytes
+    from backend.api.carriers import get_quote_sheet
+    from backend.db.models import RFQ
+
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    if not rfq:
+        return None
+
+    try:
+        sheet_response = get_quote_sheet(rfq_id, db)
+    except Exception:
+        return None
+
+    sheet = sheet_response["quote_sheet"]
+    lanes = sheet.get("lanes", [])
+
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    except ImportError:
+        return None
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Quote Sheet"
+
+    # Minimal styling for the attachment
+    header_font = Font(bold=True, size=11)
+    thin_border = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin"),
+    )
+    col_header_fill = PatternFill(start_color="0E2841", end_color="0E2841", fill_type="solid")
+    col_header_font = Font(bold=True, size=11, color="FFFFFF")
+
+    ref_id = sheet.get("reference_id", f"RFQ-{rfq_id}")
+    ws["A1"] = "Carrier Quote Request"
+    ws["A1"].font = Font(bold=True, size=14)
+
+    from datetime import datetime
+    details = [
+        ("Reference:", ref_id),
+        ("Equipment:", rfq.equipment_type or "—"),
+        ("Commodity:", rfq.commodity or "—"),
+        ("Special:", sheet.get("special_requirements", rfq.special_requirements or "None")),
+    ]
+    for row_idx, (label, value) in enumerate(details, 3):
+        ws.cell(row=row_idx, column=1, value=label).font = header_font
+        ws.cell(row=row_idx, column=2, value=str(value))
+
+    # Lane table
+    table_row = len(details) + 4
+    col_headers = ["Lane", "Origin", "Destination", "Commodity", "Weight (lbs)", "# Trucks", "Rate / Amount", "Available (Y/N)"]
+    for col_idx, h in enumerate(col_headers, 1):
+        cell = ws.cell(row=table_row, column=col_idx, value=h)
+        cell.font = col_header_font
+        cell.fill = col_header_fill
+        cell.border = thin_border
+
+    for lane_idx, lane in enumerate(lanes, 1):
+        r = table_row + lane_idx
+        vals = [lane_idx, lane.get("origin", ""), lane.get("destination", ""),
+                lane.get("commodity", ""), lane.get("weight_lbs", ""),
+                lane.get("truck_count", ""), "", ""]
+        for col_idx, val in enumerate(vals, 1):
+            cell = ws.cell(row=r, column=col_idx, value=val)
+            cell.border = thin_border
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    return {
+        "filename": f"{ref_id.replace(' ', '_')}_quote_sheet.xlsx",
+        "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "data_base64": base64.b64encode(buf.read()).decode("utf-8"),
+    }
 
 
 def _get_broker_name(db: Session) -> str:

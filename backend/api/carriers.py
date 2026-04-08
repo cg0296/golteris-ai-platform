@@ -107,6 +107,7 @@ def get_matching(rfq_id: int, db: Session = Depends(get_db)):
 class DistributeRequest(BaseModel):
     """Request body for carrier RFQ distribution."""
     carrier_ids: List[int]
+    attach_quote_sheet: bool = False
 
 
 class PriceRequest(BaseModel):
@@ -193,7 +194,7 @@ def distribute_rfq(
     The broker must approve before any emails are sent.
     """
     try:
-        result = distribute_to_carriers(db, rfq_id, body.carrier_ids)
+        result = distribute_to_carriers(db, rfq_id, body.carrier_ids, attach_quote_sheet=body.attach_quote_sheet)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

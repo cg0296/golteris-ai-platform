@@ -147,8 +147,10 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
             {/* Pending actions for this RFQ — approve/reject inline */}
             <RfqPendingActions rfqId={data.id} />
 
-            {/* Reply actions — redraft or manual reply */}
-            <RfqReplyActions rfqId={data.id} customerEmail={data.customer_email} customerName={data.customer_name} />
+            {/* Reply actions — redraft or manual reply (available on all active states) */}
+            {!["won", "lost", "cancelled"].includes(data.state) && (
+              <RfqReplyActions rfqId={data.id} customerEmail={data.customer_email} customerName={data.customer_name} />
+            )}
 
             <Tabs defaultValue="summary" className="mt-2">
               <TabsList className="grid w-full grid-cols-4">

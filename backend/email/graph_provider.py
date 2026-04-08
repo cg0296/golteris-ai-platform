@@ -171,6 +171,7 @@ class GraphMailboxProvider(MailboxProvider):
         subject: str,
         body: str,
         reply_to_message_id: str | None = None,
+        attachment: dict | None = None,
     ) -> dict:
         """
         Send an email via Microsoft Graph API's /sendMail endpoint (#25).
@@ -218,11 +219,14 @@ class GraphMailboxProvider(MailboxProvider):
                 "saveToSentItems": True,
             }
 
-            # If replying to a thread, use Graph's conversationId-based threading.
-            # Note: Graph API rejects In-Reply-To as a custom header — it requires
-            # custom headers to start with "x-". Thread linking is handled by Graph
-            # automatically when the conversation is in the same mailbox.
-            # We skip the header and let Graph handle threading natively.
+            # Attach file if provided (#152) — Graph API uses base64 attachments
+            if attachment:
+                mail_payload["message"]["attachments"] = [{
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": attachment["filename"],
+                    "contentType": attachment["content_type"],
+                    "contentBytes": attachment["data_base64"],
+                }]
 
             url = f"{GRAPH_BASE_URL}/users/{self.user_email}/sendMail"
             resp = requests.post(

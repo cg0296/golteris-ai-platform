@@ -31,6 +31,7 @@ interface CarrierSelectModalProps {
 
 export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [attachQuoteSheet, setAttachQuoteSheet] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newName, setNewName] = useState("")
   const [newEmail, setNewEmail] = useState("")
@@ -104,7 +105,7 @@ export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) 
   const handleDistribute = () => {
     if (!rfqId || selectedIds.size === 0) return
     distribute.mutate(
-      { rfqId, carrierIds: Array.from(selectedIds) },
+      { rfqId, carrierIds: Array.from(selectedIds), attachQuoteSheet },
       {
         onSuccess: () => {
           toast.success("Carrier RFQs prepared", {
@@ -213,6 +214,17 @@ export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) 
                 onToggle={() => toggleCarrier(carrier.id)}
               />
             ))}
+
+            {/* Attach quote sheet toggle */}
+            <label className="flex items-center gap-2 pt-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={attachQuoteSheet}
+                onChange={(e) => setAttachQuoteSheet(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-[#0F9ED5] focus:ring-[#0F9ED5]"
+              />
+              <span className="text-sm text-muted-foreground">Attach Excel quote sheet to emails</span>
+            </label>
 
             {/* Action */}
             <div className="pt-2">

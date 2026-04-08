@@ -92,6 +92,7 @@ def distribute_to_carriers(
     db: Session,
     rfq_id: int,
     carrier_ids: list[int],
+    attach_quote_sheet: bool = False,
 ) -> dict:
     """
     Create carrier RFQ sends and a batch approval for distribution.
@@ -137,13 +138,16 @@ def distribute_to_carriers(
     approval_ids = []
     send_ids = []
     for carrier in carriers:
+        reason = f"Carrier RFQ to {carrier.name}"
+        if attach_quote_sheet:
+            reason += " [ATTACH_QUOTE_SHEET]"
         approval = Approval(
             rfq_id=rfq.id,
             approval_type=ApprovalType.CARRIER_RFQ,
             draft_body=body_template,
             draft_subject=subject,
             draft_recipient=carrier.email,  # Real email address, not name
-            reason=f"Carrier RFQ to {carrier.name}",
+            reason=reason,
             status=ApprovalStatus.PENDING_APPROVAL,
         )
         db.add(approval)

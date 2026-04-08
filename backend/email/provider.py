@@ -62,6 +62,7 @@ class MailboxProvider(ABC):
         subject: str,
         body: str,
         reply_to_message_id: str | None = None,
+        attachment: dict | None = None,
     ) -> dict:
         """
         Send an outbound email via this provider (#25).

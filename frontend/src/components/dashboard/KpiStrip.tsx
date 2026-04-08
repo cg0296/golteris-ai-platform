@@ -36,8 +36,8 @@ export function KpiStrip({ data, isLoading }: KpiStripProps) {
         icon={AlertCircle}
         value={data.needs_review}
         label="Needs Review"
-        iconBg="bg-red-50"
-        iconColor="text-red-500"
+        iconBg="bg-amber-50"
+        iconColor="text-amber-500"
       />
       <KpiCard
         icon={FileText}
