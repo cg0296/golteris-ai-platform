@@ -405,6 +405,7 @@ def _serialize_approval(approval: Approval) -> dict:
         "rfq_id": approval.rfq_id,
         "approval_type": approval.approval_type.value if approval.approval_type else None,
         "draft_subject": approval.draft_subject,
+        "draft_body": approval.draft_body,
         "draft_recipient": approval.draft_recipient,
         "reason": approval.reason,
         "status": approval.status.value if approval.status else None,

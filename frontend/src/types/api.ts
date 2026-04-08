@@ -42,6 +42,7 @@ export interface ApprovalItem {
   rfq_id: number
   approval_type: string
   draft_subject: string | null
+  draft_body: string | null
   draft_recipient: string | null
   reason: string | null
   status: string
