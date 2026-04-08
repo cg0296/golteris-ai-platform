@@ -67,10 +67,16 @@ def get_processes(db: Session = Depends(get_db)):
 
     # Worker — check if any jobs were processed recently (last 60s)
     last_job = db.query(func.max(Job.finished_at)).scalar()
-    worker_active = last_job and (now - last_job).total_seconds() < 120
+    # Worker status: "running" if recent activity, "idle" if alive but no work, "stopped" if unknown
+    if last_job and (now - last_job).total_seconds() < 120:
+        worker_state = "running"
+    elif last_job:
+        worker_state = "idle"  # Worker exists but hasn't processed recently (no work to do)
+    else:
+        worker_state = "stopped"
     worker_status = {
         "name": "Background Worker",
-        "status": "running" if worker_active else "stopped",
+        "status": worker_state,
         "last_activity": last_job.isoformat() if last_job else None,
         "pid": _worker_pid,
     }
