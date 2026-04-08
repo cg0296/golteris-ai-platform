@@ -358,6 +358,30 @@ def debug_auth(db = Depends(get_db)):
         return {"error": str(e)}
 
 
+@router.post("/migrate")
+def run_migration(db = Depends(get_db)):
+    """Add missing columns to existing tables on Render."""
+    from sqlalchemy import text
+    results = []
+    migrations = [
+        ("users", "org_id", "ALTER TABLE users ADD COLUMN org_id INTEGER"),
+        ("rfqs", "org_id", "ALTER TABLE rfqs ADD COLUMN org_id INTEGER"),
+    ]
+    for table, col, sql in migrations:
+        try:
+            db.execute(text(sql))
+            db.commit()
+            results.append(f"{table}.{col}: added")
+        except Exception as e:
+            db.rollback()
+            err = str(e)
+            if "already exists" in err:
+                results.append(f"{table}.{col}: already exists")
+            else:
+                results.append(f"{table}.{col}: {err[:80]}")
+    return {"results": results}
+
+
 @router.post("/create-admin")
 def create_admin_user(db = Depends(get_db)):
     """Create admin user without bcrypt dependency check."""
