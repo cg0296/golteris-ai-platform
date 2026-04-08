@@ -347,6 +347,86 @@ def reseed_demo_data(db: Session = Depends(get_db)):
     }
 
 
+@router.post("/inject-email")
+def inject_email(body: dict, db: Session = Depends(get_db)):
+    """
+    Inject a fake inbound email into the pipeline for testing (#146).
+
+    Accepts any sender/recipient/subject/body and processes it through
+    the full pipeline — matching, extraction, validation, the whole chain.
+    The system treats it exactly like a real email from the mailbox.
+
+    Body:
+        sender: str — e.g., "Tom Reynolds <tom@reynolds.com>"
+        recipient: str — e.g., "agents@golteris.com" (optional, for logging)
+        subject: str — email subject line
+        body: str — email body text
+        in_reply_to: str — optional, for thread matching
+        thread_id: str — optional, for conversation threading
+
+    Example:
+        curl -X POST https://app.golteris.com/api/dev/inject-email \\
+          -H "Content-Type: application/json" \\
+          -d '{"sender": "Tom <tom@example.com>", "subject": "Need 2 flatbeds", "body": "Chicago to Dallas, 40k lbs steel"}'
+    """
+    from backend.worker import enqueue_job
+
+    sender = body.get("sender", "test@example.com")
+    recipient = body.get("recipient", "agents@golteris.com")
+    subject = body.get("subject", "Test email")
+    email_body = body.get("body", "")
+    in_reply_to = body.get("in_reply_to")
+    thread_id = body.get("thread_id")
+
+    # Check for duplicate by subject + sender (prevent accidental double-inject)
+    existing = (
+        db.query(Message)
+        .filter(Message.sender == sender, Message.subject == subject, Message.body == email_body)
+        .first()
+    )
+    if existing:
+        return {"status": "duplicate", "message_id": existing.id, "note": "Already injected"}
+
+    # Create the message — same as what the email ingestion service does
+    message = Message(
+        sender=sender,
+        recipients=recipient,
+        subject=subject,
+        body=email_body,
+        direction=MessageDirection.INBOUND,
+        in_reply_to=in_reply_to,
+        thread_id=thread_id,
+        routing_status=None,
+        received_at=datetime.utcnow(),
+    )
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    # Audit event
+    db.add(AuditEvent(
+        event_type="email_received",
+        actor="dev_inject",
+        description=f"Test email received from {sender}: {subject}",
+        event_data={"message_id": message.id, "sender": sender, "subject": subject},
+    ))
+    db.commit()
+
+    # Enqueue matching — this kicks off the full pipeline
+    job = enqueue_job(db, "matching", {"message_id": message.id})
+
+    logger.info("Injected test email #%d from %s: %s", message.id, sender, subject)
+
+    return {
+        "status": "injected",
+        "message_id": message.id,
+        "job_id": job.id,
+        "sender": sender,
+        "subject": subject,
+        "note": "Matching job enqueued — pipeline will process this like a real email",
+    }
+
+
 @router.get("/debug-auth")
 def debug_auth(db = Depends(get_db)):
     """Temporary debug endpoint to test auth."""
