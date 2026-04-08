@@ -56,8 +56,8 @@ REQUIRED_FIELDS = ["origin", "destination", "equipment_type", "truck_count", "co
 
 # Human-readable labels for each field — used in review cards (C3)
 FIELD_LABELS = {
-    "origin": "pickup location",
-    "destination": "delivery location",
+    "origin": "pickup city/area",
+    "destination": "delivery city/area",
     "equipment_type": "truck type",
     "truck_count": "number of trucks",
     "commodity": "what's being shipped",

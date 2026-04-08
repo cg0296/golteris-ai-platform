@@ -88,11 +88,11 @@ EXTRACT_RFQ_TOOL = ToolDefinition(
             },
             "origin": {
                 "type": ["string", "null"],
-                "description": "Pickup city and state (e.g., 'Dallas, TX')",
+                "description": "Pickup location — city/state or metro area is sufficient (e.g., 'Dallas, TX' or 'DFW area'). Do NOT require a street address.",
             },
             "destination": {
                 "type": ["string", "null"],
-                "description": "Delivery city and state (e.g., 'Atlanta, GA')",
+                "description": "Delivery location — city/state or metro area is sufficient (e.g., 'Atlanta, GA' or 'Bay Area, CA'). Do NOT require a street address.",
             },
             "equipment_type": {
                 "type": ["string", "null"],
@@ -154,7 +154,7 @@ Instructions:
 - For dates, convert relative references (e.g., "next Tuesday", "tomorrow", "this Friday") to absolute YYYY-MM-DD format. Today's date will be provided.
 - For weight, extract per-truck weight in pounds. If a total weight is given for multiple trucks, divide by truck count.
 - For equipment, normalize to standard types: flatbed, van, reefer, step deck, box truck, tanker, etc.
-- For origin and destination, include city and state. If only a city is given without a state, include only the city and set confidence lower.
+- For origin and destination, city and state is sufficient — do NOT ask for or expect a street address. Metro area names (e.g., "DFW area", "Bay Area") are also acceptable with high confidence. If only a city is given without a state, include the city and set confidence to 0.8 (still usable).
 - Capture ALL special requirements mentioned anywhere in the email: tarping, lift gate, driver unload/assist, inside delivery, temperature requirements, permits, insurance minimums, appointment windows, hazmat, etc.
 - Set confidence scores honestly:
   - 1.0 = field explicitly stated in clear terms

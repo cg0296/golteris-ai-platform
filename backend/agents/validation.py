@@ -59,8 +59,8 @@ logger = logging.getLogger("golteris.agents.validation")
 # ---------------------------------------------------------------------------
 
 REQUIRED_FIELDS = {
-    "origin": "pickup location (city and state)",
-    "destination": "delivery location (city and state)",
+    "origin": "pickup city/metro area",
+    "destination": "delivery city/metro area",
     "equipment_type": "truck/trailer type (flatbed, van, reefer, etc.)",
     "truck_count": "number of trucks needed",
     "commodity": "what is being shipped",
