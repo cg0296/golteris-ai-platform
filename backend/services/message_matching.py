@@ -100,6 +100,15 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
         logger.error("Message %d not found", message_id)
         return MatchResult(reason="Message not found")
 
+    # Strategy 0: RFQ reference tag in subject (most reliable).
+    # Outbound emails include [RFQ-42] in the subject. When the recipient
+    # replies, the tag carries over in the Re: subject. This is a
+    # deterministic match that works even when thread headers are lost.
+    result = _try_rfq_tag_match(db, message)
+    if result.rfq_id:
+        _apply_match(db, message, result)
+        return result
+
     # Strategy 1: Thread matching (deterministic, highest priority)
     result = _try_thread_match(db, message)
     if result.rfq_id:
@@ -204,6 +213,40 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
     enqueue_job(db, "extraction", {"message_id": message.id})
     logger.info("Message %d: no match — new RFQ, extraction job enqueued", message_id)
     return result
+
+
+def _try_rfq_tag_match(db: Session, message: Message) -> MatchResult:
+    """
+    Try to match via [RFQ-{id}] tag in the subject line.
+
+    All outbound emails include a reference tag like [RFQ-42] in the subject.
+    When the recipient replies, email clients preserve it in the Re: subject.
+    This gives us a deterministic match that doesn't depend on thread headers
+    or sender lookup — just a simple regex on the subject.
+    """
+    subject = message.subject or ""
+    match = re.search(r'\[RFQ-(\d+)\]', subject)
+    if not match:
+        return MatchResult()
+
+    rfq_id = int(match.group(1))
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+
+    if not rfq:
+        logger.warning("Message %d has [RFQ-%d] tag but RFQ not found", message.id, rfq_id)
+        return MatchResult()
+
+    if rfq.state in TERMINAL_STATES:
+        logger.info("Message %d has [RFQ-%d] tag but RFQ is %s — skipping", message.id, rfq_id, rfq.state.value)
+        return MatchResult()
+
+    return MatchResult(
+        rfq_id=rfq_id,
+        confidence=0.99,
+        method="rfq_tag",
+        reason=f"Subject contains [RFQ-{rfq_id}] reference tag",
+        routing_status=MessageRoutingStatus.ATTACHED,
+    )
 
 
 def _try_thread_match(db: Session, message: Message) -> MatchResult:

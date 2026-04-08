@@ -85,6 +85,13 @@ def send_approved_email(db: Session, approval_id: int) -> None:
     email_subject = approval.draft_subject or "(no subject)"
     email_to = approval.draft_recipient
 
+    # Inject RFQ reference tag into the subject so replies carry it back.
+    # This gives the matching service a deterministic way to link replies
+    # to the correct RFQ, even when thread headers are lost or the sender
+    # has multiple active RFQs. Format: [RFQ-42] at the end of the subject.
+    if approval.rfq_id and f"[RFQ-{approval.rfq_id}]" not in email_subject:
+        email_subject = f"{email_subject} [RFQ-{approval.rfq_id}]"
+
     if not email_to:
         logger.error("Send job for approval %d: no recipient", approval_id)
         _create_failure_event(
