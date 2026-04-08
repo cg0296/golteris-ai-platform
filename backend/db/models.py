@@ -769,3 +769,45 @@ class Job(Base):
         Index("ix_jobs_status_created", "status", "created_at"),
         Index("ix_jobs_rfq_id", "rfq_id"),
     )
+
+
+class AgentMemory(Base):
+    """
+    Learned patterns and preferences from broker-approved drafts (#49).
+
+    When the broker edits a draft before approving, the system compares the
+    original and edited versions to extract style, tone, and vocabulary
+    preferences. These memories are applied to future draft generation to
+    make agents gradually sound more like the broker.
+
+    The broker can review, approve, reject, or delete learned memories
+    from the Agent → Memory view (#40).
+
+    Categories:
+        style — Language patterns (e.g., "Always sign off with 'Best regards'")
+        preference — Broker preferences (e.g., "Prefer flat rates over per-mile")
+        customer — Customer-specific knowledge (e.g., "Tom at Reynolds always needs tarping")
+        lane — Route patterns (e.g., "Chicago to Dallas usually runs $2,800-3,200")
+        pricing — Markup rules (e.g., "15% markup for new customers, 10% for repeat")
+    """
+    __tablename__ = "agent_memories"
+
+    id = Column(Integer, primary_key=True)
+    # Category of the learned pattern
+    category = Column(String(50), nullable=False)  # style, preference, customer, lane, pricing
+    # What was learned — plain English description
+    content = Column(Text, nullable=False)
+    # Where it was learned from — e.g., "Approval #42 — edited draft for Tom Reynolds"
+    source = Column(Text)
+    # Link to the approval that triggered this learning (if applicable)
+    approval_id = Column(Integer, ForeignKey("approvals.id"), nullable=True)
+    # Whether the broker has reviewed and approved this memory
+    # pending = just learned, approved = broker confirmed, rejected = broker dismissed
+    status = Column(String(20), nullable=False, default="pending")
+    # Confidence score (0.0–1.0) — how strongly the system believes this pattern
+    confidence = Column(Numeric(3, 2), default=Decimal("0.80"))
+    # How many times this memory has been applied to drafts
+    times_applied = Column(Integer, nullable=False, default=0)
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
