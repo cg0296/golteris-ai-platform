@@ -345,6 +345,127 @@ def get_quote_sheet(rfq_id: int, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/api/rfqs/{rfq_id}/quote-sheet/download")
+def download_quote_sheet_excel(rfq_id: int, db: Session = Depends(get_db)):
+    """
+    Download the quote sheet as an Excel (.xlsx) file for carrier distribution (#144).
+
+    Header section: reference, dates, lane count, equipment, commodity, special instructions.
+    Lane table: origin, dest, commodity, weight, trucks, plus empty Rate and Available columns.
+    """
+    from io import BytesIO
+    from datetime import datetime
+    from fastapi.responses import StreamingResponse
+
+    # Reuse the existing quote-sheet endpoint logic to get the data
+    sheet_response = get_quote_sheet(rfq_id, db)
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    sheet = sheet_response["quote_sheet"]
+    lanes = sheet.get("lanes", [])
+
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    except ImportError:
+        raise HTTPException(status_code=500, detail="openpyxl not installed")
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Quote Sheet"
+
+    # -- Styles --
+    header_font = Font(bold=True, size=14)
+    label_font = Font(bold=True, size=11)
+    value_font = Font(size=11)
+    col_header_font = Font(bold=True, size=11, color="FFFFFF")
+    col_header_fill = PatternFill(start_color="0E2841", end_color="0E2841", fill_type="solid")
+    thin_border = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin"),
+    )
+
+    # -- Header Section --
+    ws.merge_cells("A1:H1")
+    ws["A1"] = "Carrier Quote Request"
+    ws["A1"].font = Font(bold=True, size=16)
+
+    ref_id = sheet.get("reference_id", f"RFQ-{rfq_id}")
+    details = [
+        ("Reference:", ref_id),
+        ("Generated:", datetime.utcnow().strftime("%B %d, %Y")),
+        ("Requested Due:", sheet.get("response_deadline", "ASAP")),
+        ("Number of Lanes:", len(lanes)),
+        ("Equipment:", rfq.equipment_type or "—"),
+        ("Commodity:", rfq.commodity or "—"),
+        ("Special Instructions:", sheet.get("special_requirements", rfq.special_requirements or "None")),
+    ]
+
+    row = 3
+    for label, value in details:
+        ws.cell(row=row, column=1, value=label).font = label_font
+        ws.cell(row=row, column=2, value=str(value)).font = value_font
+        row += 1
+
+    # Summary line
+    row += 1
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
+    ws.cell(row=row, column=1, value=sheet.get("summary", "")).font = Font(italic=True, size=11)
+
+    # -- Lane Table --
+    row += 2
+    col_headers = ["Lane", "Origin", "Destination", "Commodity", "Weight (lbs)", "# Trucks", "Rate / Amount", "Available (Y/N)"]
+    col_widths = [8, 22, 22, 18, 15, 12, 16, 16]
+
+    for col_idx, header in enumerate(col_headers, 1):
+        cell = ws.cell(row=row, column=col_idx, value=header)
+        cell.font = col_header_font
+        cell.fill = col_header_fill
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = thin_border
+        ws.column_dimensions[cell.column_letter].width = col_widths[col_idx - 1]
+
+    row += 1
+    for lane_idx, lane in enumerate(lanes, 1):
+        values = [
+            lane_idx,
+            lane.get("origin", ""),
+            lane.get("destination", ""),
+            lane.get("commodity", ""),
+            lane.get("weight_lbs", ""),
+            lane.get("truck_count", ""),
+            "",  # Rate — empty for carrier to fill
+            "",  # Available — empty for carrier to fill
+        ]
+        for col_idx, val in enumerate(values, 1):
+            cell = ws.cell(row=row, column=col_idx, value=val)
+            cell.border = thin_border
+            cell.font = value_font
+            if col_idx in (1, 5, 6):
+                cell.alignment = Alignment(horizontal="center")
+            # Highlight the empty input columns with a light yellow background
+            if col_idx >= 7:
+                cell.fill = PatternFill(start_color="FFFDE7", end_color="FFFDE7", fill_type="solid")
+        row += 1
+
+    # Notes row
+    if sheet.get("notes"):
+        row += 1
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
+        ws.cell(row=row, column=1, value=f"Notes: {sheet['notes']}").font = Font(italic=True, size=10)
+
+    # Write to buffer and return
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    filename = f"{ref_id.replace(' ', '_')}_quote_sheet.xlsx"
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.post("/api/rfqs/{rfq_id}/generate-quote")
 def generate_quote(
     rfq_id: int,

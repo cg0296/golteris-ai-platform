@@ -20,7 +20,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useQueryClient, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Send, FileText, Mail, ChevronDown, ChevronRight, Check, X, AlertCircle } from "lucide-react"
+import { Send, FileText, Mail, ChevronDown, ChevronRight, Check, X, AlertCircle, Download } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -203,14 +203,35 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Quote Sheet
                     </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowQuoteSheet(!showQuoteSheet)}
-                    >
-                      <FileText className="h-3.5 w-3.5 mr-1.5" />
-                      {showQuoteSheet ? "Hide" : "View Quote Sheet"}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          fetch(`/api/rfqs/${rfqId}/quote-sheet/download`)
+                            .then(res => res.blob())
+                            .then(blob => {
+                              const url = URL.createObjectURL(blob)
+                              const a = document.createElement("a")
+                              a.href = url
+                              a.download = `RFQ-${rfqId}_quote_sheet.xlsx`
+                              a.click()
+                              URL.revokeObjectURL(url)
+                            })
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5 mr-1.5" />
+                        Download Excel
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowQuoteSheet(!showQuoteSheet)}
+                      >
+                        <FileText className="h-3.5 w-3.5 mr-1.5" />
+                        {showQuoteSheet ? "Hide" : "View Quote Sheet"}
+                      </Button>
+                    </div>
                   </div>
                   {showQuoteSheet && (
                     <div className="bg-muted/30 border rounded-lg p-4 text-sm space-y-2">
