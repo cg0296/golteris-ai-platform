@@ -115,6 +115,8 @@ app.add_middleware(
         "http://localhost:3000",   # Alternative React dev port
         "http://localhost:8000",   # Same-origin (for completeness)
         "http://localhost:8001",   # Alternative backend dev port
+        "https://app.golteris.com",  # Production
+        "https://golteris-web.onrender.com",  # Render direct
     ],
     allow_credentials=True,
     allow_methods=["*"],
