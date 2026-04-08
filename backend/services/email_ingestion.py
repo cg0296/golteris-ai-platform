@@ -67,6 +67,14 @@ def ingest_new_messages(
     persisted = []
     for msg_data in inbound:
         try:
+            # Content screening — reject profanity, sexual content, spam
+            if _is_inappropriate_content(msg_data):
+                logger.warning(
+                    "Blocked inappropriate email from %s: %s",
+                    msg_data.sender, msg_data.subject,
+                )
+                continue
+
             message = _persist_message(db, msg_data)
             if message:
                 # Enqueue matching job — the worker will dispatch to the
@@ -171,6 +179,39 @@ def _log_ingestion_event(db: Session, message: Message) -> None:
     )
     db.add(event)
     db.commit()
+
+
+def _is_inappropriate_content(msg: InboundMessage) -> bool:
+    """
+    Screen inbound emails for profanity, sexual content, and obvious spam/pranks.
+
+    Returns True if the message should be blocked (not ingested into the app).
+    Checks subject and body against a blocklist of inappropriate terms.
+    """
+    # Combine subject and body for scanning
+    text = f"{msg.subject or ''} {msg.body or ''}".lower()
+
+    # Blocklist — common profanity, sexual terms, and spam indicators.
+    # This is a simple keyword filter. For production, consider a proper
+    # content moderation API (OpenAI moderation, Perspective API, etc.)
+    blocklist = [
+        # Profanity
+        "fuck", "shit", "bitch", "asshole", "bastard", "damn", "crap",
+        "dick", "piss", "cunt", "motherfucker", "bullshit",
+        # Sexual content
+        "porn", "xxx", "nude", "naked", "sex video", "onlyfans",
+        "viagra", "cialis", "erectile",
+        # Common spam/scam patterns
+        "nigerian prince", "you have won", "claim your prize",
+        "bitcoin giveaway", "double your money", "act now",
+        "wire transfer immediately",
+    ]
+
+    for term in blocklist:
+        if term in text:
+            return True
+
+    return False
 
 
 def get_providers_from_db(db: Session) -> list[MailboxProvider]:
