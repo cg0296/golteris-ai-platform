@@ -166,22 +166,51 @@ class JobStatus(str, enum.Enum):
 # ---------------------------------------------------------------------------
 
 
+class Organization(Base):
+    """
+    Tenant organization for multi-tenant isolation (#55).
+
+    Every business entity (broker) has one organization. All data (RFQs,
+    messages, approvals, etc.) is scoped to an organization via org_id.
+    Users belong to an organization and can only see data within their org.
+
+    Cross-cutting constraints:
+        C6 → NFR-SE-4: org_id on every row, app-level enforcement
+    """
+    __tablename__ = "organizations"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    slug = Column(String(100), nullable=False, unique=True)
+    # Organization-level settings (cost caps, workflow defaults, branding)
+    settings = Column(JSONB, nullable=False, default=dict)
+    active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    users = relationship("User", back_populates="organization")
+
+
 class User(Base):
     """
-    User accounts for authentication (#54).
+    User accounts for authentication (#54, #55).
 
     Stores login credentials and role. Passwords are hashed with bcrypt.
     Roles control access: owner (full), operator (actions), viewer (read-only).
+    Each user belongs to an organization for multi-tenant isolation (#55).
     """
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
+    # Organization this user belongs to (#55 — nullable for backwards compat)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
     email = Column(String(255), nullable=False, unique=True)
     hashed_password = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
     role = Column(String(50), nullable=False, default="operator")  # owner, operator, viewer
     active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    organization = relationship("Organization", back_populates="users")
 
 
 class Workflow(Base):
@@ -231,6 +260,8 @@ class RFQ(Base):
     __tablename__ = "rfqs"
 
     id = Column(Integer, primary_key=True)
+    # Organization scope (#55 — nullable for backwards compat with single-tenant data)
+    org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
     # Customer / shipper info — extracted from the email or set manually
     customer_name = Column(String(255))
     customer_email = Column(String(255))
