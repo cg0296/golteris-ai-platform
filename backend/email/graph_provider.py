@@ -306,13 +306,26 @@ class GraphMailboxProvider(MailboxProvider):
             # Subject
             subject = raw.get("subject", "")
 
-            # Body — prefer text content, Graph returns HTML by default
+            # Body — prefer text content, Graph returns HTML by default.
+            # HTML emails need: block elements → newlines, tag stripping,
+            # then entity decoding (&nbsp; → space, &lt; → <, etc.)
             body_data = raw.get("body", {})
             body = body_data.get("content", "")
             if body_data.get("contentType") == "html":
-                # Strip HTML tags for plain text extraction
+                import html as html_module
                 import re
+                # Insert newlines before block-level elements so the plain
+                # text output has readable paragraph/line breaks
+                body = re.sub(r"<br\s*/?>", "\n", body, flags=re.IGNORECASE)
+                body = re.sub(r"</(div|p|tr|li|blockquote|h[1-6])>", "\n", body, flags=re.IGNORECASE)
+                # Strip all remaining HTML tags
                 body = re.sub(r"<[^>]+>", "", body)
+                # Decode HTML entities: &nbsp; → space, &lt; → <, &amp; → &, etc.
+                body = html_module.unescape(body)
+                # Collapse runs of whitespace on the same line (but preserve newlines)
+                body = re.sub(r"[^\S\n]+", " ", body)
+                # Collapse 3+ consecutive newlines into 2
+                body = re.sub(r"\n{3,}", "\n\n", body)
                 body = body.strip()
 
             # Thread metadata
