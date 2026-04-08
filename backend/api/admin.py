@@ -342,3 +342,113 @@ def _count_fields(rfq: RFQ) -> int:
     fields = [rfq.customer_name, rfq.origin, rfq.destination, rfq.equipment_type,
               rfq.commodity, rfq.weight_lbs, rfq.truck_count, rfq.pickup_date]
     return sum(1 for f in fields if f is not None)
+
+
+# ---------------------------------------------------------------------------
+# Graph webhook subscription management (#133)
+# ---------------------------------------------------------------------------
+
+# In-memory subscription tracking (persisted to DB in a future iteration)
+_graph_subscription: Optional[dict] = None
+
+
+@router.post("/graph/subscribe")
+def create_graph_subscription(db: Session = Depends(get_db)):
+    """
+    Create a Microsoft Graph webhook subscription for real-time email push.
+
+    Requires a publicly accessible HTTPS URL. On Render, this is automatic.
+    For local dev, use a tunnel (ngrok) and set GRAPH_WEBHOOK_URL env var.
+    """
+    global _graph_subscription
+
+    webhook_url = os.environ.get("GRAPH_WEBHOOK_URL", "")
+    if not webhook_url:
+        return {
+            "status": "error",
+            "message": "GRAPH_WEBHOOK_URL not set. Set it to your public URL + /api/webhooks/graph (e.g., https://app.golteris.com/api/webhooks/graph)",
+        }
+
+    from backend.services.graph_subscriptions import create_subscription
+    from backend.api.webhooks import GRAPH_WEBHOOK_SECRET
+
+    sub = create_subscription(webhook_url, client_state=GRAPH_WEBHOOK_SECRET)
+    if sub:
+        _graph_subscription = sub
+        return {
+            "status": "ok",
+            "message": "Graph webhook subscription created",
+            "subscription": {
+                "id": sub.get("id"),
+                "resource": sub.get("resource"),
+                "expiration": sub.get("expirationDateTime"),
+            },
+        }
+    else:
+        return {"status": "error", "message": "Failed to create subscription — check server logs"}
+
+
+@router.delete("/graph/subscribe")
+def delete_graph_subscription():
+    """Delete the active Graph webhook subscription (stop push notifications)."""
+    global _graph_subscription
+
+    if not _graph_subscription:
+        return {"status": "error", "message": "No active subscription"}
+
+    from backend.services.graph_subscriptions import delete_subscription
+
+    sub_id = _graph_subscription.get("id", "")
+    if delete_subscription(sub_id):
+        _graph_subscription = None
+        return {"status": "ok", "message": "Subscription deleted — falling back to polling"}
+    else:
+        return {"status": "error", "message": "Failed to delete subscription"}
+
+
+@router.get("/graph/subscribe")
+def get_graph_subscription_status():
+    """Get the current Graph webhook subscription status."""
+    global _graph_subscription
+
+    if not _graph_subscription:
+        return {
+            "active": False,
+            "mode": "polling",
+            "message": "No webhook subscription — using poll mode",
+        }
+
+    from backend.services.graph_subscriptions import needs_renewal
+
+    expiry = _graph_subscription.get("expirationDateTime", "")
+    return {
+        "active": True,
+        "mode": "webhook",
+        "subscription_id": _graph_subscription.get("id"),
+        "resource": _graph_subscription.get("resource"),
+        "expiration": expiry,
+        "needs_renewal": needs_renewal(expiry) if expiry else True,
+    }
+
+
+@router.post("/graph/renew")
+def renew_graph_subscription():
+    """Renew the Graph webhook subscription before it expires."""
+    global _graph_subscription
+
+    if not _graph_subscription:
+        return {"status": "error", "message": "No active subscription to renew"}
+
+    from backend.services.graph_subscriptions import renew_subscription
+
+    sub_id = _graph_subscription.get("id", "")
+    renewed = renew_subscription(sub_id)
+    if renewed:
+        _graph_subscription = renewed
+        return {
+            "status": "ok",
+            "message": "Subscription renewed",
+            "expiration": renewed.get("expirationDateTime"),
+        }
+    else:
+        return {"status": "error", "message": "Renewal failed — may need to recreate"}
