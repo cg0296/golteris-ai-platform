@@ -38,6 +38,9 @@ from sqlalchemy.orm import Session
 
 from backend.db.models import (
     AuditEvent,
+    Carrier,
+    CarrierRfqSend,
+    CarrierSendStatus,
     Message,
     MessageRoutingStatus,
     ReviewQueue,
@@ -124,6 +127,38 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
             _apply_match(db, message, result)
             return result
 
+        if len(scored) == 1:
+            # Single sender match below threshold — check if the RFQ is
+            # awaiting clarification. If so, this is almost certainly the
+            # reply to our clarification email. Auto-attach it because:
+            # 1. Thread matching fails (outbound messages don't store
+            #    message_id_header, so in_reply_to can't find the parent)
+            # 2. Context scoring can't boost the score because the RFQ
+            #    fields are empty (that's WHY clarification was needed)
+            rfq = db.query(RFQ).filter(RFQ.id == best.rfq_id).first()
+            if rfq and rfq.state == RFQState.NEEDS_CLARIFICATION:
+                result = MatchResult(
+                    rfq_id=best.rfq_id,
+                    confidence=0.90,
+                    method="clarification_reply",
+                    reason=f"Reply from same sender while RFQ #{best.rfq_id} awaits clarification",
+                    candidates=scored,
+                    routing_status=MessageRoutingStatus.ATTACHED,
+                )
+                _apply_match(db, message, result)
+                return result
+
+            # Single sender match, not a clarification reply — review queue
+            result = MatchResult(
+                confidence=best.score,
+                method="weak_sender",
+                reason=f"Single sender match but confidence {best.score:.2f} below threshold",
+                candidates=scored,
+                routing_status=MessageRoutingStatus.NEEDS_REVIEW,
+            )
+            _send_to_review_queue(db, message, result)
+            return result
+
         if len(scored) > 1:
             # Multiple candidates, none strong enough — review queue (FR-EI-4)
             result = MatchResult(
@@ -136,16 +171,21 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
             _send_to_review_queue(db, message, result)
             return result
 
-        # Single weak match — review queue
-        result = MatchResult(
-            confidence=best.score,
-            method="weak_sender",
-            reason=f"Single sender match but confidence {best.score:.2f} below threshold",
-            candidates=scored,
-            routing_status=MessageRoutingStatus.NEEDS_REVIEW,
-        )
-        _send_to_review_queue(db, message, result)
+        # Shouldn't reach here, but safety fallback
+        _send_to_review_queue(db, message, MatchResult(
+            confidence=best.score, method="unknown", reason="Unexpected match state",
+            candidates=scored, routing_status=MessageRoutingStatus.NEEDS_REVIEW,
+        ))
         return result
+
+    # Strategy 4: Carrier match — check if the sender is a known carrier
+    # with an active carrier_rfq_sends record. Carrier replies won't match
+    # on customer_email (that's the shipper), so we need to check the
+    # carriers table and carrier_rfq_sends to link them back to an RFQ.
+    carrier_result = _try_carrier_match(db, message)
+    if carrier_result.rfq_id:
+        _apply_match(db, message, carrier_result)
+        return carrier_result
 
     # No candidates at all — this is a new RFQ.
     # Enqueue extraction so the pipeline automatically creates a structured
@@ -380,6 +420,66 @@ def _send_to_review_queue(db: Session, message: Message, result: MatchResult) ->
     logger.info(
         "Message %d sent to review queue: %d candidates, reason=%s",
         message.id, len(result.candidates), result.reason,
+    )
+
+
+def _try_carrier_match(db: Session, message: Message) -> MatchResult:
+    """
+    Try to match a message to an RFQ via the carriers table.
+
+    When the system sends carrier RFQs (#32), it creates carrier_rfq_sends
+    rows linking each carrier to an RFQ. If a carrier replies, we can match
+    on their email address → carrier → carrier_rfq_sends → RFQ.
+
+    This is necessary because carrier replies won't match on customer_email
+    (that field holds the shipper, not the carrier).
+    """
+    sender_email = _extract_email(message.sender)
+    if not sender_email:
+        return MatchResult()
+
+    # Find the carrier by email
+    carrier = (
+        db.query(Carrier)
+        .filter(Carrier.email.ilike(sender_email))
+        .first()
+    )
+    if not carrier:
+        return MatchResult()
+
+    # Find the most recent carrier_rfq_sends for this carrier that was sent
+    send_record = (
+        db.query(CarrierRfqSend)
+        .filter(
+            CarrierRfqSend.carrier_id == carrier.id,
+            CarrierRfqSend.status == CarrierSendStatus.SENT,
+        )
+        .order_by(CarrierRfqSend.sent_at.desc())
+        .first()
+    )
+    if not send_record:
+        return MatchResult()
+
+    # Verify the RFQ is in a state that expects carrier responses
+    rfq = db.query(RFQ).filter(RFQ.id == send_record.rfq_id).first()
+    if not rfq or rfq.state in TERMINAL_STATES:
+        return MatchResult()
+
+    logger.info(
+        "Message %d matched to RFQ %d via carrier %s (%s)",
+        message.id, rfq.id, carrier.name, carrier.email,
+    )
+
+    # Enqueue carrier bid parsing since we know this is a carrier reply
+    from backend.worker import enqueue_job
+    enqueue_job(db, "parse_carrier_bid", {"message_id": message.id}, rfq_id=rfq.id)
+
+    return MatchResult(
+        rfq_id=rfq.id,
+        confidence=0.95,
+        method="carrier_send_record",
+        reason=f"Carrier {carrier.name} ({carrier.email}) has a sent RFQ for this load",
+        routing_status=MessageRoutingStatus.ATTACHED,
     )
 
 
