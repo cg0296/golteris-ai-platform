@@ -67,7 +67,7 @@ class IMAPMailboxProvider(MailboxProvider):
         """
         self.host = host or os.environ.get("IMAP_HOST", "")
         self.port = port
-        self.username = username or os.environ.get("IMAP_USER", "")
+        self.usernamename = username or os.environ.get("IMAP_USER", "")
         self.password = password or os.environ.get("IMAP_PASSWORD", "")
         self.folder = folder
         self.use_ssl = use_ssl
@@ -82,7 +82,7 @@ class IMAPMailboxProvider(MailboxProvider):
         Returns:
             List of new InboundMessage objects, empty if none or on error.
         """
-        if not self.host or not self.username:
+        if not self.host or not self.usernamename:
             logger.warning("IMAP not configured — skipping (set IMAP_HOST and IMAP_USER)")
             return []
 
@@ -96,7 +96,7 @@ class IMAPMailboxProvider(MailboxProvider):
             else:
                 conn = imaplib.IMAP4(self.host, self.port)
 
-            conn.login(self.username, self.password)
+            conn.login(self.usernamename, self.password)
             conn.select(self.folder)
 
             # Search for unread messages
@@ -155,15 +155,15 @@ class IMAPMailboxProvider(MailboxProvider):
         try:
             msg = MIMEText(body)
             msg["Subject"] = subject
-            msg["From"] = self.user
+            msg["From"] = self.username
             msg["To"] = to
             if reply_to_message_id:
                 msg["In-Reply-To"] = reply_to_message_id
 
             with smtplib.SMTP(smtp_host, 587, timeout=30) as server:
                 server.starttls()
-                server.login(self.user, self.password)
-                server.sendmail(self.user, [to], msg.as_string())
+                server.login(self.username, self.password)
+                server.sendmail(self.username, [to], msg.as_string())
 
             logger.info("Email sent via SMTP to %s: %s", to, subject)
             return {"success": True, "message_id": msg["Message-ID"], "error": None}

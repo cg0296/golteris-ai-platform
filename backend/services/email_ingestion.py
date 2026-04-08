@@ -173,9 +173,49 @@ def _log_ingestion_event(db: Session, message: Message) -> None:
     db.commit()
 
 
+def get_providers_from_db(db: Session) -> list[MailboxProvider]:
+    """
+    Get all active mailbox providers from the database (#48).
+
+    Reads the mailboxes table and instantiates a provider for each active
+    mailbox. The worker calls this to poll all configured inboxes.
+
+    Args:
+        db: SQLAlchemy session.
+
+    Returns:
+        List of configured MailboxProvider instances for active mailboxes.
+    """
+    from backend.db.models import Mailbox
+    from backend.api.mailboxes import _create_provider
+
+    try:
+        mailboxes = db.query(Mailbox).filter(Mailbox.active == True).all()
+        if mailboxes:
+            providers = []
+            for mb in mailboxes:
+                try:
+                    provider = _create_provider(mb)
+                    providers.append(provider)
+                    logger.info("Loaded mailbox '%s' (%s) with %s provider", mb.name, mb.email, mb.provider_type.value)
+                except Exception as e:
+                    logger.error("Failed to create provider for mailbox '%s': %s", mb.name, e)
+            if providers:
+                return providers
+    except Exception as e:
+        # Table might not exist yet (fresh install) — fall through to env vars
+        logger.debug("Could not read mailboxes table: %s", e)
+
+    # Fall back to env-var config if no database mailboxes are configured
+    return [get_provider_from_config()]
+
+
 def get_provider_from_config() -> MailboxProvider:
     """
-    Create the appropriate mailbox provider based on environment config.
+    Create a mailbox provider from environment variables (legacy fallback).
+
+    Used when no mailboxes are configured in the database. This preserves
+    backwards compatibility with the original env-var-only setup.
 
     Priority order:
     1. Microsoft Graph API (if MS_GRAPH_CLIENT_ID is set) — for Microsoft 365

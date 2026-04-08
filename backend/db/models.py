@@ -150,6 +150,17 @@ class MessageRoutingStatus(str, enum.Enum):
     IGNORED = "ignored"             # Filtered out by rules (e.g., newsletter)
 
 
+class MailboxProviderType(str, enum.Enum):
+    """
+    Supported email provider types for mailbox connections (#48).
+    Each maps to a MailboxProvider implementation in backend/email/.
+    """
+    FILE = "file"           # Seed/demo file provider
+    IMAP = "imap"           # Universal IMAP (any provider)
+    GMAIL = "gmail"         # Gmail API with OAuth
+    GRAPH = "graph"         # Microsoft Graph API with OAuth
+
+
 class JobStatus(str, enum.Enum):
     """
     Status of a job in the Postgres job queue.
@@ -769,3 +780,51 @@ class Job(Base):
         Index("ix_jobs_status_created", "status", "created_at"),
         Index("ix_jobs_rfq_id", "rfq_id"),
     )
+
+
+class Mailbox(Base):
+    """
+    Per-mailbox configuration for email provider connections (#48).
+
+    Each row represents a connected mailbox with its provider type,
+    credentials (encrypted in production), polling interval, and status.
+    Replaces env-var-only provider selection with database-backed config
+    that the broker can manage from Settings.
+
+    The provider factory reads from this table to instantiate the correct
+    MailboxProvider implementation. Env vars still work as a fallback for
+    backwards compatibility and simple deployments.
+
+    Cross-cutting constraints:
+        C1 — active flag controls whether the worker polls this mailbox
+        FR-EI-2 — Supports any email provider via the provider_type enum
+    """
+    __tablename__ = "mailboxes"
+
+    id = Column(Integer, primary_key=True)
+    # Human-readable label (e.g., "Beltmann Main Inbox", "Support Alias")
+    name = Column(String(200), nullable=False)
+    # Email address associated with this mailbox
+    email = Column(String(500), nullable=False)
+    # Which provider implementation to use
+    provider_type = Column(
+        Enum(MailboxProviderType, name="mailbox_provider_type", create_constraint=True),
+        nullable=False,
+    )
+    # Provider-specific config stored as JSONB. Contents vary by provider:
+    #   IMAP: {"host": "...", "port": 993, "username": "...", "password": "...", "folder": "INBOX"}
+    #   Gmail: {"client_id": "...", "client_secret": "...", "refresh_token": "...", "token": "..."}
+    #   Graph: {"tenant_id": "...", "client_id": "...", "client_secret": "...", "user_email": "...", "folder": "...", "filter_recipient": "..."}
+    #   File: {"seed_dir": "seed/beltmann/shipper_emails"}
+    config = Column(JSONB, nullable=False, default=dict)
+    # Whether the worker should poll this mailbox (C1 — human control)
+    active = Column(Boolean, nullable=False, default=True)
+    # How often to poll in seconds (default: 60s per FR-WK-1)
+    poll_interval_seconds = Column(Integer, nullable=False, default=60)
+    # Last time the mailbox was successfully polled
+    last_polled_at = Column(DateTime)
+    # Last error message if polling failed
+    last_error = Column(Text)
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

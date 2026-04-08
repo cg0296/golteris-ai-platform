@@ -40,6 +40,7 @@ import {
   useUpdateAgent,
 } from "@/hooks/use-settings"
 import { useCostVisibility } from "@/lib/cost-visibility"
+import { useMailboxes, useCreateMailbox, useDeleteMailbox, useTestMailbox, useToggleMailbox, type MailboxItem } from "@/hooks/use-mailboxes"
 
 export function SettingsPage() {
   const workflows = useWorkflows()
@@ -51,6 +52,14 @@ export function SettingsPage() {
   const queryClient = useQueryClient()
 
   const { showCost, setShowCost } = useCostVisibility()
+  const mailboxes = useMailboxes()
+  const createMailbox = useCreateMailbox()
+  const deleteMailbox = useDeleteMailbox()
+  const testMailbox = useTestMailbox()
+  const toggleMailbox = useToggleMailbox()
+  const [showAddMailbox, setShowAddMailbox] = useState(false)
+  const [newMailbox, setNewMailbox] = useState({ name: "", email: "", provider_type: "imap", config: {} as Record<string, string> })
+  const [testResult, setTestResult] = useState<{ id: number; message: string; status: string } | null>(null)
   const [showReseedConfirm, setShowReseedConfirm] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
@@ -242,6 +251,175 @@ export function SettingsPage() {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Email Mailboxes (#48) */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Email Connections
+              {mailboxes.data && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({mailboxes.data.total})
+                </span>
+              )}
+            </CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowAddMailbox(!showAddMailbox)}
+            >
+              {showAddMailbox ? "Cancel" : "+ Add Mailbox"}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Add mailbox form */}
+          {showAddMailbox && (
+            <div className="border rounded-lg p-3 space-y-2 bg-muted/20">
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  placeholder="Name (e.g., Main Inbox)"
+                  value={newMailbox.name}
+                  onChange={(e) => setNewMailbox({ ...newMailbox, name: e.target.value })}
+                  className="px-2 py-1.5 text-sm border rounded-md"
+                />
+                <input
+                  placeholder="Email address"
+                  value={newMailbox.email}
+                  onChange={(e) => setNewMailbox({ ...newMailbox, email: e.target.value })}
+                  className="px-2 py-1.5 text-sm border rounded-md"
+                />
+              </div>
+              <select
+                value={newMailbox.provider_type}
+                onChange={(e) => setNewMailbox({ ...newMailbox, provider_type: e.target.value, config: {} })}
+                className="w-full px-2 py-1.5 text-sm border rounded-md bg-white"
+              >
+                <option value="imap">IMAP (Universal)</option>
+                <option value="gmail">Gmail API (OAuth)</option>
+                <option value="graph">Microsoft Graph (OAuth)</option>
+                <option value="file">Seed Files (Demo)</option>
+              </select>
+              {/* Provider-specific config fields */}
+              {newMailbox.provider_type === "imap" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <input placeholder="IMAP Host" onChange={(e) => setNewMailbox({ ...newMailbox, config: { ...newMailbox.config, host: e.target.value } })} className="px-2 py-1.5 text-sm border rounded-md" />
+                  <input placeholder="Username" onChange={(e) => setNewMailbox({ ...newMailbox, config: { ...newMailbox.config, username: e.target.value } })} className="px-2 py-1.5 text-sm border rounded-md" />
+                  <input placeholder="Password" type="password" onChange={(e) => setNewMailbox({ ...newMailbox, config: { ...newMailbox.config, password: e.target.value } })} className="px-2 py-1.5 text-sm border rounded-md" />
+                  <input placeholder="Folder (default: INBOX)" onChange={(e) => setNewMailbox({ ...newMailbox, config: { ...newMailbox.config, folder: e.target.value } })} className="px-2 py-1.5 text-sm border rounded-md" />
+                </div>
+              )}
+              {newMailbox.provider_type === "graph" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <input placeholder="Tenant ID" onChange={(e) => setNewMailbox({ ...newMailbox, config: { ...newMailbox.config, tenant_id: e.target.value } })} className="px-2 py-1.5 text-sm border rounded-md" />
+                  <input placeholder="Client ID" onChange={(e) => setNewMailbox({ ...newMailbox, config: { ...newMailbox.config, client_id: e.target.value } })} className="px-2 py-1.5 text-sm border rounded-md" />
+                  <input placeholder="Client Secret" type="password" onChange={(e) => setNewMailbox({ ...newMailbox, config: { ...newMailbox.config, client_secret: e.target.value } })} className="px-2 py-1.5 text-sm border rounded-md" />
+                  <input placeholder="Mail Folder (optional)" onChange={(e) => setNewMailbox({ ...newMailbox, config: { ...newMailbox.config, folder: e.target.value } })} className="px-2 py-1.5 text-sm border rounded-md" />
+                </div>
+              )}
+              {newMailbox.provider_type === "gmail" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <input placeholder="Client ID" onChange={(e) => setNewMailbox({ ...newMailbox, config: { ...newMailbox.config, client_id: e.target.value } })} className="px-2 py-1.5 text-sm border rounded-md" />
+                  <input placeholder="Client Secret" type="password" onChange={(e) => setNewMailbox({ ...newMailbox, config: { ...newMailbox.config, client_secret: e.target.value } })} className="px-2 py-1.5 text-sm border rounded-md" />
+                  <input placeholder="Refresh Token" type="password" onChange={(e) => setNewMailbox({ ...newMailbox, config: { ...newMailbox.config, refresh_token: e.target.value } })} className="px-2 py-1.5 text-sm border rounded-md col-span-2" />
+                </div>
+              )}
+              <Button
+                size="sm"
+                onClick={() => {
+                  createMailbox.mutate(newMailbox, {
+                    onSuccess: () => {
+                      toast.success("Mailbox added")
+                      setShowAddMailbox(false)
+                      setNewMailbox({ name: "", email: "", provider_type: "imap", config: {} })
+                    },
+                    onError: () => toast.error("Failed to add mailbox"),
+                  })
+                }}
+                disabled={!newMailbox.name || !newMailbox.email || createMailbox.isPending}
+                className="bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white"
+              >
+                {createMailbox.isPending ? "Adding..." : "Add Mailbox"}
+              </Button>
+            </div>
+          )}
+
+          {/* Mailbox list */}
+          {mailboxes.isLoading ? (
+            <div className="space-y-2">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="h-14 bg-muted/50 rounded animate-pulse" />
+              ))}
+            </div>
+          ) : (mailboxes.data?.mailboxes ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">
+              No mailboxes configured — using environment variables or seed files
+            </p>
+          ) : (
+            mailboxes.data?.mailboxes.map((mb) => (
+              <div key={mb.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium">{mb.name}</p>
+                    <Badge variant="secondary" className="text-[10px]">{mb.provider_type.toUpperCase()}</Badge>
+                    {mb.active ? (
+                      <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-800">Active</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-[10px] bg-gray-100 text-gray-600">Inactive</Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{mb.email}</p>
+                  {mb.last_error && (
+                    <p className="text-xs text-red-600 mt-0.5">{mb.last_error}</p>
+                  )}
+                  {testResult?.id === mb.id && (
+                    <p className={`text-xs mt-0.5 ${testResult.status === "ok" ? "text-green-600" : "text-red-600"}`}>
+                      {testResult.message}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs h-7 px-2"
+                    disabled={testMailbox.isPending}
+                    onClick={() => testMailbox.mutate(mb.id, {
+                      onSuccess: (data) => setTestResult({ id: mb.id, ...data }),
+                    })}
+                  >
+                    Test
+                  </Button>
+                  <button
+                    onClick={() => toggleMailbox.mutate({ id: mb.id, active: !mb.active }, {
+                      onSuccess: () => toast.success(`${mb.name} ${mb.active ? "disabled" : "enabled"}`),
+                    })}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${
+                      mb.active ? "bg-green-500" : "bg-gray-300"
+                    }`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                      mb.active ? "translate-x-5" : "translate-x-0.5"
+                    }`} />
+                  </button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs h-7 px-2 text-red-600 border-red-300 hover:bg-red-50"
+                    onClick={() => deleteMailbox.mutate(mb.id, {
+                      onSuccess: () => toast.success(`${mb.name} removed`),
+                    })}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 
