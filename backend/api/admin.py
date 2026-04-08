@@ -135,6 +135,36 @@ def restart_worker():
         return {"status": "error", "message": str(e)}
 
 
+@router.post("/poll")
+def trigger_poll(db: Session = Depends(get_db)):
+    """
+    Manually trigger a mailbox poll + job processing cycle.
+
+    Useful when the background worker isn't running or for testing.
+    Fetches new emails, ingests them, then processes pending jobs.
+    """
+    try:
+        from backend.services.email_ingestion import get_provider_from_config, ingest_new_messages
+        from backend.worker import process_cycle
+
+        # Poll mailbox
+        provider = get_provider_from_config()
+        messages = ingest_new_messages(db, provider)
+
+        # Process jobs
+        processed = process_cycle(db)
+
+        return {
+            "status": "ok",
+            "ingested": len(messages),
+            "jobs_processed": processed,
+            "messages": [{"id": m.id, "sender": m.sender, "subject": m.subject} for m in messages],
+        }
+    except Exception as e:
+        logger.exception("Manual poll failed: %s", e)
+        return {"status": "error", "message": str(e)}
+
+
 @router.get("/pipeline/{rfq_id}")
 def get_pipeline_trace(rfq_id: int, db: Session = Depends(get_db)):
     """
