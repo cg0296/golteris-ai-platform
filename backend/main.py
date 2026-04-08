@@ -47,6 +47,20 @@ from backend.api.chat import router as chat_router
 from backend.api.jobs import router as jobs_router
 from backend.api.dev import router as dev_router
 from backend.api.mailboxes import router as mailboxes_router
+from backend.api.metrics import router as metrics_router
+from backend.api.summary import router as summary_router
+from backend.api.memories import router as memories_router
+from backend.api.organizations import router as organizations_router
+from backend.api.metering import router as metering_router
+from backend.api.billing import router as billing_router
+from backend.api.onboarding import router as onboarding_router
+
+# Structured JSON logging (#52)
+from backend.logging_config import setup_logging
+setup_logging(os.environ.get("LOG_LEVEL", "INFO"))
+
+# Request ID middleware (#52)
+from backend.middleware import RequestIdMiddleware
 
 
 @asynccontextmanager
@@ -105,6 +119,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request ID middleware (#52)
+app.add_middleware(RequestIdMiddleware)
+
 
 # ---------------------------------------------------------------------------
 # Health endpoint — used by Render for health checks and by CI for smoke tests.
@@ -141,6 +158,13 @@ app.include_router(chat_router)
 app.include_router(jobs_router)
 app.include_router(dev_router)
 app.include_router(mailboxes_router)
+app.include_router(metrics_router)
+app.include_router(summary_router)
+app.include_router(memories_router)
+app.include_router(organizations_router)
+app.include_router(metering_router)
+app.include_router(billing_router)
+app.include_router(onboarding_router)
 @app.get("/api")
 def api_root():
     """
