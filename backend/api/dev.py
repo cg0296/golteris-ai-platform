@@ -515,3 +515,19 @@ def get_personas():
             return json.load(f)
     except FileNotFoundError:
         return {"personas": [], "templates": []}
+
+
+@router.post("/personas")
+def save_personas(body: dict):
+    """
+    Save dev personas and templates (#170).
+
+    Writes the full JSON to backend/dev/personas.json.
+    Expects the same shape as GET /api/dev/personas returns.
+    """
+    import os
+    personas_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dev", "personas.json")
+    import json
+    with open(personas_path, "w") as f:
+        json.dump(body, f, indent=2)
+    return {"status": "ok"}

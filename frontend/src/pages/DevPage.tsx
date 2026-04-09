@@ -9,7 +9,7 @@
  */
 
 import { useState, useMemo, useEffect } from "react"
-import { FlaskConical, Send } from "lucide-react"
+import { FlaskConical, Send, Settings2 } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -49,6 +49,9 @@ export function DevPage() {
   const [subject, setSubject] = useState("")
   const [body, setBody] = useState("")
   const [sending, setSending] = useState(false)
+  const [showEditor, setShowEditor] = useState(false)
+  const [editorJson, setEditorJson] = useState("")
+  const [saving, setSaving] = useState(false)
 
   // Fetch personas and templates
   const data = useQuery({
@@ -152,10 +155,63 @@ export function DevPage() {
 
   return (
     <div className="p-4 lg:p-6 max-w-3xl space-y-6">
-      <h2 className="text-xl font-semibold text-[#0E2841] flex items-center gap-2">
-        <FlaskConical className="h-5 w-5" />
-        Dev Area
-      </h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-[#0E2841] flex items-center gap-2">
+          <FlaskConical className="h-5 w-5" />
+          Dev Area
+        </h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (!showEditor && data.data) {
+              setEditorJson(JSON.stringify(data.data, null, 2))
+            }
+            setShowEditor(!showEditor)
+          }}
+        >
+          <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+          {showEditor ? "Close Editor" : "Edit Personas"}
+        </Button>
+      </div>
+
+      {/* JSON editor for personas + templates (#170) */}
+      {showEditor && (
+        <div className="space-y-2 border rounded-lg p-4 bg-muted/20">
+          <p className="text-xs font-semibold text-muted-foreground uppercase">Personas & Templates JSON</p>
+          <textarea
+            value={editorJson}
+            onChange={(e) => setEditorJson(e.target.value)}
+            className="w-full font-mono text-xs border rounded-md p-3 bg-white focus:outline-none focus:ring-2 focus:ring-[#0F9ED5]/30"
+            rows={20}
+            spellCheck={false}
+          />
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              disabled={saving}
+              className="bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white"
+              onClick={async () => {
+                setSaving(true)
+                try {
+                  const parsed = JSON.parse(editorJson)
+                  await api.post("/api/dev/personas", parsed)
+                  toast.success("Personas saved")
+                  data.refetch()
+                  setShowEditor(false)
+                } catch (err) {
+                  toast.error(err instanceof SyntaxError ? "Invalid JSON" : "Save failed")
+                } finally {
+                  setSaving(false)
+                }
+              }}
+            >
+              {saving ? "Saving..." : "Save"}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowEditor(false)}>Cancel</Button>
+          </div>
+        </div>
+      )}
 
       {/* Role selector */}
       <div className="flex gap-2">
