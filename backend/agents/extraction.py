@@ -683,14 +683,17 @@ def _classify_intent(db: Session, message: Message) -> str:
 
 def _handle_general_inquiry(db: Session, message: Message) -> None:
     """
-    Handle a general inquiry email (#177).
+    Handle a general inquiry email (#177, #178).
 
-    Generates a concise LLM response to the question, then appends a prompt
-    to book freight. Creates an approval so the broker can review before sending
-    (or auto-sends if Follow-up Automation is enabled).
+    Creates a lightweight RFQ in needs_clarification state so the thread
+    stays alive. If the customer replies with shipment details, matching
+    picks it up via the [RFQ-NN] tag and extraction fills in the RFQ.
+
+    The inquiry is step 0 of the RFQ pipeline — a warm lead, not a dead end.
     """
     from backend.services.broker_identity import get_broker_name
     from backend.services.org_profile import get_sign_off
+    from backend.services.ref_number import generate_ref_number
     from backend.worker import enqueue_job, is_auto_send_enabled
 
     run = start_run(db, workflow_name="Inquiry Response", trigger_source="general_inquiry")
@@ -698,6 +701,31 @@ def _handle_general_inquiry(db: Session, message: Message) -> None:
     try:
         broker_name = get_broker_name(db)
         company_name = get_sign_off(db)
+
+        # Determine sender info
+        sender_name = message.sender.split("<")[0].strip() if "<" in (message.sender or "") else message.sender
+        sender_email = message.sender
+        if "<" in (message.sender or "") and ">" in (message.sender or ""):
+            sender_email = message.sender.split("<")[1].split(">")[0]
+
+        # Create a lightweight RFQ so the thread stays alive (#178)
+        ref_number = generate_ref_number(db)
+        rfq = RFQ(
+            ref_number=ref_number,
+            customer_name=sender_name or None,
+            customer_email=sender_email,
+            state=RFQState.NEEDS_CLARIFICATION,
+            confidence_scores={},
+        )
+        db.add(rfq)
+        db.flush()
+
+        # Link the message to the RFQ
+        message.rfq_id = rfq.id
+        message.routing_status = MessageRoutingStatus.NEW_RFQ
+
+        # Update the run with the RFQ ID
+        run.rfq_id = rfq.id
 
         # Generate a concise answer
         response = call_llm(
@@ -715,24 +743,26 @@ def _handle_general_inquiry(db: Session, message: Message) -> None:
             temperature=0.3,
         )
 
-        reply_body = response.content or "Thanks for reaching out. If you'd like to book a freight movement, just reply with your shipment details and we'll get you a quote."
+        reply_body = response.content or (
+            f"Thanks for reaching out! If you'd like to book a freight movement, "
+            f"just reply with your shipment details and we'll get you a quote.\n\n"
+            f"{broker_name}\n{company_name}"
+        )
 
-        # Determine sender name for the reply
-        sender_name = message.sender.split("<")[0].strip() if "<" in (message.sender or "") else message.sender
-        sender_email = message.sender
-        if "<" in (message.sender or "") and ">" in (message.sender or ""):
-            sender_email = message.sender.split("<")[1].split(">")[0]
+        # Tag the reply subject with [RFQ-NN] so follow-up replies get matched
+        reply_subject = f"Re: {message.subject or 'Your inquiry'} [RFQ-{rfq.id}]"
 
         # Create approval for the response (C2 gate)
         auto_send = is_auto_send_enabled(db, "Follow-up Automation")
 
         from backend.db.models import Approval, ApprovalStatus, ApprovalType
         approval = Approval(
+            rfq_id=rfq.id,
             approval_type=ApprovalType.CUSTOMER_REPLY,
-            draft_subject=f"Re: {message.subject or 'Your inquiry'}",
+            draft_subject=reply_subject,
             draft_body=reply_body,
             draft_recipient=sender_email,
-            reason=f"General inquiry from {sender_name} — not an RFQ",
+            reason=f"General inquiry from {sender_name} — RFQ created for thread continuity",
             status=ApprovalStatus.APPROVED if auto_send else ApprovalStatus.PENDING_APPROVAL,
         )
         if auto_send:
@@ -740,16 +770,20 @@ def _handle_general_inquiry(db: Session, message: Message) -> None:
             approval.resolved_at = datetime.utcnow()
         db.add(approval)
 
-        # Audit event
+        # Audit events
         db.add(AuditEvent(
+            rfq_id=rfq.id,
+            event_type="rfq_created",
+            actor="inquiry_responder",
+            description=f"Inquiry from {sender_name} — RFQ created as potential lead",
+        ))
+        db.add(AuditEvent(
+            rfq_id=rfq.id,
             event_type="inquiry_responded",
             actor="inquiry_responder",
-            description=f"General inquiry from {sender_name} — response drafted",
+            description=f"General inquiry answered — invited to book freight",
             event_data={"message_id": message.id, "sender": message.sender},
         ))
-
-        # Update message routing status
-        message.routing_status = MessageRoutingStatus.IGNORED
 
         db.commit()
         db.refresh(approval)
@@ -758,10 +792,10 @@ def _handle_general_inquiry(db: Session, message: Message) -> None:
 
         # Auto-send if enabled
         if auto_send:
-            enqueue_job(db, "send_outbound_email", {"approval_id": approval.id})
-            logger.info("General inquiry from %s — response auto-sent", message.sender)
+            enqueue_job(db, "send_outbound_email", {"approval_id": approval.id}, rfq_id=rfq.id)
+            logger.info("Inquiry from %s — RFQ #%d created, response auto-sent", message.sender, rfq.id)
         else:
-            logger.info("General inquiry from %s — response queued for approval", message.sender)
+            logger.info("Inquiry from %s — RFQ #%d created, response queued", message.sender, rfq.id)
 
     except Exception as e:
         logger.exception("General inquiry handling failed for message %d: %s", message.id, e)
