@@ -343,9 +343,13 @@ def _create_rfq_from_extraction(
     """
     confidence = extracted.get("confidence", {})
 
-    # Parse dates — they come as strings from the LLM tool output
+    # Parse dates — they come as strings from the LLM tool output.
+    # Auto-swap if delivery is before pickup (#155).
     pickup_date = _parse_date(extracted.get("pickup_date"))
     delivery_date = _parse_date(extracted.get("delivery_date"))
+    if pickup_date and delivery_date and delivery_date < pickup_date:
+        logger.info("Swapping pickup/delivery dates — delivery %s was before pickup %s", delivery_date, pickup_date)
+        pickup_date, delivery_date = delivery_date, pickup_date
 
     rfq = RFQ(
         customer_name=extracted.get("customer_name"),
@@ -404,13 +408,15 @@ def _update_rfq_from_extraction(
         if new_val and (not old_val):
             setattr(rfq, rfq_attr, new_val)
 
-    # Update dates
+    # Update dates — auto-swap if delivery is before pickup (#155)
     pickup = _parse_date(extracted.get("pickup_date"))
     delivery = _parse_date(extracted.get("delivery_date"))
     if pickup and not rfq.pickup_date:
         rfq.pickup_date = pickup
     if delivery and not rfq.delivery_date:
         rfq.delivery_date = delivery
+    if rfq.pickup_date and rfq.delivery_date and rfq.delivery_date < rfq.pickup_date:
+        rfq.pickup_date, rfq.delivery_date = rfq.delivery_date, rfq.pickup_date
 
     # Merge confidence scores — only UPGRADE, never downgrade.
     # When re-extracting from a short reply like "yea 1 truck", the LLM
