@@ -132,9 +132,13 @@ def distribute_to_carriers(
     subject = f"RFQ: {rfq.origin} to {rfq.destination} — {rfq.equipment_type}"
     body_template = _generate_carrier_rfq_body(rfq, broker_name)
 
+    # Check if auto-send is enabled for carrier distribution (#154).
+    from backend.worker import is_auto_send_enabled, enqueue_job
+    auto_send = is_auto_send_enabled(db, "Carrier Distribution")
+
     # Create one approval PER carrier with the carrier's actual email address.
-    # Each approval gates one outbound send (C2). The broker approves the batch
-    # by approving each one, and the send pipeline emails the real address.
+    # When auto-send is off, each approval gates one outbound send (C2).
+    # When auto-send is on, approvals are created as pre-approved and sends enqueue immediately.
     approval_ids = []
     send_ids = []
     for carrier in carriers:
@@ -146,10 +150,14 @@ def distribute_to_carriers(
             approval_type=ApprovalType.CARRIER_RFQ,
             draft_body=body_template,
             draft_subject=subject,
-            draft_recipient=carrier.email,  # Real email address, not name
+            draft_recipient=carrier.email,
             reason=reason,
-            status=ApprovalStatus.PENDING_APPROVAL,
+            status=ApprovalStatus.APPROVED if auto_send else ApprovalStatus.PENDING_APPROVAL,
         )
+        if auto_send:
+            from datetime import datetime
+            approval.resolved_by = "auto_send"
+            approval.resolved_at = datetime.utcnow()
         db.add(approval)
         db.flush()
         approval_ids.append(approval.id)
@@ -158,7 +166,7 @@ def distribute_to_carriers(
             rfq_id=rfq.id,
             carrier_id=carrier.id,
             approval_id=approval.id,
-            status=CarrierSendStatus.PENDING_APPROVAL,
+            status=CarrierSendStatus.PENDING_APPROVAL if not auto_send else CarrierSendStatus.SENT,
             email_subject=subject,
             email_body=body_template,
         )
@@ -179,21 +187,34 @@ def distribute_to_carriers(
     event = AuditEvent(
         rfq_id=rfq.id,
         event_type="carrier_distribution_created",
-        actor="system",
-        description=f"Carrier RFQ prepared for {len(carriers)} carrier(s): {carrier_names}",
+        actor="auto_send" if auto_send else "system",
+        description=f"Carrier RFQ {'auto-sent' if auto_send else 'prepared'} for {len(carriers)} carrier(s): {carrier_names}",
         event_data={
             "approval_ids": approval_ids,
             "carrier_ids": carrier_ids,
             "carrier_names": [c.name for c in carriers],
+            "auto_send": auto_send,
         },
     )
     db.add(event)
     db.commit()
 
+    # If auto-send, enqueue all outbound sends immediately
+    if auto_send:
+        for aid in approval_ids:
+            enqueue_job(
+                db,
+                job_type="send_outbound_email",
+                payload={"approval_id": aid},
+                rfq_id=rfq.id,
+            )
+        logger.info("RFQ %d: carrier RFQs auto-sent to %d carriers", rfq_id, len(carriers))
+
     return {
         "approval_ids": approval_ids,
         "carrier_count": len(carriers),
         "send_ids": send_ids,
+        "auto_sent": auto_send,
     }
 
 

@@ -278,6 +278,25 @@ def any_workflows_enabled(db) -> bool:
     return db.query(Workflow).filter(Workflow.enabled.is_(True)).count() > 0
 
 
+def is_auto_send_enabled(db, workflow_name: str) -> bool:
+    """
+    Check if a workflow's auto-send is enabled (#154).
+
+    When enabled, outbound emails for that workflow skip the approval queue
+    and send automatically. When disabled, drafts go to pending_approval
+    for broker review (original C2 behavior).
+
+    Workflow name mapping:
+        "Follow-up Automation"     — clarification follow-ups to shippers
+        "Carrier Distribution"     — carrier RFQ emails
+        "Inbound Quote Processing" — customer quote emails
+    """
+    workflow = db.query(Workflow).filter(Workflow.name == workflow_name).first()
+    if not workflow:
+        return False  # No workflow found — default to requiring approval
+    return workflow.enabled
+
+
 # ---------------------------------------------------------------------------
 # Main worker loop
 # ---------------------------------------------------------------------------

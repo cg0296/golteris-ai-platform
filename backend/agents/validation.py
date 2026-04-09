@@ -274,9 +274,12 @@ def draft_followup(
             fail_run(db, run.id, "LLM did not return tool-use result")
             return None
 
-        # Create the approval record — C2 enforcement point.
-        # The draft sits here with status=pending_approval until the broker
-        # reviews it in the HITL flow (#26).
+        # Check if auto-send is enabled for follow-ups (#154).
+        # When enabled, the email sends immediately. When disabled,
+        # the draft goes to the approval queue for broker review (C2).
+        from backend.worker import is_auto_send_enabled, enqueue_job
+        auto_send = is_auto_send_enabled(db, "Follow-up Automation")
+
         approval = Approval(
             rfq_id=rfq_id,
             approval_type=ApprovalType.CUSTOMER_REPLY,
@@ -284,8 +287,12 @@ def draft_followup(
             draft_body=draft["body"],
             draft_recipient=rfq.customer_email,
             reason=_build_reason_text(analysis),
-            status=ApprovalStatus.PENDING_APPROVAL,
+            status=ApprovalStatus.APPROVED if auto_send else ApprovalStatus.PENDING_APPROVAL,
         )
+        if auto_send:
+            from datetime import datetime
+            approval.resolved_by = "auto_send"
+            approval.resolved_at = datetime.utcnow()
         db.add(approval)
 
         # Log audit event — plain English per C3
@@ -293,6 +300,23 @@ def draft_followup(
 
         db.commit()
         db.refresh(approval)
+
+        # If auto-send, enqueue the outbound email immediately
+        if auto_send:
+            enqueue_job(
+                db,
+                job_type="send_outbound_email",
+                payload={"approval_id": approval.id},
+                rfq_id=rfq_id,
+            )
+            db.add(AuditEvent(
+                rfq_id=rfq_id,
+                event_type="auto_send",
+                actor="auto_send",
+                description=f"Clarification email auto-sent to {rfq.customer_email} (Follow-up Automation enabled)",
+            ))
+            db.commit()
+            logger.info("RFQ %d: follow-up auto-sent to %s", rfq_id, rfq.customer_email)
 
         finish_run(db, run.id)
 

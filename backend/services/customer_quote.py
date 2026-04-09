@@ -76,7 +76,10 @@ def generate_customer_quote(
     subject = f"Quote: {rfq.origin} to {rfq.destination} — {rfq.equipment_type}"
     body = _generate_quote_body(rfq, broker_name)
 
-    # Create the approval (C2 gate — broker must approve before sending)
+    # Check if auto-send is enabled for customer quotes (#154).
+    from backend.worker import is_auto_send_enabled, enqueue_job
+    auto_send = is_auto_send_enabled(db, "Inbound Quote Processing")
+
     approval = Approval(
         rfq_id=rfq.id,
         approval_type=ApprovalType.CUSTOMER_QUOTE,
@@ -84,19 +87,24 @@ def generate_customer_quote(
         draft_subject=subject,
         draft_recipient=rfq.customer_email,
         reason=f"Customer quote at ${rfq.quoted_amount:,.2f} ready for review",
-        status=ApprovalStatus.PENDING_APPROVAL,
+        status=ApprovalStatus.APPROVED if auto_send else ApprovalStatus.PENDING_APPROVAL,
     )
+    if auto_send:
+        from datetime import datetime
+        approval.resolved_by = "auto_send"
+        approval.resolved_at = datetime.utcnow()
     db.add(approval)
 
     # Audit event
     event = AuditEvent(
         rfq_id=rfq.id,
         event_type="customer_quote_generated",
-        actor="system",
-        description=f"Customer quote prepared at ${rfq.quoted_amount:,.2f} for {rfq.customer_name}",
+        actor="auto_send" if auto_send else "system",
+        description=f"Customer quote {'auto-sent' if auto_send else 'prepared'} at ${rfq.quoted_amount:,.2f} for {rfq.customer_name}",
         event_data={
             "quoted_amount": float(rfq.quoted_amount),
             "customer_email": rfq.customer_email,
+            "auto_send": auto_send,
         },
     )
     db.add(event)
@@ -105,12 +113,23 @@ def generate_customer_quote(
     approval_id = approval.id
     db.commit()
 
+    # If auto-send, enqueue the outbound email immediately
+    if auto_send:
+        enqueue_job(
+            db,
+            job_type="send_outbound_email",
+            payload={"approval_id": approval_id},
+            rfq_id=rfq.id,
+        )
+        logger.info("RFQ %d: customer quote auto-sent to %s", rfq_id, rfq.customer_email)
+
     return {
         "approval_id": approval_id,
         "subject": subject,
         "recipient": rfq.customer_email,
         "quoted_amount": float(rfq.quoted_amount),
         "preview": body[:500],
+        "auto_sent": auto_send,
     }
 
 

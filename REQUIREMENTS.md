@@ -229,10 +229,15 @@ These govern every feature. They are non-negotiable and override any conflicting
 - **Every running, queued, or scheduled agent task is visible to the operator** in real time, with the ability to cancel. — `#39 #41`
 - **No background agent activity is hidden.** Even silent, routine activity is auditable in Agent → Decisions. — `#37`
 
-### C2 — HITL gating on every outbound action
-- **No email sends without `approved=true` on the draft record.** This applies to customer replies, carrier RFQs, and customer quotes. — `#25`
-- Approval is a deliberate human action (click, keypress, or API call with user identity). It cannot be automated.
-- Approvals are fully audited: who approved, when, what version of the draft they approved, and whether they edited before approving.
+### C2 — Outbound email control
+- **Every outbound email has an approval record** (`approved=true` on the draft record before send). — `#25`
+- **Auto-send is controlled per workflow** (`#154`). When a workflow is enabled, its outbound emails are auto-approved and sent immediately. When disabled, drafts go to the approval queue for broker review. The broker controls this via Settings → Workflows.
+  - "Follow-up Automation" → clarification follow-ups to shippers
+  - "Carrier Distribution" → carrier RFQ emails
+  - "Inbound Quote Processing" → customer quote emails
+- When auto-send is active, approvals are still created (with `resolved_by=auto_send`) so the full audit trail is preserved. — `#154`
+- Manual approval is a deliberate human action (click, keypress, or API call with user identity).
+- All approvals (manual and auto) are fully audited: who approved, when, what version of the draft, and whether they edited before approving.
 
 ### C3 — Plain-English operator language
 - The UI must never expose internal agent terminology (`extraction_completed`, `run_id`, `tool_use_result`). It must always translate to operator language (`Pulled 5 new quote requests`, `Draft ready for review`, `Load flagged for clarification`). — `#17 #27`
@@ -303,7 +308,7 @@ Each requirement is `FR-<area>-<n>` with the issue(s) that implement it.
 
 | ID | Requirement | Issues |
 |---|---|---|
-| FR-HI-1 | Every outbound email draft persists with `status=pending_approval` and does not send until explicitly approved. | `#25` |
+| FR-HI-1 | Every outbound email has an approval record. When the controlling workflow is disabled, drafts persist with `status=pending_approval` for broker review. When enabled, drafts are auto-approved and sent immediately (`#154`). | `#25 #154` |
 | FR-HI-2 | Approval modal shows: original shipper message, drafted reply, reason flag, and four actions — Send As-Is, Edit, Reject, Skip. | `#26` |
 | FR-HI-3 | Keyboard shortcuts: `Enter` = approve/send, `E` = edit, `R` = reject, `S` = skip, `J/K` = next/prev, `Esc` = close. The entire queue must be clearable without touching the mouse. | `#26` |
 | FR-HI-4 | Any HITL item must be clearable in under 10 seconds. | `#26` |
@@ -448,7 +453,7 @@ Each requirement is `FR-<area>-<n>` with the issue(s) that implement it.
 - [ ] The full 10-minute demo runs without errors
 - [ ] Nothing in the UI uses technical jargon
 - [ ] No agent runs without a human-enabled workflow
-- [ ] No outbound message sends without explicit approval
+- [ ] No outbound message sends without an approval record (auto-send creates auto-approved records)
 - [ ] Every LLM call is logged with prompt, model, provider, tokens, cost, and duration
 - [ ] Cost caps enforce and alarm
 
