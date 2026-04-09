@@ -105,16 +105,17 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="center" className="overflow-y-auto p-6">
+      <SheetContent side="center" className="flex flex-col overflow-hidden p-0" showCloseButton={false}>
         {isLoading || !data ? (
-          <div className="space-y-4 pt-8">
+          <div className="space-y-4 p-6 pt-8">
             <div className="h-8 w-48 bg-muted/50 rounded animate-pulse" />
             <div className="h-4 w-32 bg-muted/50 rounded animate-pulse" />
             <div className="h-64 bg-muted/50 rounded animate-pulse" />
           </div>
         ) : (
           <>
-            <SheetHeader className="pb-4">
+            {/* Sticky header — stays visible while content scrolls (#157) */}
+            <SheetHeader className="sticky top-0 z-10 bg-white border-b pb-3 pr-10">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-mono text-muted-foreground">
                   #{data.id}
@@ -139,7 +140,18 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
                   {data.origin} → {data.destination}
                 </p>
               )}
+              {/* Close button — fixed in header */}
+              <button
+                onClick={onClose}
+                className="absolute top-3 right-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </button>
             </SheetHeader>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-6 pb-6">
 
             {/* Pipeline progress indicator (#139) — shows at a glance where this RFQ is */}
             <PipelineProgress state={data.state} createdAt={data.created_at} />
@@ -344,6 +356,7 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
                 </div>
               </div>
             )}
+            </div>{/* end scrollable body */}
           </>
         )}
       </SheetContent>
