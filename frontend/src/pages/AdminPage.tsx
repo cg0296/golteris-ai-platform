@@ -8,9 +8,10 @@
  * Only accessible to users with admin role.
  */
 
-import { useState } from "react"
-import { Shield, RefreshCw, Search, ChevronRight, Circle } from "lucide-react"
+import { useState, useMemo } from "react"
+import { Shield, RefreshCw, Search, ChevronRight, Circle, Activity } from "lucide-react"
 import { toast } from "sonner"
+import { useQuery } from "@tanstack/react-query"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,7 +23,8 @@ import {
   usePipelineTrace,
   type PipelineStage,
 } from "@/hooks/use-admin"
-import { formatRelativeTime } from "@/lib/utils"
+import { api } from "@/lib/api"
+import { formatRelativeTime, cn } from "@/lib/utils"
 
 /** Status color mapping for processes */
 const statusColors: Record<string, string> = {
@@ -50,12 +52,16 @@ export function AdminPage() {
         Admin
       </h2>
 
-      <Tabs defaultValue="processes">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+      <Tabs defaultValue="activity-log">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+          <TabsTrigger value="activity-log" className="text-xs">Activity Log</TabsTrigger>
           <TabsTrigger value="processes" className="text-xs">Process Manager</TabsTrigger>
           <TabsTrigger value="pipeline" className="text-xs">Pipeline Tracker</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="activity-log" className="mt-4">
+          <ActivityLogTab />
+        </TabsContent>
         <TabsContent value="processes" className="mt-4">
           <ProcessManagerTab />
         </TabsContent>
@@ -310,6 +316,216 @@ function PipelineStageRow({ stage, isLast }: { stage: PipelineStage; isLast: boo
           <p className="text-[10px] text-muted-foreground">{formatRelativeTime(stage.timestamp)}</p>
         )}
       </div>
+    </div>
+  )
+}
+
+
+// ---------------------------------------------------------------------------
+// Activity Log tab (#166) — unified system event stream for troubleshooting
+// ---------------------------------------------------------------------------
+
+/** Event type → icon/color mapping for the activity log */
+const eventTypeStyles: Record<string, { icon: string; color: string }> = {
+  email_received: { icon: "📨", color: "bg-blue-100 text-blue-800" },
+  email_sent: { icon: "📤", color: "bg-green-100 text-green-800" },
+  rfq_created: { icon: "📋", color: "bg-green-100 text-green-800" },
+  rfq_extracted: { icon: "🔍", color: "bg-blue-100 text-blue-800" },
+  state_changed: { icon: "🔄", color: "bg-purple-100 text-purple-800" },
+  followup_drafted: { icon: "✏️", color: "bg-amber-100 text-amber-800" },
+  approval_approved: { icon: "✅", color: "bg-green-100 text-green-800" },
+  approval_rejected: { icon: "❌", color: "bg-red-100 text-red-800" },
+  auto_send: { icon: "⚡", color: "bg-teal-100 text-teal-800" },
+  carrier_distribution_created: { icon: "🚛", color: "bg-purple-100 text-purple-800" },
+  carrier_bid_received: { icon: "💰", color: "bg-green-100 text-green-800" },
+  escalated_for_review: { icon: "⚠️", color: "bg-amber-100 text-amber-800" },
+  quote_sheet_generated: { icon: "📊", color: "bg-blue-100 text-blue-800" },
+  customer_quote_generated: { icon: "💵", color: "bg-teal-100 text-teal-800" },
+  quote_response_classified: { icon: "🤖", color: "bg-purple-100 text-purple-800" },
+  clarification_requested: { icon: "❓", color: "bg-amber-100 text-amber-800" },
+  message_matched: { icon: "🔗", color: "bg-blue-100 text-blue-800" },
+  workflow_enabled: { icon: "🟢", color: "bg-green-100 text-green-800" },
+  workflow_disabled: { icon: "🔴", color: "bg-red-100 text-red-800" },
+}
+
+const TIME_FILTERS = [
+  { value: null, label: "All Time" },
+  { value: "hour", label: "Last Hour" },
+  { value: "today", label: "Today" },
+  { value: "week", label: "This Week" },
+] as const
+
+interface ActivityEvent {
+  id: number
+  rfq_id: number | null
+  event_type: string
+  actor: string
+  description: string
+  event_data: Record<string, unknown> | null
+  created_at: string | null
+}
+
+interface ActivityLogResponse {
+  events: ActivityEvent[]
+  total: number
+  event_types: Record<string, number>
+}
+
+const PAGE_SIZE = 50
+
+function ActivityLogTab() {
+  const [rfqFilter, setRfqFilter] = useState("")
+  const [typeFilter, setTypeFilter] = useState<string | null>(null)
+  const [timeFilter, setTimeFilter] = useState<string | null>(null)
+  const [page, setPage] = useState(0)
+
+  // Debounce RFQ filter
+  const [debouncedRfq, setDebouncedRfq] = useState("")
+  useMemo(() => {
+    const timer = setTimeout(() => setDebouncedRfq(rfqFilter), 300)
+    return () => clearTimeout(timer)
+  }, [rfqFilter])
+
+  const params = new URLSearchParams()
+  params.set("limit", String(PAGE_SIZE))
+  params.set("offset", String(page * PAGE_SIZE))
+  if (debouncedRfq) params.set("rfq_id", debouncedRfq)
+  if (typeFilter) params.set("event_type", typeFilter)
+  if (timeFilter) params.set("since", timeFilter)
+
+  const log = useQuery({
+    queryKey: ["admin", "activity-log", { rfq: debouncedRfq, type: typeFilter, time: timeFilter, page }],
+    queryFn: () => api.get<ActivityLogResponse>(`/api/admin/activity-log?${params.toString()}`),
+    refetchInterval: 10_000,
+  })
+
+  const totalPages = Math.ceil((log.data?.total ?? 0) / PAGE_SIZE)
+  const eventTypes = Object.entries(log.data?.event_types ?? {}).sort((a, b) => b[1] - a[1])
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        {/* RFQ filter */}
+        <div className="relative w-full sm:w-40">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="RFQ #..."
+            value={rfqFilter}
+            onChange={(e) => { setRfqFilter(e.target.value.replace(/\D/g, "")); setPage(0) }}
+            className="w-full pl-9 pr-3 py-1.5 text-sm border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#0F9ED5]/30 focus:border-[#0F9ED5]"
+          />
+        </div>
+
+        {/* Time range pills */}
+        <div className="flex flex-wrap gap-1.5">
+          {TIME_FILTERS.map((f) => (
+            <button
+              key={f.value ?? "all"}
+              onClick={() => { setTimeFilter(f.value); setPage(0) }}
+              className={cn(
+                "px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors",
+                timeFilter === f.value
+                  ? "bg-[#0E2841] text-white border-[#0E2841]"
+                  : "bg-white text-muted-foreground border-border hover:bg-muted/50"
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Event type filter pills */}
+      {eventTypes.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => { setTypeFilter(null); setPage(0) }}
+            className={cn(
+              "px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors",
+              typeFilter === null
+                ? "bg-[#0F9ED5] text-white border-[#0F9ED5]"
+                : "bg-white text-muted-foreground border-border hover:bg-muted/50"
+            )}
+          >
+            All ({log.data?.total ?? 0})
+          </button>
+          {eventTypes.map(([type, count]) => {
+            const style = eventTypeStyles[type]
+            return (
+              <button
+                key={type}
+                onClick={() => { setTypeFilter(typeFilter === type ? null : type); setPage(0) }}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors",
+                  typeFilter === type
+                    ? "bg-[#0F9ED5] text-white border-[#0F9ED5]"
+                    : "bg-white text-muted-foreground border-border hover:bg-muted/50"
+                )}
+              >
+                {style?.icon ?? "•"} {type.replace(/_/g, " ")} ({count})
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Event list */}
+      {log.isLoading ? (
+        <div className="space-y-2">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="h-12 bg-white rounded animate-pulse shadow-sm" />
+          ))}
+        </div>
+      ) : (log.data?.events.length ?? 0) === 0 ? (
+        <Card className="shadow-sm">
+          <CardContent className="py-8 text-center">
+            <p className="text-muted-foreground">No activity found</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-1.5">
+          {log.data?.events.map((event) => {
+            const style = eventTypeStyles[event.event_type] ?? { icon: "•", color: "bg-gray-100 text-gray-600" }
+            return (
+              <div key={event.id} className="flex items-start gap-3 bg-white rounded-lg shadow-sm border p-3">
+                <span className="text-sm shrink-0 mt-0.5">{style.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm">{event.description}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="secondary" className={`text-[9px] ${style.color}`}>
+                      {event.event_type.replace(/_/g, " ")}
+                    </Badge>
+                    {event.rfq_id && (
+                      <span className="text-[10px] text-[#0F9ED5] font-medium">RFQ #{event.rfq_id}</span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground">
+                      {event.actor}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-muted-foreground shrink-0 mt-0.5">
+                  {event.created_at ? formatRelativeTime(event.created_at) : "—"}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, log.data?.total ?? 0)} of {log.data?.total}
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="px-3 py-1 text-xs border rounded-md disabled:opacity-40 hover:bg-muted/50">Previous</button>
+            <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="px-3 py-1 text-xs border rounded-md disabled:opacity-40 hover:bg-muted/50">Next</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

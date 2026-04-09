@@ -488,3 +488,80 @@ def renew_graph_subscription():
         }
     else:
         return {"status": "error", "message": "Renewal failed — may need to recreate"}
+
+
+# ---------------------------------------------------------------------------
+# Activity Log (#166) — unified system event stream for troubleshooting
+# ---------------------------------------------------------------------------
+
+
+@router.get("/activity-log")
+def get_activity_log(
+    rfq_id: Optional[int] = Query(None, description="Filter to a specific RFQ"),
+    event_type: Optional[str] = Query(None, description="Filter by event type (e.g., email_received, state_changed, auto_send)"),
+    since: Optional[str] = Query(None, description="Time range: 'hour', 'today', 'week'"),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """
+    Unified activity log for troubleshooting (#166).
+
+    Returns all audit_events newest-first with optional filters.
+    No RFQ required — shows everything happening in the system.
+    Descriptions are already in plain English (C3).
+    """
+    from datetime import timedelta
+
+    query = db.query(AuditEvent).order_by(AuditEvent.created_at.desc())
+
+    # Filter by RFQ
+    if rfq_id is not None:
+        query = query.filter(AuditEvent.rfq_id == rfq_id)
+
+    # Filter by event type
+    if event_type:
+        query = query.filter(AuditEvent.event_type == event_type)
+
+    # Filter by time range
+    if since:
+        now = datetime.utcnow()
+        if since == "hour":
+            cutoff = now - timedelta(hours=1)
+        elif since == "today":
+            cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif since == "week":
+            cutoff = now - timedelta(days=7)
+        else:
+            cutoff = None
+        if cutoff:
+            query = query.filter(AuditEvent.created_at >= cutoff)
+
+    # Get total before pagination
+    total = query.count()
+
+    # Paginate
+    events = query.offset(offset).limit(limit).all()
+
+    # Get distinct event types for the filter UI
+    type_query = db.query(AuditEvent.event_type, func.count(AuditEvent.id))
+    type_counts = type_query.group_by(AuditEvent.event_type).all()
+
+    return {
+        "events": [
+            {
+                "id": e.id,
+                "rfq_id": e.rfq_id,
+                "event_type": e.event_type,
+                "actor": e.actor,
+                "description": e.description,
+                "event_data": e.event_data,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in events
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "event_types": {t: c for t, c in type_counts},
+    }
