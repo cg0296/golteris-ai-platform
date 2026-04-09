@@ -214,8 +214,13 @@ def extract_rfq(
     )
 
     try:
-        # Build the user prompt with the email content and today's date
-        user_prompt = _build_user_prompt(message, today_date)
+        # Build the user prompt with the email content and today's date.
+        # For re-extractions (reply to existing RFQ), include current RFQ
+        # fields so the LLM knows what's already captured (#167).
+        existing_rfq = None
+        if message.rfq_id:
+            existing_rfq = db.query(RFQ).filter(RFQ.id == message.rfq_id).first()
+        user_prompt = _build_user_prompt(message, today_date, existing_rfq)
 
         # Call the LLM with the extraction tool schema.
         # call_llm handles: cost cap check (C5), provider selection, logging to
@@ -290,20 +295,43 @@ def extract_rfq(
         raise
 
 
-def _build_user_prompt(message: Message, today_date: str) -> str:
+def _build_user_prompt(message: Message, today_date: str, existing_rfq: Optional[RFQ] = None) -> str:
     """
     Build the user prompt from the email message.
 
-    Includes the sender, subject, and body — the three fields the LLM needs
-    to extract RFQ data from. Also includes today's date so relative date
-    references ("next Tuesday") can be resolved to absolute dates.
+    For new emails: includes sender, subject, body, and today's date.
+    For replies to existing RFQs (#167): also includes the current RFQ fields
+    so the LLM knows what's already captured and only needs to find new info.
+    This prevents the LLM from returning 0.0 confidence for fields that simply
+    aren't mentioned in a short reply like "2 vans, date is 5/1".
     """
-    return (
-        f"Today's date: {today_date}\n\n"
-        f"From: {message.sender}\n"
-        f"Subject: {message.subject or '(no subject)'}\n\n"
-        f"{message.body}"
-    )
+    parts = [f"Today's date: {today_date}\n"]
+
+    # For re-extractions, include existing RFQ context so the LLM preserves
+    # confidence for fields already captured (#167)
+    if existing_rfq:
+        confidence = existing_rfq.confidence_scores or {}
+        parts.append("EXISTING RFQ DATA (already captured — preserve these if the reply doesn't update them):")
+        parts.append(f"  Origin: {existing_rfq.origin or 'NOT SET'} (confidence: {confidence.get('origin', 0):.2f})")
+        parts.append(f"  Destination: {existing_rfq.destination or 'NOT SET'} (confidence: {confidence.get('destination', 0):.2f})")
+        parts.append(f"  Equipment: {existing_rfq.equipment_type or 'NOT SET'} (confidence: {confidence.get('equipment_type', 0):.2f})")
+        parts.append(f"  Truck count: {existing_rfq.truck_count or 'NOT SET'} (confidence: {confidence.get('truck_count', 0):.2f})")
+        parts.append(f"  Commodity: {existing_rfq.commodity or 'NOT SET'} (confidence: {confidence.get('commodity', 0):.2f})")
+        parts.append(f"  Weight: {existing_rfq.weight_lbs or 'NOT SET'} lbs (confidence: {confidence.get('weight_lbs', 0):.2f})")
+        parts.append(f"  Pickup date: {existing_rfq.pickup_date.strftime('%Y-%m-%d') if existing_rfq.pickup_date else 'NOT SET'}")
+        parts.append(f"  Delivery date: {existing_rfq.delivery_date.strftime('%Y-%m-%d') if existing_rfq.delivery_date else 'NOT SET'}")
+        if existing_rfq.special_requirements:
+            parts.append(f"  Special requirements: {existing_rfq.special_requirements}")
+        parts.append("")
+        parts.append("CUSTOMER REPLY (extract any NEW or UPDATED information — keep existing field values and confidence for anything not mentioned):")
+        parts.append("")
+
+    parts.append(f"From: {message.sender}")
+    parts.append(f"Subject: {message.subject or '(no subject)'}")
+    parts.append("")
+    parts.append(message.body or "")
+
+    return "\n".join(parts)
 
 
 def _parse_tool_response(response) -> Optional[dict[str, Any]]:
