@@ -71,6 +71,14 @@ CLASSIFY_RESPONSE_TOOL = ToolDefinition(
                 "type": "string",
                 "description": "One-sentence explanation of why you classified it this way",
             },
+            "has_additional_question": {
+                "type": "boolean",
+                "description": "True if the customer ALSO asks a question alongside their accept/reject (e.g., 'Book it. Also, do you handle hazmat?')",
+            },
+            "additional_question": {
+                "type": ["string", "null"],
+                "description": "The additional question text, if has_additional_question is true",
+            },
         },
         "required": ["classification", "confidence", "reason"],
     },
@@ -90,6 +98,7 @@ Rules:
 - Clear rejections like "We'll pass", "Going with someone else", "Too expensive" = rejected
 - Anything ambiguous or requesting changes = question (let the broker handle it)
 - If confidence is below 0.7, classify as "question" to be safe — let the broker decide.
+- IMPORTANT: A customer may accept AND ask a question in the same email (#191). For example: "Book it. Also, do you handle hazmat?" — classify as "accepted" with has_additional_question=true. The acceptance takes priority. The question will be handled separately.
 
 Use the classify_quote_response tool to return your classification."""
 
@@ -166,6 +175,15 @@ def handle_quote_response(
             _handle_question(db, rfq, message)
         elif label == "accepted":
             _handle_accepted(db, rfq, message, reason)
+            # If the customer also asked a question (#191), route it to broker
+            if classification.get("has_additional_question") and classification.get("additional_question"):
+                db.add(AuditEvent(
+                    rfq_id=rfq.id,
+                    event_type="additional_question",
+                    actor="quote_response_agent",
+                    description=f"Customer also asked: {classification['additional_question'][:100]}",
+                ))
+                _handle_question(db, rfq, message)
         elif label == "rejected":
             _handle_rejected(db, rfq, message, reason)
         else:

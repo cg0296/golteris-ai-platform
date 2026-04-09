@@ -363,6 +363,7 @@ def _find_sender_candidates(db: Session, message: Message) -> list[MatchCandidat
     if not sender_email:
         return []
 
+    # Exact email match first
     active_rfqs = (
         db.query(RFQ)
         .filter(
@@ -371,6 +372,33 @@ def _find_sender_candidates(db: Session, message: Message) -> list[MatchCandidat
         )
         .all()
     )
+
+    # Domain match fallback (#193) — if no exact match, check if someone
+    # from the same company domain has an active RFQ. This handles the case
+    # where tom@acme.com sends an RFQ and sarah@acme.com replies with details.
+    if not active_rfqs and "@" in sender_email:
+        domain = sender_email.split("@")[1]
+        # Skip common free email domains — domain matching only helps for company emails
+        free_domains = {"gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "aol.com", "icloud.com"}
+        if domain not in free_domains:
+            domain_rfqs = (
+                db.query(RFQ)
+                .filter(
+                    RFQ.customer_email.ilike(f"%@{domain}"),
+                    RFQ.state.notin_([s.value for s in TERMINAL_STATES]),
+                )
+                .all()
+            )
+            if domain_rfqs:
+                return [
+                    MatchCandidate(
+                        rfq_id=rfq.id,
+                        score=0.55,  # Lower than exact match — domain match is less certain
+                        method="domain",
+                        reason=f"Same email domain (@{domain}) as RFQ #{rfq.id}",
+                    )
+                    for rfq in domain_rfqs
+                ]
 
     return [
         MatchCandidate(

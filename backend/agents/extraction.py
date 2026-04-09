@@ -162,6 +162,8 @@ Instructions:
   - 0.7-0.8 = field reasonably inferred from context
   - 0.4-0.6 = field guessed with significant uncertainty
   - 0.0 = field not found in the email at all
+- MULTI-LANE REQUESTS (#192): If the email contains multiple origin-destination pairs (e.g., "Dallas to Atlanta AND Chicago to Miami"), extract the FIRST/PRIMARY lane as the main RFQ fields. Put the additional lanes in special_requirements with the format: "ADDITIONAL LANES: [lane2 origin] to [lane2 destination], [lane3 origin] to [lane3 destination]". This flags them for the broker to split into separate RFQs.
+- SIGNATURE STRIPPING: Ignore email signatures (contact info, phone numbers, addresses below "-- " or at the very end). Do NOT extract origin/destination from signature addresses.
 
 Use the extract_rfq tool to return your results."""
 
@@ -337,9 +339,62 @@ def _build_user_prompt(message: Message, today_date: str, existing_rfq: Optional
     parts.append(f"From: {message.sender}")
     parts.append(f"Subject: {message.subject or '(no subject)'}")
     parts.append("")
-    parts.append(message.body or "")
+    parts.append(_clean_email_body(message.body or ""))
 
     return "\n".join(parts)
+
+
+def _clean_email_body(body: str) -> str:
+    """
+    Strip quoted text, email signatures, and noise from an email body (#189, #190).
+
+    Removes:
+    - Quoted lines (starting with >)
+    - "On DATE, NAME wrote:" blocks and everything after
+    - "Sent from my iPhone/Galaxy" lines
+    - Common signature delimiters (-- ) and content below them
+    - Forwarded message headers
+
+    This ensures extraction only sees the NEW content in a reply,
+    not the entire quoted email history.
+    """
+    lines = body.split("\n")
+    cleaned = []
+    for line in lines:
+        stripped = line.strip()
+
+        # Stop at "On DATE, NAME wrote:" — everything after is quoted history
+        if re.match(r'^On .+wrote:\s*$', stripped):
+            break
+
+        # Stop at forwarded message headers
+        if stripped.startswith("---------- Forwarded message"):
+            break
+        if stripped.startswith("----- Original Message"):
+            break
+
+        # Stop at signature delimiter
+        if stripped == "--" or stripped == "-- ":
+            break
+
+        # Skip quoted lines (> prefix)
+        if stripped.startswith(">"):
+            continue
+
+        # Skip "Sent from my iPhone/Galaxy/etc"
+        if re.match(r'^Sent from my (iPhone|Galaxy|iPad|Samsung|Pixel)', stripped, re.IGNORECASE):
+            continue
+
+        cleaned.append(line)
+
+    result = "\n".join(cleaned).strip()
+
+    # If stripping removed everything, fall back to original
+    # (some emails are entirely quoted — don't return empty)
+    if len(result) < 10 and len(body) > 10:
+        return body
+
+    return result
 
 
 def _parse_tool_response(response) -> Optional[dict[str, Any]]:
