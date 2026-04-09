@@ -621,6 +621,21 @@ function RankedBidsSection({ bids, rfqId }: { bids: RankedBid[]; rfqId: number }
   const [pricingResult, setPricingResult] = useState<Record<string, unknown> | null>(null)
   const [isPricing, setIsPricing] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  // Editable markup state (#162)
+  const [markupPct, setMarkupPct] = useState(12)
+  const [markupDollar, setMarkupDollar] = useState(0)
+  const [customerRate, setCustomerRate] = useState(0)
+  const [carrierRate, setCarrierRate] = useState(0)
+  // Counter-offer state
+  const [counterBidId, setCounterBidId] = useState<number | null>(null)
+  const [counterRate, setCounterRate] = useState("")
+  const [counterMessage, setCounterMessage] = useState("")
+  const [isSendingCounter, setIsSendingCounter] = useState(false)
+  // Re-bid state
+  const [showRebid, setShowRebid] = useState(false)
+  const [rebidGuidance, setRebidGuidance] = useState("")
+  const [isSendingRebid, setIsSendingRebid] = useState(false)
+
   const queryClient = useQueryClient()
 
   const handleSelectBid = async (bidId: number) => {
@@ -632,10 +647,47 @@ function RankedBidsSection({ bids, rfqId }: { bids: RankedBid[]; rfqId: number }
       )
       const data = await res.json()
       setPricingResult(data)
+      // Initialize editable markup from the result
+      setCarrierRate(Number(data.carrier_rate))
+      setMarkupPct(Number(data.markup_percent))
+      setMarkupDollar(Number(data.markup_amount))
+      setCustomerRate(Number(data.customer_rate))
       queryClient.invalidateQueries({ queryKey: ["rfq", "detail"] })
-      toast.success("Pricing applied", { description: `Customer rate: $${data.customer_rate?.toLocaleString()}` })
+      toast.success("Pricing applied")
     } catch { toast.error("Pricing failed") }
     finally { setIsPricing(false) }
+  }
+
+  // Sync markup slider/input (#162)
+  const handleMarkupPctChange = (pct: number) => {
+    setMarkupPct(pct)
+    const markup = carrierRate * pct / 100
+    setMarkupDollar(Math.round(markup))
+    setCustomerRate(Math.round(carrierRate + markup))
+  }
+
+  const handleMarkupDollarChange = (dollar: number) => {
+    setMarkupDollar(dollar)
+    setMarkupPct(carrierRate > 0 ? Math.round(dollar / carrierRate * 100) : 0)
+    setCustomerRate(Math.round(carrierRate + dollar))
+  }
+
+  const handleSaveMarkup = async () => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.DEV ? "http://localhost:8001" : ""}/api/rfqs/${rfqId}/price`,
+        { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ carrier_bid_id: pricingResult?.carrier_bid_id, manual_rate: customerRate }) }
+      )
+      const data = await res.json()
+      setPricingResult(data)
+      setCarrierRate(Number(data.carrier_rate))
+      setMarkupPct(Number(data.markup_percent))
+      setMarkupDollar(Number(data.markup_amount))
+      setCustomerRate(Number(data.customer_rate))
+      queryClient.invalidateQueries({ queryKey: ["rfq", "detail"] })
+      toast.success("Markup updated", { description: `Customer rate: $${Number(data.customer_rate).toLocaleString()}` })
+    } catch { toast.error("Failed to update markup") }
   }
 
   const handleGenerateQuote = async () => {
@@ -650,6 +702,46 @@ function RankedBidsSection({ bids, rfqId }: { bids: RankedBid[]; rfqId: number }
     } catch { toast.error("Quote generation failed") }
     finally { setIsGenerating(false) }
   }
+
+  // Counter-offer (#162)
+  const handleSendCounter = async () => {
+    if (!counterBidId || !counterRate) return
+    setIsSendingCounter(true)
+    try {
+      await fetch(
+        `${import.meta.env.DEV ? "http://localhost:8001" : ""}/api/rfqs/${rfqId}/counter-offer`,
+        { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ carrier_bid_id: counterBidId, proposed_rate: parseFloat(counterRate), message: counterMessage || undefined }) }
+      )
+      toast.success("Counter-offer sent")
+      setCounterBidId(null)
+      setCounterRate("")
+      setCounterMessage("")
+      queryClient.invalidateQueries()
+    } catch { toast.error("Counter-offer failed") }
+    finally { setIsSendingCounter(false) }
+  }
+
+  // Re-bid request (#162)
+  const handleSendRebid = async () => {
+    if (!rebidGuidance.trim()) return
+    setIsSendingRebid(true)
+    try {
+      const carrierIds = bids.map((b) => b.id) // Use bid IDs — backend needs carrier IDs
+      // Get unique carrier emails from bids to find carrier IDs
+      await fetch(
+        `${import.meta.env.DEV ? "http://localhost:8001" : ""}/api/rfqs/${rfqId}/rebid-request`,
+        { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ carrier_ids: carrierIds, guidance: rebidGuidance }) }
+      )
+      toast.success("Re-bid request sent")
+      setShowRebid(false)
+      setRebidGuidance("")
+      queryClient.invalidateQueries()
+    } catch { toast.error("Re-bid request failed") }
+    finally { setIsSendingRebid(false) }
+  }
+
   const tagStyles: Record<string, string> = {
     best_value: "bg-green-100 text-green-800",
     runner_up: "bg-blue-100 text-blue-800",
@@ -670,74 +762,137 @@ function RankedBidsSection({ bids, rfqId }: { bids: RankedBid[]; rfqId: number }
       </p>
       <div className="space-y-2">
         {bids.map((bid) => (
-          <div
-            key={bid.id}
-            className={`flex items-center justify-between border rounded-lg p-3 ${
-              bid.tag === "best_value" ? "border-green-300 bg-green-50/50" : ""
-            }`}
-          >
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-muted-foreground">#{bid.rank}</span>
-                <p className="text-sm font-medium">{bid.carrier_name}</p>
-                {bid.tag && (
-                  <Badge variant="secondary" className={`text-[10px] ${tagStyles[bid.tag] ?? ""}`}>
-                    {tagLabels[bid.tag] ?? bid.tag}
-                  </Badge>
-                )}
+          <div key={bid.id}>
+            <div
+              className={`flex items-center justify-between border rounded-lg p-3 ${
+                bid.tag === "best_value" ? "border-green-300 bg-green-50/50" : ""
+              }`}
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-muted-foreground">#{bid.rank}</span>
+                  <p className="text-sm font-medium">{bid.carrier_name}</p>
+                  {bid.tag && (
+                    <Badge variant="secondary" className={`text-[10px] ${tagStyles[bid.tag] ?? ""}`}>
+                      {tagLabels[bid.tag] ?? bid.tag}
+                    </Badge>
+                  )}
+                </div>
+                {bid.reason && <p className="text-xs text-muted-foreground mt-0.5">{bid.reason}</p>}
+                {bid.availability && <p className="text-xs text-muted-foreground">{bid.availability}</p>}
               </div>
-              {bid.reason && (
-                <p className="text-xs text-muted-foreground mt-0.5">{bid.reason}</p>
-              )}
-              {bid.availability && (
-                <p className="text-xs text-muted-foreground">{bid.availability}</p>
-              )}
+              <div className="text-right shrink-0 ml-4 space-y-1">
+                {bid.rate != null && (
+                  <p className="text-sm font-bold text-[#0E2841]">${bid.rate.toLocaleString()}</p>
+                )}
+                <div className="flex gap-1">
+                  <Button size="sm" variant="outline" onClick={() => handleSelectBid(bid.id)} disabled={isPricing} className="text-xs">
+                    {isPricing ? "..." : "Select & Price"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setCounterBidId(counterBidId === bid.id ? null : bid.id)} className="text-xs">
+                    Counter
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div className="text-right shrink-0 ml-4 space-y-1">
-              {bid.rate != null && (
-                <p className="text-sm font-bold text-[#0E2841]">
-                  ${bid.rate.toLocaleString()}
-                </p>
-              )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleSelectBid(bid.id)}
-                disabled={isPricing}
-                className="text-xs"
-              >
-                {isPricing ? "..." : "Select & Price"}
-              </Button>
-            </div>
+
+            {/* Inline counter-offer form (#162) */}
+            {counterBidId === bid.id && (
+              <div className="border border-t-0 rounded-b-lg p-3 bg-muted/20 space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Counter-offer to {bid.carrier_name}</p>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <label className="text-[10px] text-muted-foreground">Proposed Rate ($)</label>
+                    <input type="number" value={counterRate} onChange={(e) => setCounterRate(e.target.value)}
+                      placeholder={bid.rate ? String(Math.round(bid.rate * 0.9)) : ""}
+                      className="w-full text-sm border rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]" />
+                  </div>
+                </div>
+                <textarea value={counterMessage} onChange={(e) => setCounterMessage(e.target.value)}
+                  placeholder="Optional message to the carrier..."
+                  className="w-full text-sm border rounded px-2.5 py-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]" rows={2} />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSendCounter} disabled={!counterRate || isSendingCounter} className="bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white">
+                    {isSendingCounter ? "Sending..." : "Send Counter"}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setCounterBidId(null)}>Cancel</Button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Pricing result (#101) */}
+      {/* Re-bid request (#162) */}
+      <div className="mt-3">
+        {showRebid ? (
+          <div className="border rounded-lg p-3 bg-muted/20 space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase">Request Re-bid from All Carriers</p>
+            <textarea value={rebidGuidance} onChange={(e) => setRebidGuidance(e.target.value)}
+              placeholder="e.g., We need this under $4,500. Can you sharpen your rate?"
+              className="w-full text-sm border rounded px-2.5 py-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]" rows={2} />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleSendRebid} disabled={!rebidGuidance.trim() || isSendingRebid} className="bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white">
+                {isSendingRebid ? "Sending..." : `Request Re-bid (${bids.length} carriers)`}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowRebid(false)}>Cancel</Button>
+            </div>
+          </div>
+        ) : (
+          <Button size="sm" variant="outline" onClick={() => setShowRebid(true)} className="w-full text-xs">
+            Request Re-bid
+          </Button>
+        )}
+      </div>
+
+      {/* Pricing section with editable markup (#162) */}
       {pricingResult && (
-        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pricing Applied</p>
-          <div className="grid grid-cols-3 gap-2 text-sm">
+        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pricing</p>
+          <div className="grid grid-cols-3 gap-3 text-sm">
             <div>
               <p className="text-xs text-muted-foreground">Carrier Rate</p>
-              <p className="font-medium">${Number(pricingResult.carrier_rate).toLocaleString()}</p>
+              <p className="font-medium">${carrierRate.toLocaleString()}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Markup</p>
-              <p className="font-medium">${Number(pricingResult.markup_amount).toLocaleString()}</p>
+              <p className="font-medium">${markupDollar.toLocaleString()}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Customer Rate</p>
-              <p className="font-bold text-[#0E2841]">${Number(pricingResult.customer_rate).toLocaleString()}</p>
+              <p className="font-bold text-[#0E2841]">${customerRate.toLocaleString()}</p>
             </div>
           </div>
-          <Button
-            onClick={handleGenerateQuote}
-            disabled={isGenerating}
-            className="w-full mt-2 bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white"
-          >
-            {isGenerating ? "Generating..." : "Generate Customer Quote"}
-          </Button>
+
+          {/* Markup slider + input (#162) */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-muted-foreground w-16">Markup %</label>
+              <input type="range" min={0} max={50} step={1} value={markupPct}
+                onChange={(e) => handleMarkupPctChange(Number(e.target.value))}
+                className="flex-1 h-2 accent-[#0F9ED5]" />
+              <span className="text-xs font-mono w-10 text-right">{markupPct}%</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="text-xs text-muted-foreground w-16">Markup $</label>
+              <input type="number" value={markupDollar}
+                onChange={(e) => handleMarkupDollarChange(Number(e.target.value))}
+                className="flex-1 text-sm border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]" />
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={handleSaveMarkup} className="text-xs">
+              Save Pricing
+            </Button>
+            <Button
+              onClick={handleGenerateQuote}
+              disabled={isGenerating}
+              className="flex-1 bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white"
+            >
+              {isGenerating ? "Generating..." : "Generate Customer Quote"}
+            </Button>
+          </div>
         </div>
       )}
     </div>

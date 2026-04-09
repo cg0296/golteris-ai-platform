@@ -238,6 +238,181 @@ def price_rfq(
     }
 
 
+class CounterOfferRequest(BaseModel):
+    """Request body for counter-offering a carrier bid (#162)."""
+    carrier_bid_id: int
+    proposed_rate: float
+    message: str | None = None
+
+
+class RebidRequest(BaseModel):
+    """Request body for requesting carrier re-bids (#162)."""
+    carrier_ids: list[int]
+    guidance: str
+
+
+@router.post("/api/rfqs/{rfq_id}/counter-offer")
+def counter_offer(
+    rfq_id: int,
+    body: CounterOfferRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Send a counter-offer to a specific carrier (#162).
+
+    Drafts an email to the carrier proposing a different rate.
+    Goes through approval/auto-send gate (C2) via Carrier Distribution toggle.
+    """
+    from backend.db.models import (
+        Approval, ApprovalStatus, ApprovalType, AuditEvent, CarrierBid,
+    )
+    from backend.services.broker_identity import get_broker_name
+    from backend.services.org_profile import get_sign_off
+    from backend.worker import enqueue_job, is_auto_send_enabled
+
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    if not rfq:
+        raise HTTPException(status_code=404, detail=f"RFQ {rfq_id} not found")
+
+    bid = db.query(CarrierBid).filter(CarrierBid.id == body.carrier_bid_id).first()
+    if not bid:
+        raise HTTPException(status_code=404, detail="Carrier bid not found")
+
+    broker_name = get_broker_name(db)
+    company_name = get_sign_off(db)
+
+    # Build the counter-offer email
+    subject = f"Re: RFQ {rfq.origin} to {rfq.destination} — Counter Offer [RFQ-{rfq_id}]"
+    email_body = (
+        f"Hi {bid.carrier_name},\n\n"
+        f"Thank you for your quote of ${bid.rate:,.2f} for {rfq.origin} to {rfq.destination}.\n\n"
+        f"Would you be able to do ${body.proposed_rate:,.2f} for this lane?"
+    )
+    if body.message:
+        email_body += f"\n\n{body.message}"
+    email_body += f"\n\nLet me know if that works.\n\nThanks,\n{broker_name}\n{company_name}"
+
+    # Create approval (C2 gate)
+    auto_send = is_auto_send_enabled(db, "Carrier Distribution")
+    approval = Approval(
+        rfq_id=rfq_id,
+        approval_type=ApprovalType.CARRIER_RFQ,
+        draft_subject=subject,
+        draft_body=email_body,
+        draft_recipient=bid.carrier_email,
+        reason=f"Counter-offer to {bid.carrier_name}: ${bid.rate:,.2f} → ${body.proposed_rate:,.2f}",
+        status=ApprovalStatus.APPROVED if auto_send else ApprovalStatus.PENDING_APPROVAL,
+    )
+    if auto_send:
+        from datetime import datetime
+        approval.resolved_by = "auto_send"
+        approval.resolved_at = datetime.utcnow()
+    db.add(approval)
+
+    # Audit event
+    db.add(AuditEvent(
+        rfq_id=rfq_id,
+        event_type="counter_offer_sent",
+        actor="broker",
+        description=f"Counter-offer to {bid.carrier_name}: ${bid.rate:,.2f} → ${body.proposed_rate:,.2f}",
+    ))
+    db.commit()
+    db.refresh(approval)
+
+    if auto_send:
+        enqueue_job(db, "send_outbound_email", {"approval_id": approval.id}, rfq_id=rfq_id)
+
+    return {
+        "status": "ok",
+        "approval_id": approval.id,
+        "auto_sent": auto_send,
+        "carrier_name": bid.carrier_name,
+        "original_rate": float(bid.rate) if bid.rate else None,
+        "proposed_rate": body.proposed_rate,
+    }
+
+
+@router.post("/api/rfqs/{rfq_id}/rebid-request")
+def rebid_request(
+    rfq_id: int,
+    body: RebidRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Request carriers to re-submit their bids with guidance (#162).
+
+    Sends a personalized re-bid request to each selected carrier.
+    Goes through approval/auto-send gate (C2) via Carrier Distribution toggle.
+    """
+    from backend.db.models import (
+        Approval, ApprovalStatus, ApprovalType, AuditEvent, Carrier,
+    )
+    from backend.services.broker_identity import get_broker_name
+    from backend.services.org_profile import get_sign_off
+    from backend.worker import enqueue_job, is_auto_send_enabled
+
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    if not rfq:
+        raise HTTPException(status_code=404, detail=f"RFQ {rfq_id} not found")
+
+    carriers = db.query(Carrier).filter(Carrier.id.in_(body.carrier_ids)).all()
+    if not carriers:
+        raise HTTPException(status_code=400, detail="No valid carriers selected")
+
+    broker_name = get_broker_name(db)
+    company_name = get_sign_off(db)
+    auto_send = is_auto_send_enabled(db, "Carrier Distribution")
+
+    approval_ids = []
+    for carrier in carriers:
+        subject = f"Re: RFQ {rfq.origin} to {rfq.destination} — Updated Request [RFQ-{rfq_id}]"
+        email_body = (
+            f"Hi {carrier.contact_name or carrier.name},\n\n"
+            f"We'd like you to re-submit your rate for this lane:\n\n"
+            f"  {rfq.origin} to {rfq.destination}\n"
+            f"  {rfq.truck_count} {rfq.equipment_type}(s)\n\n"
+            f"{body.guidance}\n\n"
+            f"Please reply with your updated rate.\n\n"
+            f"Thanks,\n{broker_name}\n{company_name}"
+        )
+
+        approval = Approval(
+            rfq_id=rfq_id,
+            approval_type=ApprovalType.CARRIER_RFQ,
+            draft_subject=subject,
+            draft_body=email_body,
+            draft_recipient=carrier.email,
+            reason=f"Re-bid request to {carrier.name}",
+            status=ApprovalStatus.APPROVED if auto_send else ApprovalStatus.PENDING_APPROVAL,
+        )
+        if auto_send:
+            from datetime import datetime
+            approval.resolved_by = "auto_send"
+            approval.resolved_at = datetime.utcnow()
+        db.add(approval)
+        db.flush()
+        approval_ids.append(approval.id)
+
+    db.add(AuditEvent(
+        rfq_id=rfq_id,
+        event_type="rebid_requested",
+        actor="broker",
+        description=f"Re-bid requested from {len(carriers)} carrier(s): {body.guidance[:100]}",
+    ))
+    db.commit()
+
+    if auto_send:
+        for aid in approval_ids:
+            enqueue_job(db, "send_outbound_email", {"approval_id": aid}, rfq_id=rfq_id)
+
+    return {
+        "status": "ok",
+        "approval_ids": approval_ids,
+        "carrier_count": len(carriers),
+        "auto_sent": auto_send,
+    }
+
+
 @router.post("/api/rfqs/{rfq_id}/outcome")
 def set_rfq_outcome(
     rfq_id: int,
