@@ -1,14 +1,16 @@
 /**
- * components/dashboard/CarrierSelectModal.tsx — Carrier selection for RFQ distribution (#32).
+ * components/dashboard/CarrierSelectModal.tsx — Carrier selection for RFQ distribution (#32, #168).
  *
- * Opens from the RFQ detail drawer when the broker clicks "Send to Carriers".
- * Shows matching carriers with checkboxes, preferred badges, and equipment tags.
- * Selecting carriers and clicking "Send RFQs" creates a batch approval (C2 gate).
+ * Shows ALL active carriers with search, split into:
+ * - Recommended: equipment type matches the RFQ
+ * - All Carriers: the rest
  *
- * C2 — Distribution creates a pending approval; nothing sends until approved.
+ * Broker can search by name/email, select across both sections, add new carriers inline.
+ *
+ * C2 — Distribution creates a pending approval (or auto-sends per workflow toggle).
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import {
   Dialog,
   DialogContent,
@@ -18,8 +20,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Plus } from "lucide-react"
-import { useMatchingCarriers, useDistributeRfq } from "@/hooks/use-carriers"
+import { Plus, Search } from "lucide-react"
+import { useAllCarriers, useMatchingCarriers, useDistributeRfq } from "@/hooks/use-carriers"
 import { api } from "@/lib/api"
 import { useQueryClient } from "@tanstack/react-query"
 import type { CarrierItem } from "@/hooks/use-carriers"
@@ -32,27 +34,51 @@ interface CarrierSelectModalProps {
 export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [attachQuoteSheet, setAttachQuoteSheet] = useState(true)
+  const [search, setSearch] = useState("")
   const [showAddForm, setShowAddForm] = useState(false)
   const [newName, setNewName] = useState("")
   const [newEmail, setNewEmail] = useState("")
   const [newEquipment, setNewEquipment] = useState("")
   const [adding, setAdding] = useState(false)
-  const carriers = useMatchingCarriers(rfqId)
+
+  // Fetch ALL carriers + matching carriers for recommendations
+  const allCarriers = useAllCarriers()
+  const matchingCarriers = useMatchingCarriers(rfqId)
   const distribute = useDistributeRfq()
   const queryClient = useQueryClient()
 
   const isOpen = rfqId !== null
 
+  // Build recommended set (IDs of equipment-matching carriers)
+  const recommendedIds = useMemo(() => {
+    return new Set((matchingCarriers.data?.carriers ?? []).map((c) => c.id))
+  }, [matchingCarriers.data])
+
+  // Filter carriers by search
+  const filteredCarriers = useMemo(() => {
+    const all = allCarriers.data?.carriers ?? []
+    if (!search.trim()) return all
+    const q = search.toLowerCase()
+    return all.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)
+    )
+  }, [allCarriers.data, search])
+
+  // Split into recommended and others
+  const recommended = filteredCarriers.filter((c) => recommendedIds.has(c.id))
+  const others = filteredCarriers.filter((c) => !recommendedIds.has(c.id))
+
   // Reset selection when modal opens with a new RFQ
   useEffect(() => {
     if (rfqId) {
-      // Pre-select preferred carriers
-      const preferred = (carriers.data?.carriers ?? [])
+      // Pre-select preferred carriers from the recommended set
+      const preferred = (matchingCarriers.data?.carriers ?? [])
         .filter((c) => c.preferred)
         .map((c) => c.id)
       setSelectedIds(new Set(preferred))
+      setSearch("")
     }
-  }, [rfqId, carriers.data])
+  }, [rfqId, matchingCarriers.data])
 
   const toggleCarrier = (id: number) => {
     setSelectedIds((prev) => {
@@ -64,8 +90,7 @@ export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) 
   }
 
   const selectAll = () => {
-    const allIds = (carriers.data?.carriers ?? []).map((c) => c.id)
-    setSelectedIds(new Set(allIds))
+    setSelectedIds(new Set(filteredCarriers.map((c) => c.id)))
   }
 
   const selectNone = () => setSelectedIds(new Set())
@@ -81,13 +106,10 @@ export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) 
           ? newEquipment.split(",").map((s) => s.trim())
           : [],
       })
-      // Refetch carrier list so the new carrier appears immediately
-      await queryClient.invalidateQueries({ queryKey: ["carriers", "match", rfqId] })
-      // Pre-select the new carrier
+      await queryClient.invalidateQueries({ queryKey: ["carriers"] })
       if (result?.id) {
         setSelectedIds((prev) => new Set([...prev, result.id]))
       }
-      // Reset form
       setNewName("")
       setNewEmail("")
       setNewEquipment("")
@@ -109,7 +131,7 @@ export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) 
       {
         onSuccess: () => {
           toast.success("Carrier RFQs prepared", {
-            description: `${selectedIds.size} carrier RFQ(s) awaiting your approval`,
+            description: `${selectedIds.size} carrier RFQ(s) sent or awaiting approval`,
           })
           onClose()
         },
@@ -122,6 +144,8 @@ export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) 
     )
   }
 
+  const totalCarriers = allCarriers.data?.carriers.length ?? 0
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
@@ -129,15 +153,27 @@ export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) 
           <DialogTitle>Send to Carriers</DialogTitle>
         </DialogHeader>
 
-        {carriers.isLoading ? (
+        {/* Search box */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search carriers by name or email..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 text-sm border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#0F9ED5]/30 focus:border-[#0F9ED5]"
+          />
+        </div>
+
+        {allCarriers.isLoading ? (
           <div className="space-y-3 py-4">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="h-14 bg-muted/50 rounded animate-pulse" />
             ))}
           </div>
-        ) : (carriers.data?.carriers.length ?? 0) === 0 ? (
+        ) : totalCarriers === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">
-            No carriers match this RFQ's equipment type
+            No carriers yet — add one below
           </p>
         ) : (
           <div className="space-y-3">
@@ -145,47 +181,18 @@ export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) 
             {showAddForm ? (
               <div className="border rounded-lg p-3 space-y-2 bg-muted/20">
                 <p className="text-xs font-semibold text-muted-foreground uppercase">New Carrier</p>
-                <input
-                  type="text"
-                  placeholder="Carrier name *"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className="w-full text-sm border rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]"
-                  autoFocus
-                />
-                <input
-                  type="email"
-                  placeholder="Email address *"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  className="w-full text-sm border rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]"
-                />
-                <input
-                  type="text"
-                  placeholder="Equipment types (comma-separated, e.g. Flatbed, Reefer)"
-                  value={newEquipment}
-                  onChange={(e) => setNewEquipment(e.target.value)}
-                  className="w-full text-sm border rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]"
-                />
+                <input type="text" placeholder="Carrier name *" value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full text-sm border rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]" autoFocus />
+                <input type="email" placeholder="Email address *" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="w-full text-sm border rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]" />
+                <input type="text" placeholder="Equipment types (comma-separated)" value={newEquipment} onChange={(e) => setNewEquipment(e.target.value)} className="w-full text-sm border rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]" />
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={handleAddCarrier}
-                    disabled={!newName.trim() || !newEmail.trim() || adding}
-                    className="bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white"
-                  >
+                  <Button size="sm" onClick={handleAddCarrier} disabled={!newName.trim() || !newEmail.trim() || adding} className="bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white">
                     {adding ? "Adding..." : "Add Carrier"}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setShowAddForm(false)}>
-                    Cancel
-                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowAddForm(false)}>Cancel</Button>
                 </div>
               </div>
             ) : (
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="flex items-center gap-1.5 text-xs text-[#0F9ED5] hover:underline"
-              >
+              <button onClick={() => setShowAddForm(true)} className="flex items-center gap-1.5 text-xs text-[#0F9ED5] hover:underline">
                 <Plus className="h-3.5 w-3.5" />
                 Add a carrier
               </button>
@@ -193,27 +200,54 @@ export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) 
 
             {/* Select all / none */}
             <div className="flex gap-2 text-xs">
-              <button onClick={selectAll} className="text-[#0F9ED5] hover:underline">
-                Select all
-              </button>
+              <button onClick={selectAll} className="text-[#0F9ED5] hover:underline">Select all</button>
               <span className="text-muted-foreground">·</span>
-              <button onClick={selectNone} className="text-muted-foreground hover:underline">
-                Select none
-              </button>
+              <button onClick={selectNone} className="text-muted-foreground hover:underline">Select none</button>
               <span className="ml-auto text-muted-foreground">
-                {selectedIds.size} of {carriers.data?.carriers.length} selected
+                {selectedIds.size} of {totalCarriers} selected
               </span>
             </div>
 
-            {/* Carrier list */}
-            {carriers.data?.carriers.map((carrier) => (
-              <CarrierRow
-                key={carrier.id}
-                carrier={carrier}
-                selected={selectedIds.has(carrier.id)}
-                onToggle={() => toggleCarrier(carrier.id)}
-              />
-            ))}
+            {/* Recommended carriers */}
+            {recommended.length > 0 && (
+              <>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-1">
+                  Recommended — Equipment Match
+                </p>
+                {recommended.map((carrier) => (
+                  <CarrierRow
+                    key={carrier.id}
+                    carrier={carrier}
+                    selected={selectedIds.has(carrier.id)}
+                    onToggle={() => toggleCarrier(carrier.id)}
+                    recommended
+                  />
+                ))}
+              </>
+            )}
+
+            {/* All other carriers */}
+            {others.length > 0 && (
+              <>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-1">
+                  {recommended.length > 0 ? "Other Carriers" : "All Carriers"}
+                </p>
+                {others.map((carrier) => (
+                  <CarrierRow
+                    key={carrier.id}
+                    carrier={carrier}
+                    selected={selectedIds.has(carrier.id)}
+                    onToggle={() => toggleCarrier(carrier.id)}
+                  />
+                ))}
+              </>
+            )}
+
+            {filteredCarriers.length === 0 && search && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No carriers matching "{search}"
+              </p>
+            )}
 
             {/* Attach quote sheet toggle */}
             <label className="flex items-center gap-2 pt-1 cursor-pointer">
@@ -248,14 +282,17 @@ export function CarrierSelectModal({ rfqId, onClose }: CarrierSelectModalProps) 
   )
 }
 
+/** Single carrier row with checkbox, badges, and equipment tags */
 function CarrierRow({
   carrier,
   selected,
   onToggle,
+  recommended = false,
 }: {
   carrier: CarrierItem
   selected: boolean
   onToggle: () => void
+  recommended?: boolean
 }) {
   return (
     <label
@@ -275,6 +312,11 @@ function CarrierRow({
           {carrier.preferred && (
             <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-800">
               Preferred
+            </Badge>
+          )}
+          {recommended && (
+            <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-800">
+              Match
             </Badge>
           )}
         </div>

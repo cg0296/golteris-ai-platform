@@ -29,6 +29,14 @@ export function useMatchingCarriers(rfqId: number | null) {
   })
 }
 
+/** Fetch all active carriers (#168) */
+export function useAllCarriers() {
+  return useQuery({
+    queryKey: ["carriers", "all"],
+    queryFn: () => api.get<CarrierListResponse>("/api/carriers"),
+  })
+}
+
 export function useDistributeRfq() {
   const queryClient = useQueryClient()
   return useMutation({
