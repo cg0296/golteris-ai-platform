@@ -162,7 +162,8 @@ def _handle_send_success(
     """
     # Persist the outbound message in the RFQ thread.
     # Use the approving user's name for the sender field (#159).
-    broker_name = _get_broker_name(db, resolved_by=approval.resolved_by)
+    from backend.services.broker_identity import get_broker_name
+    broker_name = get_broker_name(db, resolved_by=approval.resolved_by)
     send_address = os.environ.get("MS_GRAPH_USER_EMAIL", "agents@golteris.com")
     outbound_msg = Message(
         rfq_id=approval.rfq_id,
@@ -285,30 +286,7 @@ def _generate_quote_sheet_attachment(db: Session, rfq_id: int) -> dict | None:
     }
 
 
-def _get_broker_name(db: Session, resolved_by: str | None = None) -> str:
-    """
-    Get the broker's first name for outbound email signatures (#159).
-
-    Looks up the user by email from resolved_by (set by the frontend to
-    the logged-in user's email). Falls back to org name for auto-sends.
-    """
-    if resolved_by and resolved_by not in ("broker", "auto_send"):
-        try:
-            from backend.db.models import User
-            user = db.query(User).filter(User.email == resolved_by).first()
-            if user and user.name:
-                return user.name.split()[0]
-        except Exception:
-            pass
-    # Fallback: any active user
-    try:
-        from backend.db.models import User
-        user = db.query(User).filter(User.active == True).order_by(User.id.desc()).first()
-        if user and user.name:
-            return user.name.split()[0]
-    except Exception:
-        pass
-    return "Beltmann Logistics"
+## _get_broker_name removed — use backend.services.broker_identity.get_broker_name (#172)
 
 
 def _handle_send_failure(

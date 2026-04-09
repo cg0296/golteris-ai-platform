@@ -251,7 +251,8 @@ def draft_followup(
 
         # Get the broker's name for the email signature — pulled from the
         # most recently active user account so emails sign off as a real person
-        broker_name = _get_broker_name(db)
+        from backend.services.broker_identity import get_broker_name
+        broker_name = get_broker_name(db)
 
         # Build the prompt describing what's missing
         user_prompt = _build_followup_prompt(rfq, analysis, is_followup, broker_name)
@@ -333,27 +334,7 @@ def draft_followup(
         raise
 
 
-def _get_broker_name(db: Session) -> str:
-    """
-    Get the name of the active broker user for email signatures.
-
-    Pulls from the users table so emails sign off as a real person
-    (e.g., "— Curt") instead of "The Beltmann Team".
-    """
-    try:
-        from backend.db.models import User
-        user = (
-            db.query(User)
-            .filter(User.active == True)
-            .order_by(User.id.desc())
-            .first()
-        )
-        if user and user.name:
-            # Use first name only for casual sign-off
-            return user.name.split()[0]
-    except Exception:
-        pass
-    return "Beltmann Team"
+## _get_broker_name removed — use backend.services.broker_identity.get_broker_name (#172)
 
 
 def _build_followup_prompt(rfq: RFQ, analysis: dict, is_followup: bool = False, broker_name: str = "Beltmann Team") -> str:

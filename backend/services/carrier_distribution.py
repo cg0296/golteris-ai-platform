@@ -125,7 +125,8 @@ def distribute_to_carriers(
         raise ValueError("No valid carriers selected")
 
     # Get the broker's name for the email signature
-    broker_name = _get_broker_name(db)
+    from backend.services.broker_identity import get_broker_name
+    broker_name = get_broker_name(db)
 
     # Generate the carrier RFQ email template
     carrier_names = ", ".join(c.name for c in carriers)
@@ -218,16 +219,7 @@ def distribute_to_carriers(
     }
 
 
-def _get_broker_name(db: Session) -> str:
-    """Get the active broker's first name for email signatures."""
-    try:
-        from backend.db.models import User
-        user = db.query(User).filter(User.active == True).order_by(User.id.desc()).first()
-        if user and user.name:
-            return user.name.split()[0]
-    except Exception:
-        pass
-    return "Beltmann Logistics"
+## _get_broker_name removed — use backend.services.broker_identity.get_broker_name (#172)
 
 
 def _generate_carrier_rfq_body(rfq: RFQ, broker_name: str = "Beltmann Logistics") -> str:

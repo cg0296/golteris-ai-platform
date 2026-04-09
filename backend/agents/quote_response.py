@@ -254,7 +254,8 @@ def _handle_accepted(db: Session, rfq: RFQ, message: Message, reason: str) -> No
         logger.warning("Could not transition RFQ %d to won: %s", rfq.id, e)
 
     # Draft confirmation email
-    broker_name = _get_broker_name(db)
+    from backend.services.broker_identity import get_broker_name
+    broker_name = get_broker_name(db)
     customer_name = rfq.customer_name or "there"
     body = (
         f"Hi {customer_name},\n\n"
@@ -308,7 +309,8 @@ def _handle_rejected(db: Session, rfq: RFQ, message: Message, reason: str) -> No
         logger.warning("Could not transition RFQ %d to lost: %s", rfq.id, e)
 
     # Draft close-out email
-    broker_name = _get_broker_name(db)
+    from backend.services.broker_identity import get_broker_name
+    broker_name = get_broker_name(db)
     customer_name = rfq.customer_name or "there"
     body = (
         f"Hi {customer_name},\n\n"
@@ -374,16 +376,7 @@ def _handle_question(db: Session, rfq: RFQ, message: Message) -> None:
     db.commit()
 
 
-def _get_broker_name(db: Session) -> str:
-    """Get the active broker's first name for email signatures."""
-    try:
-        from backend.db.models import User
-        user = db.query(User).filter(User.active == True).order_by(User.id.desc()).first()
-        if user and user.name:
-            return user.name.split()[0]
-    except Exception:
-        pass
-    return "Beltmann Logistics"
+## _get_broker_name removed — use backend.services.broker_identity.get_broker_name (#172)
 
 
 def _extract_email(sender: str) -> Optional[str]:

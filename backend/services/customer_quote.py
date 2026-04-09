@@ -70,7 +70,8 @@ def generate_customer_quote(
         raise ValueError(f"RFQ {rfq_id} has no customer email address")
 
     # Get the broker's name for the email signature
-    broker_name = _get_broker_name(db)
+    from backend.services.broker_identity import get_broker_name
+    broker_name = get_broker_name(db)
 
     # Generate the quote email
     subject = f"Quote: {rfq.origin} to {rfq.destination} — {rfq.equipment_type}"
@@ -133,16 +134,7 @@ def generate_customer_quote(
     }
 
 
-def _get_broker_name(db: Session) -> str:
-    """Get the active broker's first name for email signatures."""
-    try:
-        from backend.db.models import User
-        user = db.query(User).filter(User.active == True).order_by(User.id.desc()).first()
-        if user and user.name:
-            return user.name.split()[0]
-    except Exception:
-        pass
-    return "Beltmann Logistics"
+## _get_broker_name removed — use backend.services.broker_identity.get_broker_name (#172)
 
 
 def _generate_quote_body(rfq: RFQ, broker_name: str = "Jillian") -> str:
