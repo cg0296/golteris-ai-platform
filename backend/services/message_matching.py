@@ -190,11 +190,30 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
                 enqueue_job(db, "extraction", {"message_id": message.id})
                 return result
 
-            # Moderate score — review queue
+            # Check if context scoring added ANY boost (#181).
+            # Base sender match is 0.70. If the score is still 0.70 or very
+            # close, there's zero content overlap — this is a completely
+            # different email that just happens to be from the same sender.
+            # Create a new RFQ instead of sending to review queue.
+            SENDER_BASE_SCORE = 0.70
+            if best.score <= SENDER_BASE_SCORE + 0.01:
+                from backend.worker import enqueue_job
+                result = MatchResult(
+                    method="no_context_overlap",
+                    reason=f"Same sender but zero content overlap with RFQ #{best.rfq_id} — new email",
+                    routing_status=MessageRoutingStatus.NEW_RFQ_CREATED,
+                )
+                message.routing_status = result.routing_status
+                db.commit()
+                enqueue_job(db, "extraction", {"message_id": message.id})
+                logger.info("Message %d: same sender but no overlap — treating as new RFQ", message.id)
+                return result
+
+            # Some context overlap but not enough for auto-attach — review queue
             result = MatchResult(
                 confidence=best.score,
                 method="weak_sender",
-                reason=f"Single sender match but confidence {best.score:.2f} below threshold",
+                reason=f"Single sender match with partial overlap (score {best.score:.2f}) — broker should decide",
                 candidates=scored,
                 routing_status=MessageRoutingStatus.NEEDS_REVIEW,
             )

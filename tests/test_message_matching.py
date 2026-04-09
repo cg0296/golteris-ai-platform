@@ -220,8 +220,8 @@ class TestAmbiguousMatching:
         assert review.status.value == "pending"
         assert len(review.candidates) == 2
 
-    def test_weak_single_match_goes_to_review(self, db):
-        """Single sender match but no context boost -> stays below threshold -> review."""
+    def test_weak_single_match_no_overlap_creates_new(self, db):
+        """Single sender match but zero context overlap -> new RFQ (#181)."""
         _create_rfq(db, "someone@company.com", origin="NYC", destination="Boston")
         msg = _create_message(
             db, "someone@company.com", "Hey",
@@ -230,8 +230,9 @@ class TestAmbiguousMatching:
 
         result = match_message_to_rfq(db, msg.id)
 
-        # Base sender score is 0.70, no context boosts -> below 0.85 threshold
-        assert result.routing_status == MessageRoutingStatus.NEEDS_REVIEW
+        # Base sender score is 0.70, no context boosts -> zero overlap -> new RFQ
+        assert result.routing_status == MessageRoutingStatus.NEW_RFQ_CREATED
+        assert result.method == "no_context_overlap"
 
 
 # ---------------------------------------------------------------------------
