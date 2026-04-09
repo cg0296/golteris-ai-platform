@@ -142,6 +142,21 @@ def call_llm(
     # This queries agent_calls for today's and this month's total spend.
     check_cost_cap(db)
 
+    # Inject approved broker context into the system prompt (#171).
+    # This is what makes the broker's preferences, rules, and knowledge
+    # actually influence agent behavior. Only approved entries are included.
+    context_memory_ids: list[int] = []
+    try:
+        from backend.services.context import build_context_for_prompt
+        context_block, context_memory_ids = build_context_for_prompt(db)
+        if context_block and system_prompt:
+            system_prompt = system_prompt + context_block
+        elif context_block:
+            system_prompt = context_block
+    except Exception as e:
+        # Don't fail the LLM call if context injection fails — just log it
+        logger.warning("Context injection failed: %s", e)
+
     # Get the provider instance (cached after first use)
     llm_provider = _get_provider(provider_name)
 
@@ -199,11 +214,19 @@ def call_llm(
 
         db.commit()
 
+        # Record which context entries were used (#171)
+        if context_memory_ids:
+            try:
+                from backend.services.context import record_context_usage
+                record_context_usage(db, context_memory_ids, run_id=run_id)
+            except Exception:
+                logger.warning("Failed to record context usage", exc_info=True)
+
         logger.info(
-            "LLM call: agent=%s provider=%s model=%s tokens=%d/%d cost=$%.4f duration=%dms",
+            "LLM call: agent=%s provider=%s model=%s tokens=%d/%d cost=$%.4f duration=%dms context=%d",
             agent_name, provider_name, model_name,
             response.input_tokens, response.output_tokens,
-            cost_usd, duration_ms,
+            cost_usd, duration_ms, len(context_memory_ids),
         )
 
         return response
