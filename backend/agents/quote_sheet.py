@@ -175,6 +175,18 @@ def generate_quote_sheet(
             fail_run(db, run.id, "LLM did not return tool-use result")
             return None
 
+        # Store the structured quote sheet as clean JSON on the agent call
+        # so the API can retrieve it without fragile string parsing.
+        from backend.db.models import AgentCall
+        last_call = (
+            db.query(AgentCall)
+            .filter(AgentCall.run_id == run.id, AgentCall.agent_name == "quote_sheet")
+            .order_by(AgentCall.started_at.desc())
+            .first()
+        )
+        if last_call:
+            last_call.response = json.dumps(sheet)
+
         # Log audit event — plain English per C3
         _log_audit_event(db, rfq, sheet)
 

@@ -308,35 +308,37 @@ def get_quote_sheet(rfq_id: int, db: Session = Depends(get_db)):
     if not call or not call.response:
         raise HTTPException(status_code=404, detail="No quote sheet found for this RFQ")
 
-    # Parse the tool-use response to extract the structured quote sheet.
-    # The response is a stringified Anthropic Message object with ToolUseBlock.
-    # We extract the 'input' dict by finding "input=" and brace-counting.
+    # Parse the stored response. New format: clean JSON dict from the agent.
+    # Legacy format: str(raw_response) from the Anthropic SDK — needs extraction.
     try:
-        import ast
-        resp = call.response
-
-        # Find "input=" and extract the full dict by counting braces
-        idx = resp.find("input=")
-        if idx >= 0:
-            start = resp.index("{", idx)
-            depth = 0
-            end = start
-            for i in range(start, len(resp)):
-                if resp[i] == "{":
-                    depth += 1
-                elif resp[i] == "}":
-                    depth -= 1
-                    if depth == 0:
-                        end = i + 1
-                        break
-            input_str = resp[start:end]
-            sheet_data = ast.literal_eval(input_str)
-        elif resp.startswith("{"):
-            sheet_data = json.loads(resp)
-        else:
-            sheet_data = {"raw": resp[:2000]}
-    except Exception:
-        sheet_data = {"raw": call.response[:2000]}
+        sheet_data = json.loads(call.response)
+        # Verify it looks like a quote sheet (has expected keys)
+        if not isinstance(sheet_data, dict) or "lanes" not in sheet_data:
+            raise ValueError("Not a quote sheet dict")
+    except (json.JSONDecodeError, ValueError):
+        # Legacy fallback: parse str(raw_response) with input= extraction
+        try:
+            import ast
+            resp = call.response
+            idx = resp.find("input=")
+            if idx >= 0:
+                start = resp.index("{", idx)
+                depth = 0
+                end = start
+                for i in range(start, len(resp)):
+                    if resp[i] == "{":
+                        depth += 1
+                    elif resp[i] == "}":
+                        depth -= 1
+                        if depth == 0:
+                            end = i + 1
+                            break
+                input_str = resp[start:end]
+                sheet_data = ast.literal_eval(input_str)
+            else:
+                sheet_data = {"raw": resp[:2000]}
+        except Exception:
+            sheet_data = {"raw": call.response[:2000]}
 
     return {
         "rfq_id": rfq_id,

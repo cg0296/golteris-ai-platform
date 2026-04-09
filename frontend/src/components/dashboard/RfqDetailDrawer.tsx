@@ -70,7 +70,7 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
   const quoteSheet = useQuoteSheet(rfqId)
   const isOpen = rfqId !== null
   const [carrierModalRfqId, setCarrierModalRfqId] = useState<number | null>(null)
-  const [showQuoteSheet, setShowQuoteSheet] = useState(false)
+  const [showQuoteSheet, setShowQuoteSheet] = useState(true)
 
   /* J/K keyboard navigation — move to prev/next RFQ in the list (#112).
      Only active when the modal is open and rfqIds are provided. */
@@ -239,6 +239,9 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
                     <div className="bg-muted/30 border rounded-lg p-4 text-sm space-y-2">
                       {(() => {
                         const qs = quoteSheet.data.quote_sheet as Record<string, unknown>
+                        if (qs.raw) {
+                          return <pre className="text-xs whitespace-pre-wrap">{String(qs.raw)}</pre>
+                        }
                         return (
                           <>
                             {qs.reference_id && (
@@ -263,6 +266,9 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
                                 <span className="text-xs text-muted-foreground">Special:</span>
                                 <p>{String(qs.special_requirements)}</p>
                               </div>
+                            )}
+                            {!qs.reference_id && !qs.summary && !Array.isArray(qs.lanes) && (
+                              <pre className="text-xs whitespace-pre-wrap text-muted-foreground">{JSON.stringify(qs, null, 2)}</pre>
                             )}
                           </>
                         )
