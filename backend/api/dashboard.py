@@ -345,6 +345,43 @@ def get_customers(db: Session = Depends(get_db)):
     return {"customers": customers, "total": len(customers)}
 
 
+@router.post("/api/rfqs/{rfq_id}/request-clarification")
+def request_clarification(rfq_id: int, db: Session = Depends(get_db)):
+    """
+    Manually trigger a clarification follow-up for an RFQ (#156).
+
+    Enqueues a validation job that drafts a follow-up email asking the
+    customer for missing or unclear information. Works from any active state.
+    """
+    from backend.db.models import AuditEvent, RFQ, RFQState
+    from backend.worker import enqueue_job
+
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    if not rfq:
+        raise HTTPException(status_code=404, detail=f"RFQ {rfq_id} not found")
+
+    if rfq.state in (RFQState.WON, RFQState.LOST, RFQState.CANCELLED):
+        raise HTTPException(status_code=400, detail="Cannot request clarification on a closed RFQ")
+
+    # Temporarily set to needs_clarification so validation agent will draft
+    original_state = rfq.state
+    if rfq.state != RFQState.NEEDS_CLARIFICATION:
+        rfq.state = RFQState.NEEDS_CLARIFICATION
+        db.commit()
+
+    enqueue_job(db, "validation", {"rfq_id": rfq_id}, rfq_id=rfq_id)
+
+    db.add(AuditEvent(
+        rfq_id=rfq_id,
+        event_type="clarification_requested",
+        actor="broker",
+        description="Broker manually requested clarification follow-up",
+    ))
+    db.commit()
+
+    return {"status": "ok", "rfq_id": rfq_id, "message": "Clarification follow-up enqueued"}
+
+
 @router.get("/api/activity/recent")
 def get_recent_activity(
     limit: int = Query(20, ge=1, le=100, description="Max events to return"),

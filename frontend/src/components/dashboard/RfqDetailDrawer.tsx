@@ -20,7 +20,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useQueryClient, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Send, FileText, Mail, ChevronDown, ChevronRight, Check, X, AlertCircle, Download } from "lucide-react"
+import { Send, FileText, Mail, ChevronDown, ChevronRight, Check, X, AlertCircle, Download, RefreshCw, MessageSquare } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -147,8 +147,8 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
             {/* Pending actions for this RFQ — approve/reject inline */}
             <RfqPendingActions rfqId={data.id} />
 
-            {/* Reply actions — only during clarification exchange with the customer */}
-            {data.state === "needs_clarification" && (
+            {/* Reply actions — available in all non-terminal states (#156) */}
+            {!["won", "lost", "cancelled"].includes(data.state) && (
               <RfqReplyActions rfqId={data.id} customerEmail={data.customer_email} customerName={data.customer_name} />
             )}
 
@@ -279,17 +279,54 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
               </div>
             )}
 
-            {/* Send to Carriers action (#32) — shown for RFQs ready to distribute */}
-            {data.state === "ready_to_quote" && (
+            {/* RFQ Actions (#156) — available in non-terminal states */}
+            {!["won", "lost", "cancelled"].includes(data.state) && (
               <div className="mt-6">
                 <Separator className="mb-4" />
-                <Button
-                  onClick={() => setCarrierModalRfqId(data.id)}
-                  className="w-full bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white"
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  Send to Carriers
-                </Button>
+                <div className="space-y-2">
+                  {/* Send to Carriers — available from ready_to_quote onward */}
+                  {["ready_to_quote", "waiting_on_carriers", "quotes_received", "waiting_on_broker", "quote_sent"].includes(data.state) && (
+                    <Button
+                      onClick={() => setCarrierModalRfqId(data.id)}
+                      className="w-full bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white"
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Send to Carriers
+                    </Button>
+                  )}
+
+                  {/* Regenerate Quote Sheet — available from ready_to_quote onward */}
+                  {["ready_to_quote", "waiting_on_carriers", "quotes_received", "waiting_on_broker", "quote_sent"].includes(data.state) && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          await fetch(`/api/rfqs/${data.id}/regenerate-quote-sheet`, { method: "POST" })
+                          toast.success("Quote sheet regenerated")
+                        } catch { toast.error("Failed to regenerate quote sheet") }
+                      }}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Regenerate Quote Sheet
+                    </Button>
+                  )}
+
+                  {/* Ask for Clarification — available in any active state */}
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={async () => {
+                      try {
+                        await fetch(`/api/rfqs/${data.id}/request-clarification`, { method: "POST" })
+                        toast.success("Clarification follow-up enqueued")
+                      } catch { toast.error("Failed to request clarification") }
+                    }}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Ask for Clarification
+                  </Button>
+                </div>
               </div>
             )}
 

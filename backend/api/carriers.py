@@ -348,6 +348,49 @@ def get_quote_sheet(rfq_id: int, db: Session = Depends(get_db)):
     }
 
 
+@router.post("/api/rfqs/{rfq_id}/regenerate-quote-sheet")
+def regenerate_quote_sheet(rfq_id: int, db: Session = Depends(get_db)):
+    """
+    Re-run the quote sheet agent for an RFQ (#156).
+
+    Temporarily sets the RFQ to ready_to_quote so the agent will process it,
+    then restores the original state. This allows regeneration from any state.
+    """
+    from backend.agents.quote_sheet import generate_quote_sheet
+    from backend.db.models import AuditEvent, RFQState
+
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    if not rfq:
+        raise HTTPException(status_code=404, detail=f"RFQ {rfq_id} not found")
+
+    original_state = rfq.state
+    # Temporarily set to ready_to_quote so the agent will run
+    if rfq.state != RFQState.READY_TO_QUOTE:
+        rfq.state = RFQState.READY_TO_QUOTE
+        db.commit()
+
+    try:
+        sheet = generate_quote_sheet(db, rfq_id)
+    finally:
+        # Restore original state
+        if rfq.state != original_state:
+            rfq.state = original_state
+            db.commit()
+
+    if not sheet:
+        raise HTTPException(status_code=500, detail="Quote sheet generation failed")
+
+    db.add(AuditEvent(
+        rfq_id=rfq_id,
+        event_type="quote_sheet_regenerated",
+        actor="broker",
+        description="Quote sheet regenerated manually",
+    ))
+    db.commit()
+
+    return {"status": "ok", "rfq_id": rfq_id, "quote_sheet": sheet}
+
+
 @router.get("/api/rfqs/{rfq_id}/quote-sheet/download")
 def download_quote_sheet_excel(rfq_id: int, db: Session = Depends(get_db)):
     """
