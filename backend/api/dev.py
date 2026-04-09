@@ -452,6 +452,7 @@ def run_migration(db = Depends(get_db)):
         ("agent_calls", "user_prompt", "ALTER TABLE agent_calls ADD COLUMN user_prompt TEXT"),
         ("agent_calls", "response", "ALTER TABLE agent_calls ADD COLUMN response TEXT"),
         ("agent_calls", "error_message", "ALTER TABLE agent_calls ADD COLUMN error_message TEXT"),
+        ("rfqs", "ref_number", "ALTER TABLE rfqs ADD COLUMN ref_number VARCHAR(20) UNIQUE"),
     ]
     for table, col, sql in migrations:
         try:
