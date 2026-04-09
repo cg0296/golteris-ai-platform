@@ -145,13 +145,22 @@ def list_active_rfqs(
     if not include_terminal:
         base_query = base_query.filter(RFQ.state.notin_(TERMINAL_STATES))
 
-    # State filter — narrow to a specific state
+    # State filter — supports exact states and meta-filters (#164)
     if state_filter:
-        try:
-            state_enum = RFQState(state_filter)
-            base_query = base_query.filter(RFQ.state == state_enum)
-        except ValueError:
-            pass  # Invalid state value — ignore filter
+        if state_filter == "active":
+            base_query = base_query.filter(RFQ.state.notin_(TERMINAL_STATES))
+        elif state_filter == "attention":
+            base_query = base_query.filter(RFQ.state.in_([
+                RFQState.NEEDS_CLARIFICATION, RFQState.WAITING_ON_BROKER,
+            ]))
+        elif state_filter == "closed":
+            base_query = base_query.filter(RFQ.state.in_(TERMINAL_STATES))
+        else:
+            try:
+                state_enum = RFQState(state_filter)
+                base_query = base_query.filter(RFQ.state == state_enum)
+            except ValueError:
+                pass  # Invalid state value — ignore filter
 
     # Search — match against customer name, origin, destination
     if search:

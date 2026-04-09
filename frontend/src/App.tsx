@@ -19,11 +19,8 @@ import { ActionBar } from "@/components/layout/ActionBar"
 /** Map route paths to page titles for the top bar. */
 const pageTitles: Record<string, string> = {
   "/": "Home",
-  "/inbox": "Inbox",
   "/rfqs": "RFQs",
   "/carriers": "Carriers",
-  "/customers": "Customers",
-  "/history": "History",
   "/agent": "Agent",
   "/settings": "Settings",
   "/admin": "Admin",

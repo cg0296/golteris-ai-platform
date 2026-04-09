@@ -9,11 +9,10 @@
 import { NavLink } from "react-router-dom"
 import {
   Home,
-  Inbox,
   FileText,
-  Clock,
   Bot,
   Settings,
+  Truck,
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -21,9 +20,8 @@ import { Button } from "@/components/ui/button"
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
-  { to: "/inbox", icon: Inbox, label: "Inbox" },
   { to: "/rfqs", icon: FileText, label: "RFQs" },
-  { to: "/history", icon: Clock, label: "History" },
+  { to: "/carriers", icon: Truck, label: "Carriers" },
   { to: "/agent", icon: Bot, label: "Agent" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ]

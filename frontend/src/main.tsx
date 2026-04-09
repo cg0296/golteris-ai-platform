@@ -19,9 +19,7 @@ import { CostVisibilityProvider } from "@/lib/cost-visibility"
 import App from "./App"
 import { LoginPage } from "./pages/LoginPage"
 import { DashboardPage } from "./pages/DashboardPage"
-import { InboxPage } from "./pages/InboxPage"
 import { RfqsPage } from "./pages/RfqsPage"
-import { HistoryPage } from "./pages/HistoryPage"
 import { AgentPage } from "./pages/AgentPage"
 import { SettingsPage } from "./pages/SettingsPage"
 import { AdminPage } from "./pages/AdminPage"
@@ -62,9 +60,7 @@ function AuthGate() {
     <Routes>
       <Route element={<App />}>
         <Route index element={<DashboardPage />} />
-        <Route path="inbox" element={<InboxPage />} />
         <Route path="rfqs" element={<RfqsPage />} />
-        <Route path="history" element={<HistoryPage />} />
         <Route path="agent" element={<AgentPage />} />
         <Route path="carriers" element={<CarriersPage />} />
         <Route path="customers" element={<CustomersPage />} />
