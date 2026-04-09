@@ -14,33 +14,13 @@
  * C5: Cost tracking visible per run and per call.
  */
 
-import { useState } from "react"
-import { Bot, ChevronDown, ChevronRight } from "lucide-react"
+import { Bot } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { TimelineTab } from "@/components/agent/TimelineTab"
-import { DecisionsTab } from "@/components/agent/DecisionsTab"
-import { TasksTab } from "@/components/agent/TasksTab"
+import { ActivityTab } from "@/components/agent/ActivityTab"
 import { MemoryTab } from "@/components/agent/MemoryTab"
 import { ScheduleTab } from "@/components/agent/ScheduleTab"
 import { GuidanceTab } from "@/components/agent/GuidanceTab"
 import { MetricsTab } from "@/components/agent/MetricsTab"
-
-/** Collapsible section used inside the Activity tab */
-function CollapsibleSection({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <div className="border rounded-lg overflow-hidden">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
-      >
-        {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-        <span className="text-sm font-semibold text-[#0E2841]">{title}</span>
-      </button>
-      {open && <div className="p-4">{children}</div>}
-    </div>
-  )
-}
 
 export function AgentPage() {
   return (
@@ -63,19 +43,9 @@ export function AgentPage() {
           <MetricsTab />
         </TabsContent>
 
-        {/* Activity tab — Timeline + Decisions + Tasks in collapsible sections (#163) */}
+        {/* Activity tab — unified chronological list of runs + jobs (#165) */}
         <TabsContent value="activity" className="mt-4">
-          <div className="space-y-3">
-            <CollapsibleSection title="Timeline — Agent Runs" defaultOpen={true}>
-              <TimelineTab />
-            </CollapsibleSection>
-            <CollapsibleSection title="Decisions — LLM Call Audit">
-              <DecisionsTab />
-            </CollapsibleSection>
-            <CollapsibleSection title="Tasks — Job Queue">
-              <TasksTab />
-            </CollapsibleSection>
-          </div>
+          <ActivityTab />
         </TabsContent>
 
         <TabsContent value="memory" className="mt-4">
