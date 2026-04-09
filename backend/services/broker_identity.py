@@ -70,5 +70,9 @@ def get_broker_name(db: Session, resolved_by: Optional[str] = None) -> str:
     except Exception:
         pass
 
-    # 4. Fallback
-    return "Beltmann Logistics"
+    # 4. Fallback — use org profile instead of hardcoded name (#174)
+    try:
+        from backend.services.org_profile import get_sign_off
+        return get_sign_off(db)
+    except Exception:
+        return "Your Brokerage"

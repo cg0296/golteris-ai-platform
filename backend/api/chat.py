@@ -179,7 +179,7 @@ def chat(body: ChatRequest, db: Session = Depends(get_db)):
         model="claude-sonnet-4-6",
         max_tokens=1024,
         system=(
-            "You are Golteris, an AI freight logistics assistant for Beltmann Logistics. "
+            f"You are Golteris, an AI freight logistics assistant for {_get_company_name(db)}. "
             "You help the broker manage RFQs, carriers, and shipments.\n\n"
             "You can both ANSWER QUESTIONS and TAKE ACTIONS using the tools provided.\n\n"
             "Rules:\n"
@@ -489,6 +489,15 @@ def _tool_lookup_rfq(db: Session, params: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Context builder — live data snapshot for the LLM
 # ---------------------------------------------------------------------------
+
+def _get_company_name(db: Session) -> str:
+    """Get company name from org profile for the chat system prompt (#174)."""
+    try:
+        from backend.services.org_profile import get_company_name
+        return get_company_name(db)
+    except Exception:
+        return "Your Brokerage"
+
 
 def _build_context(db: Session) -> str:
     """

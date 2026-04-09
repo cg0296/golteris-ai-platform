@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth"
+import { useOrgProfile } from "@/hooks/use-org-profile"
 
 const navItems = [
   { to: "/", icon: Home, label: "Home" },
@@ -39,6 +40,7 @@ const adminItems = [
 
 export function Sidebar() {
   const { user } = useAuth()
+  const orgProfile = useOrgProfile()
   const isAdmin = user?.role === "admin" || user?.role === "owner"
 
   return (
@@ -46,7 +48,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="px-5 py-5 border-b border-[#1c3a56]">
         <h1 className="text-lg font-bold tracking-tight">Golteris</h1>
-        <p className="text-xs text-[#a8b9cc] mt-0.5">Beltmann Logistics</p>
+        <p className="text-xs text-[#a8b9cc] mt-0.5">{orgProfile.data?.company_name ?? "Loading..."}</p>
       </div>
 
       {/* Nav items */}

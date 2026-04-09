@@ -73,6 +73,18 @@ def create_organization(body: CreateOrgRequest, db: Session = Depends(get_db)):
     return _serialize_org(org, db)
 
 
+@router.get("/profile")
+def get_org_profile_endpoint(db: Session = Depends(get_db)):
+    """
+    Get the active org's company profile for frontend branding (#174).
+
+    Returns company_name, sign_off, ref_prefix, tagline.
+    Used by Sidebar, LoginPage, and anywhere the company name appears.
+    """
+    from backend.services.org_profile import get_org_profile
+    return get_org_profile(db)
+
+
 @router.get("/{org_id}")
 def get_organization(org_id: int, db: Session = Depends(get_db)):
     """Get details of a specific organization."""

@@ -57,7 +57,7 @@ QUOTE_SHEET_TOOL = ToolDefinition(
         "properties": {
             "reference_id": {
                 "type": "string",
-                "description": "Quote reference number (e.g., 'BLT-2026-0042')",
+                "description": "Quote reference number (e.g., 'RFQ-2026-0042') using the prefix provided",
             },
             "summary": {
                 "type": "string",
@@ -104,7 +104,7 @@ SYSTEM_PROMPT = """You are a freight broker assistant creating a structured quot
 Rules:
 - ALWAYS call the generate_quote_sheet tool. Never return text instead of calling the tool. Your only job is to produce the structured sheet.
 - Format the data clearly and professionally — this is what carriers see.
-- Create a reference ID in the format BLT-YYYY-NNNN (year + RFQ ID zero-padded).
+- Create a reference ID in the format PREFIX-YYYY-NNNN (prefix provided below + year + RFQ ID zero-padded).
 - Write a concise one-line summary: "[truck_count] [equipment], [origin] to [destination], [commodity]"
 - Organize into lanes (one per origin-destination pair). Most RFQs are single-lane.
 - Include all special requirements — carriers need this to quote accurately.
@@ -163,7 +163,9 @@ def generate_quote_sheet(
     )
 
     try:
-        user_prompt = _build_user_prompt(rfq)
+        from backend.services.org_profile import get_ref_prefix
+        ref_prefix = get_ref_prefix(db)
+        user_prompt = _build_user_prompt(rfq, ref_prefix)
 
         response = call_llm(
             db=db,
@@ -212,7 +214,7 @@ def generate_quote_sheet(
         raise
 
 
-def _build_user_prompt(rfq: RFQ) -> str:
+def _build_user_prompt(rfq: RFQ, ref_prefix: str = "RFQ") -> str:
     """
     Build the user prompt from the RFQ data.
 
@@ -220,6 +222,7 @@ def _build_user_prompt(rfq: RFQ) -> str:
     a professional carrier-facing format.
     """
     lines = [
+        f"Reference ID prefix: {ref_prefix}",
         f"RFQ ID: {rfq.id}",
         f"Customer: {rfq.customer_name or 'Unknown'} at {rfq.customer_company or 'Unknown'}",
         f"Origin: {rfq.origin or 'Not specified'}",

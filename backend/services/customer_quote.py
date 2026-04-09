@@ -75,7 +75,9 @@ def generate_customer_quote(
 
     # Generate the quote email
     subject = f"Quote: {rfq.origin} to {rfq.destination} — {rfq.equipment_type}"
-    body = _generate_quote_body(rfq, broker_name)
+    from backend.services.org_profile import get_sign_off
+    company_name = get_sign_off(db)
+    body = _generate_quote_body(rfq, broker_name, company_name)
 
     # Check if auto-send is enabled for customer quotes (#154).
     from backend.worker import is_auto_send_enabled, enqueue_job
@@ -137,7 +139,7 @@ def generate_customer_quote(
 ## _get_broker_name removed — use backend.services.broker_identity.get_broker_name (#172)
 
 
-def _generate_quote_body(rfq: RFQ, broker_name: str = "Jillian") -> str:
+def _generate_quote_body(rfq: RFQ, broker_name: str = "Broker", company_name: str = "Your Brokerage") -> str:
     """
     Generate a professional customer-facing quote email (C3 — business language).
 
@@ -178,7 +180,7 @@ def _generate_quote_body(rfq: RFQ, broker_name: str = "Jillian") -> str:
         "",
         "Best regards,",
         f"{broker_name}",
-        "Beltmann Logistics",
+        f"{company_name}",
     ])
 
     return "\n".join(lines)

@@ -255,7 +255,9 @@ def _handle_accepted(db: Session, rfq: RFQ, message: Message, reason: str) -> No
 
     # Draft confirmation email
     from backend.services.broker_identity import get_broker_name
+    from backend.services.org_profile import get_sign_off
     broker_name = get_broker_name(db)
+    company_name = get_sign_off(db)
     customer_name = rfq.customer_name or "there"
     body = (
         f"Hi {customer_name},\n\n"
@@ -263,7 +265,7 @@ def _handle_accepted(db: Session, rfq: RFQ, message: Message, reason: str) -> No
         f"  {rfq.origin} to {rfq.destination}\n"
         f"  {rfq.truck_count} {rfq.equipment_type}(s)\n\n"
         f"We'll coordinate pickup scheduling and be in touch with details shortly.\n\n"
-        f"Thanks,\n{broker_name}\nBeltmann Logistics"
+        f"Thanks,\n{broker_name}\n{company_name}"
     )
 
     auto_send = is_auto_send_enabled(db, "Inbound Quote Processing")
@@ -310,14 +312,16 @@ def _handle_rejected(db: Session, rfq: RFQ, message: Message, reason: str) -> No
 
     # Draft close-out email
     from backend.services.broker_identity import get_broker_name
+    from backend.services.org_profile import get_sign_off
     broker_name = get_broker_name(db)
+    company_name = get_sign_off(db)
     customer_name = rfq.customer_name or "there"
     body = (
         f"Hi {customer_name},\n\n"
         f"Thank you for considering us for your {rfq.origin} to {rfq.destination} shipment. "
         f"We understand this one didn't work out, and we appreciate you letting us know.\n\n"
         f"We'd love to help with future shipments — don't hesitate to reach out anytime.\n\n"
-        f"Best,\n{broker_name}\nBeltmann Logistics"
+        f"Best,\n{broker_name}\n{company_name}"
     )
 
     auto_send = is_auto_send_enabled(db, "Inbound Quote Processing")

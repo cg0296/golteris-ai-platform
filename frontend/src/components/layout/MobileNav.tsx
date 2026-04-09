@@ -52,7 +52,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
         <div className="flex items-center justify-between px-5 py-5 border-b border-[#1c3a56]">
           <div>
             <h1 className="text-lg font-bold tracking-tight">Golteris</h1>
-            <p className="text-xs text-[#a8b9cc] mt-0.5">Beltmann Logistics</p>
+            <p className="text-xs text-[#a8b9cc] mt-0.5">Freight Broker Console</p>
           </div>
           <Button
             variant="ghost"

@@ -131,7 +131,9 @@ def distribute_to_carriers(
     # Generate the carrier RFQ email template
     carrier_names = ", ".join(c.name for c in carriers)
     subject = f"RFQ: {rfq.origin} to {rfq.destination} — {rfq.equipment_type}"
-    body_template = _generate_carrier_rfq_body(rfq, broker_name)
+    from backend.services.org_profile import get_sign_off
+    company_name = get_sign_off(db)
+    body_template = _generate_carrier_rfq_body(rfq, broker_name, company_name)
 
     # Check if auto-send is enabled for carrier distribution (#154).
     from backend.worker import is_auto_send_enabled, enqueue_job
@@ -222,7 +224,7 @@ def distribute_to_carriers(
 ## _get_broker_name removed — use backend.services.broker_identity.get_broker_name (#172)
 
 
-def _generate_carrier_rfq_body(rfq: RFQ, broker_name: str = "Beltmann Logistics") -> str:
+def _generate_carrier_rfq_body(rfq: RFQ, broker_name: str = "Your Brokerage", company_name: str = "Your Brokerage") -> str:
     """
     Generate a carrier RFQ email body from RFQ fields.
 
@@ -256,6 +258,6 @@ def _generate_carrier_rfq_body(rfq: RFQ, broker_name: str = "Beltmann Logistics"
         "",
         f"Thank you,",
         f"{broker_name}",
-        "Beltmann Logistics",
+        f"{company_name}",
     ])
     return "\n".join(lines)

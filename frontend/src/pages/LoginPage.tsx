@@ -38,7 +38,7 @@ export function LoginPage() {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center pb-2">
           <h1 className="text-2xl font-bold text-[#0E2841]">Golteris</h1>
-          <p className="text-xs text-muted-foreground">Beltmann Logistics</p>
+          <p className="text-xs text-muted-foreground">Freight Broker Console</p>
           <CardTitle className="text-lg mt-4">
             {isRegister ? "Create Account" : "Sign In"}
           </CardTitle>
