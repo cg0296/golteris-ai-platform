@@ -476,50 +476,20 @@ def _send_to_review_queue(db: Session, message: Message, result: MatchResult) ->
 
 def _handle_quote_response(db: Session, rfq: RFQ, message: Message) -> None:
     """
-    Handle a customer reply to a sent quote (#145).
+    Handle a customer reply to a sent quote (#145, #160).
 
-    When the customer responds after we sent them a quote, the broker
-    needs to see it and decide: mark as Won, Lost, or reply back.
-
-    Creates:
-    - State transition to waiting_on_broker
-    - Audit event for the timeline
-    - Approval record so it appears in Urgent Actions
+    Enqueues the quote_response agent to classify the customer's reply
+    as accepted, rejected, or question — then take appropriate action.
     """
-    from backend.services.rfq_state_machine import transition_rfq
+    from backend.worker import enqueue_job
 
-    # Transition to waiting_on_broker so the RFQ shows as needing action
-    try:
-        transition_rfq(
-            db, rfq.id, RFQState.WAITING_ON_BROKER,
-            actor="matching_service",
-            reason="Customer responded to quote",
-        )
-    except Exception as e:
-        logger.warning("Could not transition RFQ %d to waiting_on_broker: %s", rfq.id, e)
-
-    # Create an approval so it shows in Urgent Actions — the broker
-    # can see the customer's reply and decide next steps
-    # Truncate long reply bodies for the draft preview
-    reply_preview = (message.body or "")[:500]
-    approval = Approval(
-        rfq_id=rfq.id,
-        approval_type=ApprovalType.CUSTOMER_REPLY,
-        draft_body=reply_preview,
-        draft_subject=message.subject or "Customer response",
-        draft_recipient=_extract_email(message.sender) or "",
-        reason="Customer responded to your quote — review and take action",
-        status=ApprovalStatus.PENDING_APPROVAL,
-    )
-    db.add(approval)
-
-    # Audit event for the timeline
+    # Audit event — the broker sees the reply came in
     sender_name = message.sender.split("<")[0].strip() if "<" in (message.sender or "") else message.sender
     event = AuditEvent(
         rfq_id=rfq.id,
         event_type="customer_quote_response",
         actor="matching_service",
-        description=f"Customer {sender_name} responded to quote — review needed",
+        description=f"Customer {sender_name} responded to quote — classifying response",
         event_data={
             "message_id": message.id,
             "sender": message.sender,
@@ -529,8 +499,11 @@ def _handle_quote_response(db: Session, rfq: RFQ, message: Message) -> None:
     db.add(event)
     db.commit()
 
+    # Enqueue the classification agent
+    enqueue_job(db, "quote_response", {"message_id": message.id}, rfq_id=rfq.id)
+
     logger.info(
-        "RFQ %d: customer responded to quote (message %d) — moved to waiting_on_broker",
+        "RFQ %d: customer responded to quote (message %d) — classification enqueued",
         rfq.id, message.id,
     )
 

@@ -205,6 +205,8 @@ JOB_DISPATCH = {
     "send_outbound_email": ("backend.services.email_send", "send_approved_email", "approval_id"),
     # Carrier bid parsing (#33) — extracts structured bids from carrier reply emails
     "parse_carrier_bid": ("backend.agents.carrier_bid_parser", "parse_carrier_bid", "message_id"),
+    # Quote response classification (#160) — classifies customer reply as accepted/rejected/question
+    "quote_response": ("backend.agents.quote_response", "handle_quote_response", "message_id"),
 }
 
 
