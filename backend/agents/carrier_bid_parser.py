@@ -172,10 +172,10 @@ def parse_carrier_bid(db: Session, message_id: int) -> Optional[CarrierBid]:
         bid_data = result.tool_calls[0].get("input", {})
         confidence = bid_data.get("confidence", 0)
 
-        # Create the CarrierBid record
+        # Create the CarrierBid record — resolve carrier name from DB or sender (#174)
         carrier_bid = CarrierBid(
             rfq_id=rfq.id,
-            carrier_name=_extract_carrier_name(message.sender),
+            carrier_name=_resolve_carrier_name(db, message.sender),
             carrier_email=message.sender,
             rate=Decimal(str(bid_data["rate"])) if bid_data.get("rate") else None,
             currency=bid_data.get("currency", "USD"),
@@ -252,16 +252,39 @@ def parse_carrier_bid(db: Session, message_id: int) -> Optional[CarrierBid]:
         return None
 
 
-def _extract_carrier_name(email: str) -> str:
+def _resolve_carrier_name(db, sender: str) -> str:
     """
-    Extract a readable carrier name from an email address.
+    Resolve a human-readable carrier name from the sender field.
 
-    Best-effort: 'bids@expresscarriers.com' → 'Express Carriers'
-    Falls back to the full email if parsing fails.
+    Resolution order:
+    1. Display name from "Name <email>" format (e.g., "Eugene" from "Eugene <e@gmail.com>")
+    2. Carrier name from the carriers table matched by email
+    3. Domain-based fallback (e.g., "gmail.com" → "Gmail")
+
+    This prevents carriers showing up as "Gmail" when their email is @gmail.com.
     """
+    from backend.db.models import Carrier
+
+    # 1. Try display name from sender field
+    if "<" in (sender or ""):
+        display_name = sender.split("<")[0].strip()
+        if display_name and display_name.lower() not in ("", "unknown"):
+            return display_name
+
+    # 2. Try matching email to a known carrier in the DB
+    email_addr = sender
+    if "<" in (sender or "") and ">" in (sender or ""):
+        email_addr = sender.split("<")[1].split(">")[0]
     try:
-        domain = email.split("@")[1].split(".")[0]
-        # Convert camelCase or joined words to spaces
+        carrier = db.query(Carrier).filter(Carrier.email == email_addr).first()
+        if carrier:
+            return carrier.name
+    except Exception:
+        pass
+
+    # 3. Fallback: extract from domain
+    try:
+        domain = email_addr.split("@")[1].split(".")[0]
         name = ""
         for char in domain:
             if char.isupper() and name and not name.endswith(" "):
@@ -269,4 +292,4 @@ def _extract_carrier_name(email: str) -> str:
             name += char
         return name.replace("-", " ").replace("_", " ").title()
     except (IndexError, AttributeError):
-        return email
+        return sender or "Unknown Carrier"
