@@ -13,6 +13,8 @@ import {
   Bot,
   Settings,
   Truck,
+  FlaskConical,
+  Shield,
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -24,6 +26,8 @@ const navItems = [
   { to: "/carriers", icon: Truck, label: "Carriers" },
   { to: "/agent", icon: Bot, label: "Agent" },
   { to: "/settings", icon: Settings, label: "Settings" },
+  { to: "/dev", icon: FlaskConical, label: "Dev" },
+  { to: "/admin", icon: Shield, label: "Admin" },
 ]
 
 interface MobileNavProps {

@@ -496,3 +496,22 @@ def create_admin_user(db = Depends(get_db)):
         return {"status": "created", "id": user.id}
     except Exception as e:
         return {"error": str(e), "type": type(e).__name__}
+
+
+@router.get("/personas")
+def get_personas():
+    """
+    Return dev personas and email templates for the Dev Area (#169).
+
+    Reads from backend/dev/personas.json. Personas are real test contacts
+    (Gmail addresses). Templates have placeholder fields like {origin}
+    that the frontend fills in before sending.
+    """
+    import os
+    personas_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dev", "personas.json")
+    try:
+        with open(personas_path) as f:
+            import json
+            return json.load(f)
+    except FileNotFoundError:
+        return {"personas": [], "templates": []}

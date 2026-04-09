@@ -23,6 +23,7 @@ const pageTitles: Record<string, string> = {
   "/carriers": "Carriers",
   "/agent": "Agent",
   "/settings": "Settings",
+  "/dev": "Dev Area",
   "/admin": "Admin",
 }
 

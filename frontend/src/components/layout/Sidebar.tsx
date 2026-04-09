@@ -16,6 +16,7 @@ import {
   Settings,
   Shield,
   Truck,
+  FlaskConical,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth"
@@ -28,8 +29,13 @@ const navItems = [
   { to: "/settings", icon: Settings, label: "Settings" },
 ]
 
-/** Admin nav item — only visible to admin role users. */
-const adminItem = { to: "/admin", icon: Shield, label: "Admin" }
+/** Admin-only nav items */
+const adminItems = [
+  { to: "/dev", icon: FlaskConical, label: "Dev" },
+  { to: "/admin", icon: Shield, label: "Admin" },
+]
+
+/** @deprecated — replaced by adminItems array above */
 
 export function Sidebar() {
   const { user } = useAuth()
@@ -45,7 +51,7 @@ export function Sidebar() {
 
       {/* Nav items */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {[...navItems, ...(isAdmin ? [adminItem] : [])].map(({ to, icon: Icon, label }) => (
+        {[...navItems, ...(isAdmin ? adminItems : [])].map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

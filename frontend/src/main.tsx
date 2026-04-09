@@ -23,6 +23,7 @@ import { RfqsPage } from "./pages/RfqsPage"
 import { AgentPage } from "./pages/AgentPage"
 import { SettingsPage } from "./pages/SettingsPage"
 import { AdminPage } from "./pages/AdminPage"
+import { DevPage } from "./pages/DevPage"
 import { CarriersPage } from "./pages/CarriersPage"
 import { CustomersPage } from "./pages/CustomersPage"
 import "./index.css"
@@ -65,6 +66,7 @@ function AuthGate() {
         <Route path="carriers" element={<CarriersPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="dev" element={<DevPage />} />
         <Route path="admin" element={<AdminPage />} />
       </Route>
     </Routes>

@@ -1,0 +1,90 @@
+{
+  "personas": [
+    {
+      "id": "eugene-carrier",
+      "name": "Eugene Horst",
+      "email": "ehorst2@gmail.com",
+      "company": "Eugene's Trucking",
+      "role": "carrier"
+    },
+    {
+      "id": "yoni-carrier",
+      "name": "Yoni",
+      "email": "yonnas84@gmail.com",
+      "company": "Yoni Freight",
+      "role": "carrier"
+    },
+    {
+      "id": "curt-customer",
+      "name": "Curt Golden",
+      "email": "timetogoldup@gmail.com",
+      "company": "Golden Logistics",
+      "role": "customer"
+    },
+    {
+      "id": "jimmy-customer",
+      "name": "Jimmy Danzy",
+      "email": "jimmydanzy@gmail.com",
+      "company": "Danzy Industries",
+      "role": "customer"
+    }
+  ],
+  "templates": [
+    {
+      "id": "new-rfq-basic",
+      "name": "New RFQ — Basic",
+      "role": "customer",
+      "subject": "Need a freight quote",
+      "body": "Hi,\n\nI need a truck from {origin} to {destination}. Can you quote me?\n\nThanks,\n{name}"
+    },
+    {
+      "id": "new-rfq-detailed",
+      "name": "New RFQ — Detailed",
+      "role": "customer",
+      "subject": "Quote request — {origin} to {destination}",
+      "body": "Hi Beltmann team,\n\nWe need {truck_count} {equipment} from {origin} to {destination}.\n\nCommodity: {commodity}\nWeight: {weight} lbs\nPickup: {pickup_date}\n\nPlease send your best rate.\n\nThanks,\n{name}\n{company}"
+    },
+    {
+      "id": "clarification-reply",
+      "name": "Clarification Reply",
+      "role": "customer",
+      "subject": "Re: Quote Request",
+      "body": "Hi,\n\n{reply_text}\n\nThanks,\n{name}"
+    },
+    {
+      "id": "quote-accept",
+      "name": "Accept Quote",
+      "role": "customer",
+      "subject": "Re: Quote",
+      "body": "Looks good, let's go ahead with this. Please book it.\n\nThanks,\n{name}"
+    },
+    {
+      "id": "quote-reject",
+      "name": "Reject Quote",
+      "role": "customer",
+      "subject": "Re: Quote",
+      "body": "Thanks for the quote but we're going to pass on this one. Found a better rate.\n\n{name}"
+    },
+    {
+      "id": "carrier-bid",
+      "name": "Submit Bid",
+      "role": "carrier",
+      "subject": "Re: RFQ",
+      "body": "We can handle this lane.\n\nRate: ${rate}\nAvailability: {availability}\n\nThanks,\n{name}\n{company}"
+    },
+    {
+      "id": "carrier-counter",
+      "name": "Counter Offer",
+      "role": "carrier",
+      "subject": "Re: RFQ",
+      "body": "Appreciate the opportunity. Our best rate for this lane is ${rate}. Let me know if that works.\n\n{name}\n{company}"
+    },
+    {
+      "id": "carrier-decline",
+      "name": "Decline RFQ",
+      "role": "carrier",
+      "subject": "Re: RFQ",
+      "body": "Unfortunately we don't have capacity for this lane right now. Happy to look at future opportunities.\n\n{name}\n{company}"
+    }
+  ]
+}
