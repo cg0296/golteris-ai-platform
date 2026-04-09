@@ -103,6 +103,20 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
         logger.error("Message %d not found", message_id)
         return MatchResult(reason="Message not found")
 
+    # Filter auto-replies and noise before any matching (#180)
+    if _is_auto_reply(message):
+        message.routing_status = MessageRoutingStatus.IGNORED
+        db.add(AuditEvent(
+            event_type="message_ignored",
+            actor="matching_service",
+            description=f"Auto-reply from {message.sender} ignored",
+            event_data={"message_id": message.id, "reason": "auto_reply"},
+        ))
+        db.commit()
+        logger.info("Message %d is an auto-reply — ignored", message_id)
+        return MatchResult(method="auto_reply", reason="Auto-reply detected and ignored",
+                          routing_status=MessageRoutingStatus.IGNORED)
+
     # Strategy 0: RFQ reference tag in subject (most reliable).
     # Outbound emails include [RFQ-42] in the subject. When the recipient
     # replies, the tag carries over in the Re: subject. This is a
@@ -141,14 +155,15 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
 
         if len(scored) == 1:
             # Single sender match below threshold — check if the RFQ is
-            # awaiting clarification. If so, this is almost certainly the
-            # reply to our clarification email. Auto-attach it because:
-            # 1. Thread matching fails (outbound messages don't store
-            #    message_id_header, so in_reply_to can't find the parent)
-            # 2. Context scoring can't boost the score because the RFQ
-            #    fields are empty (that's WHY clarification was needed)
+            # awaiting clarification AND the subject looks like a reply.
+            # A new subject from the same sender is a new email, not a reply (#180).
             rfq = db.query(RFQ).filter(RFQ.id == best.rfq_id).first()
-            if rfq and rfq.state == RFQState.NEEDS_CLARIFICATION:
+            subject = (message.subject or "").strip()
+            looks_like_reply = (
+                subject.lower().startswith("re:")
+                or bool(re.search(r'\[RFQ-\d+\]', subject))
+            )
+            if rfq and rfq.state in (RFQState.NEEDS_CLARIFICATION, RFQState.INQUIRY) and looks_like_reply:
                 result = MatchResult(
                     rfq_id=best.rfq_id,
                     confidence=0.90,
@@ -160,7 +175,22 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
                 _apply_match(db, message, result)
                 return result
 
-            # Single sender match, not a clarification reply — review queue
+            # Single sender match, not a clarification reply.
+            # If score is very low, treat as a new RFQ (#180).
+            if best.score < REVIEW_THRESHOLD:
+                # Too weak to even review — treat as new email
+                from backend.worker import enqueue_job
+                result = MatchResult(
+                    method="below_review_threshold",
+                    reason=f"Sender match score {best.score:.2f} below review threshold — treating as new",
+                    routing_status=MessageRoutingStatus.NEW_RFQ_CREATED,
+                )
+                message.routing_status = result.routing_status
+                db.commit()
+                enqueue_job(db, "extraction", {"message_id": message.id})
+                return result
+
+            # Moderate score — review queue
             result = MatchResult(
                 confidence=best.score,
                 method="weak_sender",
@@ -426,7 +456,7 @@ def _apply_match(db: Session, message: Message, result: MatchResult) -> None:
         if rfq and not is_broker:
             from backend.worker import enqueue_job
 
-            if rfq.state == RFQState.NEEDS_CLARIFICATION:
+            if rfq.state in (RFQState.NEEDS_CLARIFICATION, RFQState.INQUIRY):
                 # Shipper replied with more details — re-extract to update RFQ fields
                 enqueue_job(db, "extraction", {"message_id": message.id}, rfq_id=rfq.id)
                 logger.info(
@@ -523,25 +553,53 @@ def _try_carrier_match(db: Session, message: Message) -> MatchResult:
     if not sender_email:
         return MatchResult()
 
-    # Find the carrier by email
+    # Find the carrier by email in the carriers table
     carrier = (
         db.query(Carrier)
         .filter(Carrier.email.ilike(sender_email))
         .first()
     )
-    if not carrier:
-        return MatchResult()
 
-    # Find the most recent carrier_rfq_sends for this carrier that was sent
-    send_record = (
-        db.query(CarrierRfqSend)
-        .filter(
-            CarrierRfqSend.carrier_id == carrier.id,
-            CarrierRfqSend.status == CarrierSendStatus.SENT,
+    send_record = None
+    if carrier:
+        # Found carrier in table — look up their sent RFQs
+        send_record = (
+            db.query(CarrierRfqSend)
+            .filter(
+                CarrierRfqSend.carrier_id == carrier.id,
+                CarrierRfqSend.status == CarrierSendStatus.SENT,
+            )
+            .order_by(CarrierRfqSend.sent_at.desc())
+            .first()
         )
-        .order_by(CarrierRfqSend.sent_at.desc())
-        .first()
-    )
+    else:
+        # Carrier not in table — check if we sent an RFQ to this email (#180).
+        # This handles cases where a carrier was added inline during distribution
+        # or where the carriers table doesn't have their email.
+        from backend.db.models import Approval, ApprovalType
+        approval = (
+            db.query(Approval)
+            .filter(
+                Approval.draft_recipient.ilike(sender_email),
+                Approval.approval_type == ApprovalType.CARRIER_RFQ,
+                Approval.status == ApprovalStatus.APPROVED,
+            )
+            .order_by(Approval.created_at.desc())
+            .first()
+        )
+        if approval and approval.rfq_id:
+            rfq = db.query(RFQ).filter(RFQ.id == approval.rfq_id).first()
+            if rfq and rfq.state not in TERMINAL_STATES:
+                from backend.worker import enqueue_job
+                enqueue_job(db, "parse_carrier_bid", {"message_id": message.id}, rfq_id=rfq.id)
+                return MatchResult(
+                    rfq_id=rfq.id,
+                    confidence=0.93,
+                    method="carrier_approval_recipient",
+                    reason=f"Sender matches carrier RFQ recipient ({sender_email})",
+                    routing_status=MessageRoutingStatus.ATTACHED,
+                )
+
     if not send_record:
         return MatchResult()
 
@@ -591,3 +649,47 @@ def _extract_email(sender: str) -> Optional[str]:
         return match.group(0).lower().strip()
 
     return sender.lower().strip()
+
+
+def _is_auto_reply(message: Message) -> bool:
+    """
+    Detect auto-replies, out-of-office, read receipts, and other noise (#180).
+
+    Checks subject and body for common patterns. Returns True if the message
+    should be ignored (not processed through the pipeline).
+    """
+    subject = (message.subject or "").lower().strip()
+    body = (message.body or "").lower().strip()
+    sender = (message.sender or "").lower()
+
+    # Auto-reply subject patterns
+    auto_subjects = [
+        "out of office",
+        "automatic reply",
+        "auto-reply",
+        "autoreply",
+        "i am out of the office",
+        "i'm out of the office",
+        "on vacation",
+        "read receipt",
+        "delivery notification",
+        "undeliverable",
+        "mailer-daemon",
+        "delivery status notification",
+        "your message was read",
+    ]
+    for pattern in auto_subjects:
+        if pattern in subject:
+            return True
+
+    # Noreply senders
+    noreply_patterns = ["noreply@", "no-reply@", "donotreply@", "mailer-daemon@", "postmaster@"]
+    for pattern in noreply_patterns:
+        if pattern in sender:
+            return True
+
+    # Very short body with no real content (read receipts, delivery notifications)
+    if len(body) < 10 and not subject:
+        return True
+
+    return False
