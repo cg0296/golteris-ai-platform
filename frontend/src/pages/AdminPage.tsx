@@ -325,28 +325,8 @@ function PipelineStageRow({ stage, isLast }: { stage: PipelineStage; isLast: boo
 // Activity Log tab (#166) — unified system event stream for troubleshooting
 // ---------------------------------------------------------------------------
 
-/** Event type → icon/color mapping for the activity log */
-const eventTypeStyles: Record<string, { icon: string; color: string }> = {
-  email_received: { icon: "📨", color: "bg-blue-100 text-blue-800" },
-  email_sent: { icon: "📤", color: "bg-green-100 text-green-800" },
-  rfq_created: { icon: "📋", color: "bg-green-100 text-green-800" },
-  rfq_extracted: { icon: "🔍", color: "bg-blue-100 text-blue-800" },
-  state_changed: { icon: "🔄", color: "bg-purple-100 text-purple-800" },
-  followup_drafted: { icon: "✏️", color: "bg-amber-100 text-amber-800" },
-  approval_approved: { icon: "✅", color: "bg-green-100 text-green-800" },
-  approval_rejected: { icon: "❌", color: "bg-red-100 text-red-800" },
-  auto_send: { icon: "⚡", color: "bg-teal-100 text-teal-800" },
-  carrier_distribution_created: { icon: "🚛", color: "bg-purple-100 text-purple-800" },
-  carrier_bid_received: { icon: "💰", color: "bg-green-100 text-green-800" },
-  escalated_for_review: { icon: "⚠️", color: "bg-amber-100 text-amber-800" },
-  quote_sheet_generated: { icon: "📊", color: "bg-blue-100 text-blue-800" },
-  customer_quote_generated: { icon: "💵", color: "bg-teal-100 text-teal-800" },
-  quote_response_classified: { icon: "🤖", color: "bg-purple-100 text-purple-800" },
-  clarification_requested: { icon: "❓", color: "bg-amber-100 text-amber-800" },
-  message_matched: { icon: "🔗", color: "bg-blue-100 text-blue-800" },
-  workflow_enabled: { icon: "🟢", color: "bg-green-100 text-green-800" },
-  workflow_disabled: { icon: "🔴", color: "bg-red-100 text-red-800" },
-}
+/** Uniform style for all event types — no emojis, one neutral badge color */
+const DEFAULT_EVENT_STYLE = { color: "bg-gray-100 text-gray-700" }
 
 const TIME_FILTERS = [
   { value: null, label: "All Time" },
@@ -451,9 +431,7 @@ function ActivityLogTab() {
           >
             All ({log.data?.total ?? 0})
           </button>
-          {eventTypes.map(([type, count]) => {
-            const style = eventTypeStyles[type]
-            return (
+          {eventTypes.map(([type, count]) => (
               <button
                 key={type}
                 onClick={() => { setTypeFilter(typeFilter === type ? null : type); setPage(0) }}
@@ -464,10 +442,9 @@ function ActivityLogTab() {
                     : "bg-white text-muted-foreground border-border hover:bg-muted/50"
                 )}
               >
-                {style?.icon ?? "•"} {type.replace(/_/g, " ")} ({count})
+                {type.replace(/_/g, " ")} ({count})
               </button>
-            )
-          })}
+          ))}
         </div>
       )}
 
@@ -486,15 +463,12 @@ function ActivityLogTab() {
         </Card>
       ) : (
         <div className="space-y-1.5">
-          {log.data?.events.map((event) => {
-            const style = eventTypeStyles[event.event_type] ?? { icon: "•", color: "bg-gray-100 text-gray-600" }
-            return (
+          {log.data?.events.map((event) => (
               <div key={event.id} className="flex items-start gap-3 bg-white rounded-lg shadow-sm border p-3">
-                <span className="text-sm shrink-0 mt-0.5">{style.icon}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm">{event.description}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary" className={`text-[9px] ${style.color}`}>
+                    <Badge variant="secondary" className={`text-[9px] ${DEFAULT_EVENT_STYLE.color}`}>
                       {event.event_type.replace(/_/g, " ")}
                     </Badge>
                     {event.rfq_id && (
@@ -509,8 +483,7 @@ function ActivityLogTab() {
                   {event.created_at ? formatRelativeTime(event.created_at) : "—"}
                 </span>
               </div>
-            )
-          })}
+          ))}
         </div>
       )}
 
