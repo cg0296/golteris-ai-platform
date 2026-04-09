@@ -151,7 +151,7 @@ def list_active_rfqs(
             base_query = base_query.filter(RFQ.state.notin_(TERMINAL_STATES))
         elif state_filter == "attention":
             base_query = base_query.filter(RFQ.state.in_([
-                RFQState.NEEDS_CLARIFICATION, RFQState.WAITING_ON_BROKER,
+                RFQState.INQUIRY, RFQState.NEEDS_CLARIFICATION, RFQState.WAITING_ON_BROKER,
             ]))
         elif state_filter == "closed":
             base_query = base_query.filter(RFQ.state.in_(TERMINAL_STATES))

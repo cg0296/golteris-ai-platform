@@ -81,6 +81,7 @@ class RFQState(str, enum.Enum):
     The state machine transitions are enforced in the application layer (#14),
     not at the database level, so that manual overrides are possible (FR-DM-4).
     """
+    INQUIRY = "inquiry"
     NEEDS_CLARIFICATION = "needs_clarification"
     READY_TO_QUOTE = "ready_to_quote"
     WAITING_ON_CARRIERS = "waiting_on_carriers"

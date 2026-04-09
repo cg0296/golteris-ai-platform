@@ -280,7 +280,7 @@ def extract_rfq(
         # each other directly. The worker picks up and dispatches.
         from backend.worker import enqueue_job
 
-        if rfq.state == RFQState.NEEDS_CLARIFICATION:
+        if rfq.state in (RFQState.NEEDS_CLARIFICATION, RFQState.INQUIRY):
             # Missing or low-confidence fields — draft a follow-up email
             enqueue_job(db, "validation", {"rfq_id": rfq.id}, rfq_id=rfq.id)
             logger.info("RFQ %d needs clarification — validation job enqueued", rfq.id)
@@ -714,7 +714,7 @@ def _handle_general_inquiry(db: Session, message: Message) -> None:
             ref_number=ref_number,
             customer_name=sender_name or None,
             customer_email=sender_email,
-            state=RFQState.NEEDS_CLARIFICATION,
+            state=RFQState.INQUIRY,
             confidence_scores={},
         )
         db.add(rfq)

@@ -4,7 +4,7 @@
  * Compact horizontal step indicator showing where an RFQ is in the workflow.
  * Text-only labels connected by lines — no circles, fits any modal width.
  *
- * Steps: Received → Extracted → Clarification → Ready → Carriers → Bids → Quoted → Closed
+ * Steps: Inquiry → Received → Extracted → Clarification → Ready → Carriers → Bids → Quoted → Closed
  *
  * Cross-cutting constraints:
  *   C3 — All labels use plain English
@@ -12,6 +12,7 @@
 
 /** Pipeline stages in order. Each maps to one or more RFQ states. */
 const PIPELINE_STAGES = [
+  { key: "inquiry", label: "Inquiry", states: ["inquiry"] },
   { key: "received", label: "Received", states: [] as string[] },
   { key: "extracted", label: "Extracted", states: [] as string[] },
   { key: "clarification", label: "Clarification", states: ["needs_clarification"] },

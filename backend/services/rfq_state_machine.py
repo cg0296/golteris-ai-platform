@@ -6,7 +6,7 @@ rfq.state — everything goes through transition_rfq() or override_rfq_state().
 
 The state machine implements the Beltmann MVP quoting flow:
 
-    needs_clarification ─→ ready_to_quote ─→ waiting_on_carriers
+    inquiry ─→ needs_clarification ─→ ready_to_quote ─→ waiting_on_carriers
                                                     │
                                              quotes_received
                                                     │
@@ -63,8 +63,13 @@ logger = logging.getLogger("golteris.services.rfq_state_machine")
 # ---------------------------------------------------------------------------
 
 TRANSITION_RULES: dict[RFQState, list[RFQState]] = {
+    RFQState.INQUIRY: [
+        RFQState.NEEDS_CLARIFICATION,   # Customer replied with partial shipment details
+        RFQState.READY_TO_QUOTE,        # Customer replied with complete shipment details
+    ],
     RFQState.NEEDS_CLARIFICATION: [
         RFQState.READY_TO_QUOTE,       # Follow-up received, fields now complete
+        RFQState.INQUIRY,              # Re-classified as inquiry
     ],
     RFQState.READY_TO_QUOTE: [
         RFQState.WAITING_ON_CARRIERS,   # Carrier RFQs sent out
@@ -341,6 +346,7 @@ def _state_label(state: RFQState) -> str:
     The broker sees "Needs clarification" not "needs_clarification".
     """
     labels = {
+        RFQState.INQUIRY: "Inquiry",
         RFQState.NEEDS_CLARIFICATION: "Needs clarification",
         RFQState.READY_TO_QUOTE: "Ready to quote",
         RFQState.WAITING_ON_CARRIERS: "Waiting on carriers",

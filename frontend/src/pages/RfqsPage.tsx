@@ -39,6 +39,7 @@ type ViewTab = typeof VIEW_TABS[number]["value"]
 
 /** RFQ state badge colors */
 const stateColors: Record<string, string> = {
+  inquiry: "bg-sky-100 text-sky-800",
   needs_clarification: "bg-amber-100 text-amber-800",
   ready_to_quote: "bg-blue-100 text-blue-800",
   waiting_on_carriers: "bg-purple-100 text-purple-800",

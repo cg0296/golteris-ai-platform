@@ -453,6 +453,7 @@ def run_migration(db = Depends(get_db)):
         ("agent_calls", "response", "ALTER TABLE agent_calls ADD COLUMN response TEXT"),
         ("agent_calls", "error_message", "ALTER TABLE agent_calls ADD COLUMN error_message TEXT"),
         ("rfqs", "ref_number", "ALTER TABLE rfqs ADD COLUMN ref_number VARCHAR(20) UNIQUE"),
+        ("rfq_state_enum", "inquiry", "ALTER TYPE rfq_state ADD VALUE IF NOT EXISTS 'inquiry' BEFORE 'needs_clarification'"),
     ]
     for table, col, sql in migrations:
         try:
