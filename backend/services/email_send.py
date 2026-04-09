@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 from backend.db.models import (
     Approval,
     ApprovalStatus,
+    ApprovalType,
     AuditEvent,
     Message,
     MessageDirection,
@@ -192,6 +193,20 @@ def _handle_send_success(
         },
     )
     db.add(event)
+
+    # Transition RFQ to quote_sent when a customer quote is delivered (#180)
+    if approval.approval_type == ApprovalType.CUSTOMER_QUOTE and approval.rfq_id:
+        try:
+            from backend.services.rfq_state_machine import transition_rfq
+            from backend.db.models import RFQState
+            transition_rfq(
+                db, approval.rfq_id, RFQState.QUOTE_SENT,
+                actor="system",
+                reason="Customer quote email delivered",
+            )
+        except Exception as e:
+            logger.warning("Could not transition RFQ %d to quote_sent: %s", approval.rfq_id, e)
+
     db.commit()
 
     logger.info("Email sent successfully for approval %d", approval.id)

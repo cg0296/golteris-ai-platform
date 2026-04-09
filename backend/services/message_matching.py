@@ -489,10 +489,11 @@ def _apply_match(db: Session, message: Message, result: MatchResult) -> None:
                     "Message %d looks like a carrier reply for RFQ %d — bid parsing enqueued",
                     message.id, rfq.id,
                 )
-            elif rfq.state == RFQState.QUOTE_SENT:
-                # Customer responded to our quote (#145) — transition to
-                # waiting_on_broker so it shows up as needing action, and
-                # create an approval so it appears in Urgent Actions
+            elif rfq.state in (RFQState.QUOTE_SENT, RFQState.WAITING_ON_BROKER):
+                # Customer responded to our quote (#145, #180) — classify
+                # as accepted, rejected, or question. Also handles the case
+                # where the state is still waiting_on_broker because the
+                # quote_sent transition happened after the email was sent.
                 _handle_quote_response(db, rfq, message)
 
 
