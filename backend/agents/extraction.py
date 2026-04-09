@@ -205,6 +205,14 @@ def extract_rfq(
     if not today_date:
         today_date = datetime.utcnow().strftime("%Y-%m-%d")
 
+    # For NEW messages (not replies to existing RFQs), classify intent first (#177).
+    # General inquiries get an LLM response instead of going through extraction.
+    if not message.rfq_id:
+        intent = _classify_intent(db, message)
+        if intent == "inquiry":
+            _handle_general_inquiry(db, message)
+            return None
+
     # Start an agent run to track this extraction (C4 — visible reasoning)
     run = start_run(
         db,
@@ -592,3 +600,169 @@ def _parse_date(date_str: Optional[str]) -> Optional[datetime]:
     except ValueError:
         logger.warning("Could not parse date '%s' — expected YYYY-MM-DD", date_str)
         return None
+
+
+# ---------------------------------------------------------------------------
+# Intent classification (#177) — distinguish RFQs from general inquiries
+# ---------------------------------------------------------------------------
+
+CLASSIFY_TOOL = ToolDefinition(
+    name="classify_email_intent",
+    description="Classify an inbound email as either a freight quote request or a general inquiry.",
+    input_schema={
+        "type": "object",
+        "properties": {
+            "intent": {
+                "type": "string",
+                "enum": ["rfq", "inquiry"],
+                "description": (
+                    "rfq — the sender wants a freight quote, mentions shipping, lanes, trucks, rates, etc. "
+                    "inquiry — the sender is asking a general question, requesting info, or the email has no shipment details."
+                ),
+            },
+        },
+        "required": ["intent"],
+    },
+)
+
+CLASSIFY_PROMPT = """Classify this email. Is the sender requesting a freight quote (rfq) or asking a general question (inquiry)?
+
+rfq = they want to ship something, mention origin/destination, trucks, rates, freight, loads, lanes
+inquiry = they're asking about the company, services, rates in general, safety, processes, or anything that isn't a specific shipment request
+
+If in doubt, classify as rfq — it's better to process it than to miss a real quote request.
+
+Use the classify_email_intent tool."""
+
+
+def _classify_intent(db: Session, message: Message) -> str:
+    """
+    Classify an inbound email as 'rfq' or 'inquiry' (#177).
+
+    Quick LLM call to decide if the email is a freight quote request
+    or a general question. Returns 'rfq' by default if classification fails.
+    """
+    run = start_run(db, workflow_name="Intent Classification", trigger_source="new_email")
+
+    try:
+        prompt = f"From: {message.sender}\nSubject: {message.subject or '(none)'}\n\n{message.body or ''}"
+
+        response = call_llm(
+            db=db,
+            run_id=run.id,
+            agent_name="intent_classifier",
+            system_prompt=CLASSIFY_PROMPT,
+            user_prompt=prompt,
+            tools=[CLASSIFY_TOOL],
+            temperature=0.0,
+        )
+
+        finish_run(db, run.id)
+
+        if response.tool_calls:
+            intent = response.tool_calls[0].get("input", {}).get("intent", "rfq")
+            logger.info("Message %d classified as '%s'", message.id, intent)
+
+            # Audit event
+            db.add(AuditEvent(
+                event_type="intent_classified",
+                actor="intent_classifier",
+                description=f"Email from {message.sender} classified as '{intent}'",
+                event_data={"message_id": message.id, "intent": intent},
+            ))
+            db.commit()
+
+            return intent
+
+    except Exception as e:
+        logger.warning("Intent classification failed for message %d: %s — defaulting to rfq", message.id, e)
+        fail_run(db, run.id, str(e))
+
+    return "rfq"  # Default to rfq if classification fails
+
+
+def _handle_general_inquiry(db: Session, message: Message) -> None:
+    """
+    Handle a general inquiry email (#177).
+
+    Generates a concise LLM response to the question, then appends a prompt
+    to book freight. Creates an approval so the broker can review before sending
+    (or auto-sends if Follow-up Automation is enabled).
+    """
+    from backend.services.broker_identity import get_broker_name
+    from backend.services.org_profile import get_sign_off
+    from backend.worker import enqueue_job, is_auto_send_enabled
+
+    run = start_run(db, workflow_name="Inquiry Response", trigger_source="general_inquiry")
+
+    try:
+        broker_name = get_broker_name(db)
+        company_name = get_sign_off(db)
+
+        # Generate a concise answer
+        response = call_llm(
+            db=db,
+            run_id=run.id,
+            agent_name="inquiry_responder",
+            system_prompt=(
+                f"You are {broker_name} at {company_name}, a freight brokerage. "
+                f"A potential customer emailed with a question. Write a concise, helpful reply (2-4 sentences max). "
+                f"Be professional but friendly. Do NOT use the word 'certainly'. "
+                f"End your reply with: 'If you'd like to book a freight movement, just reply with your shipment details and we'll get you a quote.'\n\n"
+                f"Sign off as:\n{broker_name}\n{company_name}"
+            ),
+            user_prompt=f"From: {message.sender}\nSubject: {message.subject or '(none)'}\n\n{message.body or ''}",
+            temperature=0.3,
+        )
+
+        reply_body = response.content or "Thanks for reaching out. If you'd like to book a freight movement, just reply with your shipment details and we'll get you a quote."
+
+        # Determine sender name for the reply
+        sender_name = message.sender.split("<")[0].strip() if "<" in (message.sender or "") else message.sender
+        sender_email = message.sender
+        if "<" in (message.sender or "") and ">" in (message.sender or ""):
+            sender_email = message.sender.split("<")[1].split(">")[0]
+
+        # Create approval for the response (C2 gate)
+        auto_send = is_auto_send_enabled(db, "Follow-up Automation")
+
+        from backend.db.models import Approval, ApprovalStatus, ApprovalType
+        approval = Approval(
+            approval_type=ApprovalType.CUSTOMER_REPLY,
+            draft_subject=f"Re: {message.subject or 'Your inquiry'}",
+            draft_body=reply_body,
+            draft_recipient=sender_email,
+            reason=f"General inquiry from {sender_name} — not an RFQ",
+            status=ApprovalStatus.APPROVED if auto_send else ApprovalStatus.PENDING_APPROVAL,
+        )
+        if auto_send:
+            approval.resolved_by = "auto_send"
+            approval.resolved_at = datetime.utcnow()
+        db.add(approval)
+
+        # Audit event
+        db.add(AuditEvent(
+            event_type="inquiry_responded",
+            actor="inquiry_responder",
+            description=f"General inquiry from {sender_name} — response drafted",
+            event_data={"message_id": message.id, "sender": message.sender},
+        ))
+
+        # Update message routing status
+        message.routing_status = MessageRoutingStatus.IGNORED
+
+        db.commit()
+        db.refresh(approval)
+
+        finish_run(db, run.id)
+
+        # Auto-send if enabled
+        if auto_send:
+            enqueue_job(db, "send_outbound_email", {"approval_id": approval.id})
+            logger.info("General inquiry from %s — response auto-sent", message.sender)
+        else:
+            logger.info("General inquiry from %s — response queued for approval", message.sender)
+
+    except Exception as e:
+        logger.exception("General inquiry handling failed for message %d: %s", message.id, e)
+        fail_run(db, run.id, str(e))
