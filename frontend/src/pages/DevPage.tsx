@@ -294,19 +294,12 @@ export function DevPage() {
         </div>
       </div>
 
-      {/* RFQ # for replies */}
-      <div className="space-y-2">
-        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Replying to RFQ # <span className="font-normal">(optional — adds [RFQ-NN] tag for matching)</span>
-        </label>
-        <input
-          type="text"
-          placeholder="e.g., 40"
-          value={rfqId}
-          onChange={(e) => setRfqId(e.target.value.replace(/\D/g, ""))}
-          className="w-32 text-sm border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0F9ED5]/30 focus:border-[#0F9ED5]"
-        />
-      </div>
+      {/* Active RFQs to respond to (#175) */}
+      <ActiveRfqPicker
+        selectedRfqId={rfqId}
+        onSelect={(id) => setRfqId(String(id))}
+        role={role}
+      />
 
       {/* Subject */}
       <div className="space-y-2">
@@ -356,6 +349,86 @@ export function DevPage() {
             From: {selectedPersona.name} &lt;{selectedPersona.email}&gt; → full pipeline
           </p>
         )}
+      </div>
+    </div>
+  )
+}
+
+
+/** Shows active RFQs the tester can respond to — click to select (#175) */
+function ActiveRfqPicker({ selectedRfqId, onSelect, role }: { selectedRfqId: string; onSelect: (id: number) => void; role: Role }) {
+  const rfqs = useQuery({
+    queryKey: ["dev", "active-rfqs"],
+    queryFn: () => api.get<{ rfqs: Array<{ id: number; customer_name: string; origin: string; destination: string; equipment_type: string; state: string; state_label: string }> }>("/api/rfqs?limit=20&state=active&include_terminal=false"),
+    refetchInterval: 10_000,
+  })
+
+  const stateColors: Record<string, string> = {
+    needs_clarification: "bg-amber-100 text-amber-800",
+    ready_to_quote: "bg-blue-100 text-blue-800",
+    waiting_on_carriers: "bg-purple-100 text-purple-800",
+    quotes_received: "bg-green-100 text-green-800",
+    waiting_on_broker: "bg-red-100 text-red-800",
+    quote_sent: "bg-teal-100 text-teal-800",
+  }
+
+  // Hint which RFQs are relevant for the selected role
+  const relevantStates = role === "carrier"
+    ? ["waiting_on_carriers", "quotes_received"]
+    : ["needs_clarification", "quote_sent", "waiting_on_broker"]
+
+  const items = rfqs.data?.rfqs ?? []
+
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        Respond to RFQ <span className="font-normal">(click to select, or type below)</span>
+      </label>
+
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No active RFQs</p>
+      ) : (
+        <div className="space-y-1 max-h-48 overflow-y-auto">
+          {items.map((rfq) => {
+            const isSelected = selectedRfqId === String(rfq.id)
+            const isRelevant = relevantStates.includes(rfq.state)
+            return (
+              <button
+                key={rfq.id}
+                onClick={() => onSelect(rfq.id)}
+                className={cn(
+                  "w-full text-left flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-colors",
+                  isSelected
+                    ? "border-[#0F9ED5] bg-[#E8F4FC]"
+                    : isRelevant
+                    ? "border-border bg-white hover:bg-muted/30"
+                    : "border-border bg-white/50 opacity-60 hover:opacity-100 hover:bg-muted/30"
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-mono text-muted-foreground">#{rfq.id}</span>
+                  <span className="font-medium truncate">{rfq.customer_name}</span>
+                  <span className="text-muted-foreground truncate">{rfq.origin} → {rfq.destination}</span>
+                </div>
+                <Badge variant="secondary" className={`text-[9px] shrink-0 ${stateColors[rfq.state] ?? ""}`}>
+                  {rfq.state_label}
+                </Badge>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Manual RFQ # input as fallback */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">or type:</span>
+        <input
+          type="text"
+          placeholder="RFQ #"
+          value={selectedRfqId}
+          onChange={(e) => onSelect(Number(e.target.value.replace(/\D/g, "")) || 0)}
+          className="w-20 text-sm border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#0F9ED5]"
+        />
       </div>
     </div>
   )
