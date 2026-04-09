@@ -17,9 +17,11 @@
  *   C5 — Time Saved uses defensible agent run durations
  */
 
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
+import { Bot, X } from "lucide-react"
 import { useAuth } from "@/lib/auth"
+import { Button } from "@/components/ui/button"
 import { KpiStrip } from "@/components/dashboard/KpiStrip"
 import { UrgentActions } from "@/components/dashboard/UrgentActions"
 import { ActiveRfqsTable } from "@/components/dashboard/ActiveRfqsTable"
@@ -88,8 +90,63 @@ export function DashboardPage() {
     setSelectedApproval(list[prevIdx])
   }, [approvals.data, selectedApproval])
 
+  // Welcome popup for demo users (#173)
+  const [showWelcome, setShowWelcome] = useState(false)
+  useEffect(() => {
+    if (user?.role === "operator" && !sessionStorage.getItem("golteris_welcome_dismissed")) {
+      setShowWelcome(true)
+    }
+  }, [user])
+
+  const dismissWelcome = () => {
+    setShowWelcome(false)
+    sessionStorage.setItem("golteris_welcome_dismissed", "1")
+  }
+
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-7xl">
+      {/* Welcome popup for demo/test users (#173) */}
+      {showWelcome && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
+            <div className="bg-[#0E2841] px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-[#0F9ED5]" />
+                <h3 className="text-white font-semibold">Welcome to Golteris</h3>
+              </div>
+              <button onClick={dismissWelcome} className="text-white/70 hover:text-white">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-muted-foreground">
+                This is an AI-powered operating console for freight brokers. The system ingests emails,
+                extracts quote requests, and automates the quoting workflow.
+              </p>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-[#0E2841]">Things to try:</p>
+                <ul className="text-sm text-muted-foreground space-y-1.5 list-none">
+                  <li>📋 <strong>RFQs page</strong> — Browse active quote requests and click one to see details</li>
+                  <li>✅ <strong>Urgent Actions</strong> — Approve or reject AI-drafted emails on the dashboard</li>
+                  <li>💬 <strong>Chat bubble</strong> (bottom right) — Ask "What needs attention?" or "Create an RFQ for 2 flatbeds from Dallas to Atlanta"</li>
+                  <li>🤖 <strong>Agent tab</strong> — See every AI decision with full prompt/response transparency</li>
+                  <li>📊 <strong>Click any RFQ</strong> — See the full pipeline: extraction, quote sheet, carrier bids, messages</li>
+                </ul>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Everything you see is real — emails, AI extractions, carrier bids, and quotes are all live data
+                from actual pipeline processing.
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t bg-muted/20">
+              <Button onClick={dismissWelcome} className="w-full bg-[#0F9ED5] hover:bg-[#0B7FAD] text-white">
+                Got it — let me explore
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Welcome banner */}
       <div>
         <h2 className="text-xl font-semibold text-[#0E2841]">
