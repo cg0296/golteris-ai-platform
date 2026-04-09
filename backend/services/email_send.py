@@ -161,8 +161,8 @@ def _handle_send_success(
     "Email sent to [recipient]" in the timeline.
     """
     # Persist the outbound message in the RFQ thread.
-    # Use the broker's name + sending address for the sender field.
-    broker_name = _get_broker_name(db)
+    # Use the approving user's name for the sender field (#159).
+    broker_name = _get_broker_name(db, resolved_by=approval.resolved_by)
     send_address = os.environ.get("MS_GRAPH_USER_EMAIL", "agents@golteris.com")
     outbound_msg = Message(
         rfq_id=approval.rfq_id,
@@ -285,8 +285,22 @@ def _generate_quote_sheet_attachment(db: Session, rfq_id: int) -> dict | None:
     }
 
 
-def _get_broker_name(db: Session) -> str:
-    """Get the active broker's first name for outbound message records."""
+def _get_broker_name(db: Session, resolved_by: str | None = None) -> str:
+    """
+    Get the broker's first name for outbound email signatures (#159).
+
+    Looks up the user by email from resolved_by (set by the frontend to
+    the logged-in user's email). Falls back to org name for auto-sends.
+    """
+    if resolved_by and resolved_by not in ("broker", "auto_send"):
+        try:
+            from backend.db.models import User
+            user = db.query(User).filter(User.email == resolved_by).first()
+            if user and user.name:
+                return user.name.split()[0]
+        except Exception:
+            pass
+    # Fallback: any active user
     try:
         from backend.db.models import User
         user = db.query(User).filter(User.active == True).order_by(User.id.desc()).first()

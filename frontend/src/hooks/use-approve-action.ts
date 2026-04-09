@@ -8,12 +8,14 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api"
+import { useAuth } from "@/lib/auth"
 
 export function useApproveAction() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   return useMutation({
     mutationFn: (id: number) =>
-      api.post(`/api/approvals/${id}/approve`, { resolved_by: "broker" }),
+      api.post(`/api/approvals/${id}/approve`, { resolved_by: user?.email ?? "broker" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] })
       queryClient.invalidateQueries({ queryKey: ["approvals"] })
