@@ -325,8 +325,20 @@ function PipelineStageRow({ stage, isLast }: { stage: PipelineStage; isLast: boo
 // Activity Log tab (#166) — unified system event stream for troubleshooting
 // ---------------------------------------------------------------------------
 
-/** Uniform style for all event types — no emojis, one neutral badge color */
-const DEFAULT_EVENT_STYLE = { color: "bg-gray-100 text-gray-700" }
+/** Three event categories: customer (blue), carrier (purple), system (gray) */
+const CUSTOMER_EVENTS = new Set([
+  "email_received", "email_sent", "followup_drafted", "customer_quote_generated",
+  "quote_response_classified", "clarification_requested",
+])
+const CARRIER_EVENTS = new Set([
+  "carrier_distribution_created", "carrier_bid_received",
+])
+
+function getEventColor(eventType: string): string {
+  if (CUSTOMER_EVENTS.has(eventType)) return "bg-blue-100 text-blue-800"
+  if (CARRIER_EVENTS.has(eventType)) return "bg-purple-100 text-purple-800"
+  return "bg-gray-100 text-gray-700"
+}
 
 const TIME_FILTERS = [
   { value: null, label: "All Time" },
@@ -468,7 +480,7 @@ function ActivityLogTab() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm">{event.description}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary" className={`text-[9px] ${DEFAULT_EVENT_STYLE.color}`}>
+                    <Badge variant="secondary" className={`text-[9px] ${getEventColor(event.event_type)}`}>
                       {event.event_type.replace(/_/g, " ")}
                     </Badge>
                     {event.rfq_id && (
