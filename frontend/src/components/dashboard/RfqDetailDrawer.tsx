@@ -118,7 +118,7 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
             <SheetHeader className="sticky top-0 z-10 bg-white border-b pb-3 pr-10">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-mono text-muted-foreground">
-                  #{data.id}
+                  {data.ref_number ?? `#${data.id}`}
                 </span>
                 <Badge
                   variant="secondary"

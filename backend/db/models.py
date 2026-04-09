@@ -256,6 +256,8 @@ class RFQ(Base):
     __tablename__ = "rfqs"
 
     id = Column(Integer, primary_key=True)
+    # Smart reference number: YYYYMMDD-HHMM-NNN (#176)
+    ref_number = Column(String(20), unique=True, nullable=True)
     org_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
     # Customer / shipper info — extracted from the email or set manually
     customer_name = Column(String(255))

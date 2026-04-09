@@ -270,7 +270,7 @@ export function RfqsPage() {
                 <TableBody>
                   {rfqs.data?.rfqs.map((rfq) => (
                     <TableRow key={rfq.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedRfqId(rfq.id)}>
-                      <TableCell className="text-xs font-mono text-muted-foreground py-3">{rfq.id}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground py-3">{rfq.ref_number ?? rfq.id}</TableCell>
                       <TableCell className="py-3">
                         <p className="text-sm font-medium">{rfq.customer_name ?? "Unknown"}</p>
                         {rfq.customer_company && <p className="text-xs text-muted-foreground">{rfq.customer_company}</p>}

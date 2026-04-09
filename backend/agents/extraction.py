@@ -379,7 +379,12 @@ def _create_rfq_from_extraction(
         logger.info("Swapping pickup/delivery dates — delivery %s was before pickup %s", delivery_date, pickup_date)
         pickup_date, delivery_date = delivery_date, pickup_date
 
+    # Generate smart reference number (#176)
+    from backend.services.ref_number import generate_ref_number
+    ref_number = generate_ref_number(db)
+
     rfq = RFQ(
+        ref_number=ref_number,
         customer_name=extracted.get("customer_name"),
         customer_email=extracted.get("customer_email") or message.sender,
         customer_company=extracted.get("customer_company"),

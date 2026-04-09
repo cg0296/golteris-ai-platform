@@ -270,7 +270,11 @@ def _tool_create_rfq(db: Session, params: dict) -> dict:
     if pickup_date and delivery_date and delivery_date < pickup_date:
         pickup_date, delivery_date = delivery_date, pickup_date
 
+    from backend.services.ref_number import generate_ref_number
+    ref_number = generate_ref_number(db)
+
     rfq = RFQ(
+        ref_number=ref_number,
         customer_name=params.get("customer_name"),
         customer_email=params.get("customer_email"),
         origin=params["origin"],

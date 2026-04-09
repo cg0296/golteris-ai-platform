@@ -416,6 +416,7 @@ def _serialize_rfq(rfq: RFQ) -> dict:
     """
     return {
         "id": rfq.id,
+        "ref_number": rfq.ref_number,
         "customer_name": rfq.customer_name,
         "customer_company": rfq.customer_company,
         "origin": rfq.origin,
@@ -484,6 +485,7 @@ def _serialize_rfq_full(rfq: RFQ) -> dict:
     """
     return {
         "id": rfq.id,
+        "ref_number": rfq.ref_number,
         "customer_name": rfq.customer_name,
         "customer_email": rfq.customer_email,
         "customer_company": rfq.customer_company,
