@@ -117,6 +117,62 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
         return MatchResult(method="auto_reply", reason="Auto-reply detected and ignored",
                           routing_status=MessageRoutingStatus.IGNORED)
 
+    # Filter broker-team senders (#demo-fix).
+    # If the message is from one of our own users (same email or same domain
+    # as a registered user), treat it specially:
+    #   - If it has an RFQ reference tag, still attach to that RFQ but don't
+    #     trigger bid parsing or quote response classification.
+    #   - If it has no tag, ignore it — don't create a bogus RFQ from a
+    #     broker's internal email, forward, or reply noise.
+    # This prevents beltmann.com team emails from accidentally spawning new
+    # RFQs or being parsed as carrier bids.
+    sender_lower = (message.sender or "").lower()
+    if _is_broker_sender(db, sender_lower):
+        # Still honor explicit RFQ tag matches so brokers CAN reply on a thread
+        # and have it tracked. But stop short of extraction / bid parsing.
+        tag_result = _try_rfq_tag_match(db, message)
+        if tag_result.rfq_id:
+            message.routing_status = MessageRoutingStatus.ATTACHED
+            message.rfq_id = tag_result.rfq_id
+            db.add(AuditEvent(
+                rfq_id=tag_result.rfq_id,
+                event_type="broker_reply_attached",
+                actor="matching_service",
+                description=f"Internal broker reply from {message.sender} attached (no extraction or bid parsing)",
+                event_data={"message_id": message.id, "reason": "broker_sender"},
+            ))
+            db.commit()
+            logger.info(
+                "Message %d from broker team attached to RFQ %d (no routing)",
+                message_id, tag_result.rfq_id,
+            )
+            return MatchResult(
+                rfq_id=tag_result.rfq_id,
+                confidence=0.99,
+                method="broker_tag",
+                reason="Internal broker reply attached via RFQ tag — no further routing",
+                routing_status=MessageRoutingStatus.ATTACHED,
+            )
+
+        # No tag match — ignore this broker-internal email, don't spawn an RFQ
+        message.routing_status = MessageRoutingStatus.IGNORED
+        db.add(AuditEvent(
+            event_type="message_ignored",
+            actor="matching_service",
+            description=f"Internal broker email from {message.sender} ignored (no RFQ tag)",
+            event_data={"message_id": message.id, "reason": "broker_sender_no_tag"},
+        ))
+        db.commit()
+        logger.info(
+            "Message %d is from broker team with no RFQ tag — ignored to prevent bogus RFQ",
+            message_id,
+        )
+        return MatchResult(
+            method="broker_internal",
+            reason="Internal broker email with no RFQ tag — ignored",
+            routing_status=MessageRoutingStatus.IGNORED,
+        )
+
     # Strategy 0: RFQ reference tag in subject (most reliable).
     # Outbound emails include [RFQ-YYYYMMDD-HHMM-NNN] in the subject.
     # When the recipient replies, the tag carries over in the Re: subject.
@@ -503,9 +559,8 @@ def _apply_match(db: Session, message: Message, result: MatchResult) -> None:
     # Smart routing based on RFQ state — determine what to do with the attached message
     if result.rfq_id:
         rfq = db.query(RFQ).filter(RFQ.id == result.rfq_id).first()
-        broker_emails = ["jillian@beltmann.com", "agents@golteris.com"]
         sender_lower = (message.sender or "").lower()
-        is_broker = any(be in sender_lower for be in broker_emails)
+        is_broker = _is_broker_sender(db, sender_lower)
 
         if rfq and not is_broker:
             from backend.worker import enqueue_job
@@ -704,6 +759,60 @@ def _extract_email(sender: str) -> Optional[str]:
         return match.group(0).lower().strip()
 
     return sender.lower().strip()
+
+
+def _is_broker_sender(db: Session, sender_lower: str) -> bool:
+    """
+    Determine if a message sender is internal (the broker team), not a
+    shipper or carrier.
+
+    A sender is considered "broker" if:
+      1. They match a registered User row in the database (any role), OR
+      2. Their email matches the agent mailbox (agents@golteris.com), OR
+      3. Their email domain matches any domain present in users.email
+         (e.g., if the org has jillian@beltmann.com, then anyone @beltmann.com
+         is treated as broker-team)
+
+    Used by the post-match routing logic to AVOID treating the broker's own
+    reply as a carrier bid or customer clarification reply. Without this,
+    if Jillian or a colleague replies internally to an RFQ thread, the
+    system would try to parse their message as a carrier bid.
+    """
+    if not sender_lower:
+        return False
+
+    # Service mailbox — always a broker-side address
+    if "agents@golteris.com" in sender_lower:
+        return True
+
+    # Extract bare email from 'Name <email>' format for domain match
+    bare_email = sender_lower
+    if "<" in sender_lower and ">" in sender_lower:
+        bare_email = sender_lower.split("<")[1].split(">")[0]
+
+    # 1. Exact user match
+    from backend.db.models import User
+    exact = db.query(User).filter(User.email == bare_email).first()
+    if exact:
+        return True
+
+    # 2. Domain match — any User in our DB shares this sender's domain
+    if "@" in bare_email:
+        domain = bare_email.split("@", 1)[1]
+        # Skip free email domains — they can't identify an org
+        if domain in ("gmail.com", "yahoo.com", "hotmail.com", "outlook.com",
+                      "aol.com", "icloud.com", "live.com", "msn.com"):
+            return False
+        # Does any User row share this domain?
+        domain_match = (
+            db.query(User)
+            .filter(User.email.like(f"%@{domain}"))
+            .first()
+        )
+        if domain_match:
+            return True
+
+    return False
 
 
 def _is_auto_reply(message: Message) -> bool:
