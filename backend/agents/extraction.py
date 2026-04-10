@@ -29,6 +29,7 @@ See .scratch/repo-wiki/Agent-Contracts.md for the full extraction contract.
 """
 
 import json
+import re
 import logging
 from datetime import datetime
 from decimal import Decimal
