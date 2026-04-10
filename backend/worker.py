@@ -34,7 +34,7 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Add project root to path for imports when running as `python -m backend.worker`
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -59,6 +59,12 @@ POLL_INTERVAL = int(os.environ.get("WORKER_POLL_INTERVAL", "10"))
 
 # Maximum jobs to process per poll cycle (prevents one cycle from running forever)
 MAX_JOBS_PER_CYCLE = int(os.environ.get("WORKER_MAX_JOBS_PER_CYCLE", "5"))
+
+# Stale job recovery: any job stuck in RUNNING state longer than this
+# (in seconds) is considered abandoned (worker died mid-execution, OOM,
+# redeploy, network stall) and gets re-queued by sweep_stale_jobs().
+# Default: 3 minutes — longer than any legitimate agent call should take.
+STALE_JOB_TIMEOUT = int(os.environ.get("WORKER_STALE_JOB_TIMEOUT", "180"))
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +162,82 @@ def complete_job(db, job: Job) -> None:
     job.finished_at = datetime.utcnow()
     db.commit()
     logger.info("Job completed: id=%d type=%s", job.id, job.job_type)
+
+
+def sweep_stale_jobs(db, timeout_seconds: int = None) -> int:
+    """
+    Find RUNNING jobs that have been stuck too long and re-queue or fail them.
+
+    This is the recovery mechanism for jobs that were interrupted by worker
+    crashes, OOM kills, Render redeploys, or wedged LLM calls. Without this,
+    a single stuck job blocks the entire pipeline (see #296).
+
+    Recovery logic:
+    - Any job in RUNNING state with started_at older than the cutoff is
+      considered abandoned.
+    - If retry_count < max_retries: reset to PENDING (will be re-dispatched)
+    - Otherwise: mark as FAILED (moved to dead-letter queue)
+
+    Runs at the start of every cycle (with STALE_JOB_TIMEOUT) AND on worker
+    startup (with timeout_seconds=0, meaning ALL RUNNING jobs are orphaned).
+
+    Args:
+        db: SQLAlchemy session.
+        timeout_seconds: How old a RUNNING job must be to count as stale.
+                         Defaults to STALE_JOB_TIMEOUT. Pass 0 for aggressive
+                         recovery (all RUNNING jobs) — used on startup since
+                         if the worker is booting, any RUNNING job is orphaned.
+
+    Returns:
+        Number of stale jobs recovered.
+    """
+    if timeout_seconds is None:
+        timeout_seconds = STALE_JOB_TIMEOUT
+    cutoff = datetime.utcnow() - timedelta(seconds=timeout_seconds)
+    stale = (
+        db.query(Job)
+        .filter(Job.status == JobStatus.RUNNING)
+        .filter(Job.started_at < cutoff)
+        .all()
+    )
+
+    if not stale:
+        return 0
+
+    recovered = 0
+    for job in stale:
+        age_sec = (datetime.utcnow() - job.started_at).total_seconds()
+        job.retry_count += 1
+
+        if job.retry_count < job.max_retries:
+            # Re-queue — likely transient (redeploy, transient network)
+            job.status = JobStatus.PENDING
+            job.started_at = None
+            job.error_message = (
+                f"Stale recovery {job.retry_count}/{job.max_retries}: "
+                f"abandoned after {age_sec:.0f}s in RUNNING state"
+            )
+            logger.warning(
+                "Stale job %d (%s) recovered after %.0fs — re-queued (retry %d/%d)",
+                job.id, job.job_type, age_sec, job.retry_count, job.max_retries,
+            )
+        else:
+            # Permanently failed — give up
+            job.status = JobStatus.FAILED
+            job.finished_at = datetime.utcnow()
+            job.error_message = (
+                f"Permanently failed after {job.max_retries} stale recovery attempts "
+                f"(last run {age_sec:.0f}s stale)"
+            )
+            logger.error(
+                "Stale job %d (%s) permanently failed after %d retries",
+                job.id, job.job_type, job.max_retries,
+            )
+
+        recovered += 1
+
+    db.commit()
+    return recovered
 
 
 def fail_job(db, job: Job, error: str) -> None:
@@ -311,8 +393,16 @@ def process_cycle(db) -> int:
     Picks up to MAX_JOBS_PER_CYCLE pending jobs and dispatches them.
     Returns the number of jobs processed.
 
+    Before picking up new work, sweeps any stale RUNNING jobs (#296) so a
+    crashed worker or wedged LLM call doesn't block the pipeline forever.
+
     This is extracted from run_worker() so it can be tested independently.
     """
+    # Recover any stuck jobs from a previous crash or wedge (#296)
+    recovered = sweep_stale_jobs(db)
+    if recovered > 0:
+        logger.info("Sweep recovered %d stale job(s)", recovered)
+
     processed = 0
 
     for _ in range(MAX_JOBS_PER_CYCLE):
@@ -375,17 +465,34 @@ def run_worker():
     Main worker loop — runs indefinitely.
 
     Each cycle:
-    1. Poll the mailbox for new emails (creates matching jobs)
-    2. Process pending jobs from the queue (dispatches agents)
-    3. Sleep before next cycle
+    1. Sweep stale RUNNING jobs (recover from previous crashes)
+    2. Poll the mailbox for new emails (creates matching jobs)
+    3. Process pending jobs from the queue (dispatches agents)
+    4. Sleep before next cycle
 
     All state lives in Postgres (FR-WK-2), so the worker can crash and
     restart without losing work.
     """
     logger.info(
-        "Golteris worker starting — poll_interval=%ds, max_jobs_per_cycle=%d",
-        POLL_INTERVAL, MAX_JOBS_PER_CYCLE,
+        "Golteris worker starting — poll_interval=%ds, max_jobs_per_cycle=%d, stale_timeout=%ds",
+        POLL_INTERVAL, MAX_JOBS_PER_CYCLE, STALE_JOB_TIMEOUT,
     )
+
+    # Startup recovery — any job left RUNNING from a previous worker
+    # instance (crash, redeploy) gets re-queued before we start polling.
+    # timeout_seconds=0 means ALL RUNNING jobs, since if we're booting,
+    # any job in RUNNING state is definitionally orphaned.
+    try:
+        startup_db = SessionLocal()
+        recovered = sweep_stale_jobs(startup_db, timeout_seconds=0)
+        if recovered > 0:
+            logger.warning(
+                "Startup recovery — re-queued %d stale job(s) from previous worker",
+                recovered,
+            )
+        startup_db.close()
+    except Exception:
+        logger.exception("Startup stale-job sweep failed — continuing anyway")
 
     while True:
         db = SessionLocal()
