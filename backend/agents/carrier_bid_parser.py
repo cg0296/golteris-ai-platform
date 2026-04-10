@@ -144,6 +144,12 @@ def parse_carrier_bid(db: Session, message_id: int) -> Optional[CarrierBid]:
         logger.error("Carrier bid parser: RFQ %d not found for message %d", message.rfq_id, message_id)
         return None
 
+    # Dedup — skip if a bid already exists for this message
+    existing = db.query(CarrierBid).filter(CarrierBid.message_id == message_id).first()
+    if existing:
+        logger.info("Carrier bid parser: bid already exists for message %d (bid #%d) — skipping", message_id, existing.id)
+        return existing
+
     # Start an agent run for tracking (C4, C5)
     run = start_run(db, workflow_name="carrier_bid_parser", rfq_id=rfq.id)
 
