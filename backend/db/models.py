@@ -565,10 +565,10 @@ class AuditEvent(Base):
     # "approval_approved", "email_sent", "extraction_completed")
     event_type = Column(String(255), nullable=False)
     # Who or what caused this event: "system", "extraction_agent", "validation_agent",
-    # or a user identifier like "jillian@beltmann.com"
+    # or a user identifier (the user's email).
     actor = Column(String(255), nullable=False)
     # Human-readable description shown in the UI timeline.
-    # Uses operator language per C3 (e.g., "Draft reply prepared for Tom @ Beltmann")
+    # Uses operator language per C3 (e.g., "Draft reply prepared for Tom @ Acme")
     description = Column(Text, nullable=False)
     # Optional structured data for events that carry extra context
     # (e.g., {"old_state": "needs_clarification", "new_state": "ready_to_quote"})
@@ -681,7 +681,7 @@ class CarrierSendStatus(str, enum.Enum):
 
 class Carrier(Base):
     """
-    Carrier directory — trucking companies that Beltmann sends RFQs to.
+    Carrier directory — trucking companies that the brokerage sends RFQs to.
 
     Each carrier has contact info, equipment capabilities, and lane coverage.
     The distribution service (#32) matches carriers to RFQs based on equipment

@@ -2,7 +2,8 @@
 backend/services/org_profile.py — Organization profile service (#174).
 
 Single source of truth for company branding — name, sign-off, ref prefix.
-Replaces all hardcoded "Beltmann Logistics" references throughout the system.
+Replaces hardcoded company names throughout the system so the app can be
+run for any brokerage by updating a single DB row.
 
 Every agent, email template, and UI component that needs the company name
 should call get_org_profile() instead of using a hardcoded string.
@@ -47,9 +48,9 @@ def get_org_profile(db: Session) -> dict:
     Get the organization's company profile for branding and emails.
 
     Returns a dict with:
-        company_name: Full company name (e.g., "Beltmann Logistics")
-        sign_off: Name used in email signatures (e.g., "Beltmann Logistics")
-        ref_prefix: Quote sheet reference prefix (e.g., "BLT")
+        company_name: Full company name (e.g., "Your Brokerage")
+        sign_off: Name used in email signatures
+        ref_prefix: Quote sheet reference prefix (e.g., "RFQ")
         tagline: Short description (e.g., "Freight Brokerage")
 
     Resolution order:
@@ -107,7 +108,7 @@ def get_ref_prefix(db: Session) -> str:
 def _derive_prefix(name: str) -> str:
     """
     Derive a 3-letter prefix from a company name.
-    "Beltmann Logistics" → "BLT", "Golden Transport" → "GLT"
+    Example: "Golden Transport" → "GLT".
     """
     words = name.split()
     if len(words) >= 2:

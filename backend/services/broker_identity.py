@@ -8,7 +8,7 @@ Resolution order:
 1. If resolved_by is a user email → look up that user's name
 2. Prefer admin/owner role users (the active operator)
 3. Fall back to any active user
-4. Fall back to "Beltmann Logistics"
+4. Fall back to the org profile sign-off (configured per-tenant)
 
 Called by:
     backend/agents/validation.py — follow-up email signatures
@@ -36,7 +36,7 @@ def get_broker_name(db: Session, resolved_by: Optional[str] = None) -> str:
                      If provided and matches a user, that user's name is used.
 
     Returns:
-        First name of the broker (e.g., "Curt"), or "Beltmann Logistics" as fallback.
+        First name of the broker (e.g., "Curt"), or the org sign-off as fallback.
     """
     from backend.db.models import User
 

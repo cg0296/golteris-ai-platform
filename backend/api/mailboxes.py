@@ -212,7 +212,7 @@ def _create_provider(mailbox: Mailbox):
     elif mailbox.provider_type == MailboxProviderType.FILE:
         from backend.email.file_provider import FileMailboxProvider
         return FileMailboxProvider(
-            seed_dir=config.get("seed_dir", "seed/beltmann/shipper_emails"),
+            seed_dir=config.get("seed_dir", "seed/shipper_emails"),
         )
 
     else:

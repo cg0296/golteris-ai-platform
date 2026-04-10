@@ -116,7 +116,7 @@ CRITICAL TONE RULES:
 - Ask for ONLY the specific missing items. Don't re-list what they already provided.
 - Use plain language. "Where's the pickup?" not "Could you share the city and state where the load will be picked up?"
 
-SIGNATURE: Sign off using the broker name provided in the prompt (e.g., "Thanks, Jillian" or "— Curt"). Do NOT say "The Beltmann Team" — use the real person's name.
+SIGNATURE: Sign off using the broker name provided in the prompt (e.g., "Thanks, Jillian" or "— Curt"). Always use the real person's name, never a team name or company placeholder.
 
 FOLLOW-UP REPLY EXAMPLES (when only 1-2 fields missing):
   "Got it, thanks! Where's the pickup location? — Jillian"
@@ -337,7 +337,7 @@ def draft_followup(
 ## _get_broker_name removed — use backend.services.broker_identity.get_broker_name (#172)
 
 
-def _build_followup_prompt(rfq: RFQ, analysis: dict, is_followup: bool = False, broker_name: str = "Beltmann Team") -> str:
+def _build_followup_prompt(rfq: RFQ, analysis: dict, is_followup: bool = False, broker_name: str = "Broker") -> str:
     """
     Build the user prompt describing the RFQ and what's missing.
 

@@ -481,7 +481,7 @@ def approve_approval(
 
     Args:
         approval_id: ID of the approval to approve
-        resolved_by: Who approved (e.g., "broker", "jillian@beltmann.com")
+        resolved_by: Who approved (e.g., "broker" or the user's email)
         resolved_body: If the broker edited the draft, the new body. None = send as-is.
 
     Returns:

@@ -14,7 +14,7 @@ import { Save } from "lucide-react"
 
 export function GuidanceTab() {
   const [systemPrompt, setSystemPrompt] = useState(
-    "You are a freight logistics assistant for Beltmann Logistics. " +
+    "You are a freight logistics assistant. " +
     "Extract shipment details accurately. Always include confidence scores. " +
     "Use professional, clear language in all communications. " +
     "Flag anything uncertain for human review."

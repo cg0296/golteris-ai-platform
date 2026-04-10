@@ -124,8 +124,8 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
     #     trigger bid parsing or quote response classification.
     #   - If it has no tag, ignore it — don't create a bogus RFQ from a
     #     broker's internal email, forward, or reply noise.
-    # This prevents beltmann.com team emails from accidentally spawning new
-    # RFQs or being parsed as carrier bids.
+    # This prevents internal broker team emails from accidentally spawning
+    # new RFQs or being parsed as carrier bids.
     sender_lower = (message.sender or "").lower()
     if _is_broker_sender(db, sender_lower):
         # Still honor explicit RFQ tag matches so brokers CAN reply on a thread
@@ -770,8 +770,8 @@ def _is_broker_sender(db: Session, sender_lower: str) -> bool:
       1. They match a registered User row in the database (any role), OR
       2. Their email matches the agent mailbox (agents@golteris.com), OR
       3. Their email domain matches any domain present in users.email
-         (e.g., if the org has jillian@beltmann.com, then anyone @beltmann.com
-         is treated as broker-team)
+         (e.g., if the org has a user at @acme.com, anyone @acme.com is
+         treated as broker-team)
 
     Used by the post-match routing logic to AVOID treating the broker's own
     reply as a carrier bid or customer clarification reply. Without this,

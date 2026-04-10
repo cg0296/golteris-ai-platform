@@ -357,6 +357,6 @@ def get_provider_from_config() -> MailboxProvider:
 
     # Fall back to seed file provider
     from backend.email.file_provider import FileMailboxProvider
-    seed_dir = os.environ.get("SEED_EMAIL_DIR", "seed/beltmann/shipper_emails")
+    seed_dir = os.environ.get("SEED_EMAIL_DIR", "seed/shipper_emails")
     logger.info("Using file provider: %s", seed_dir)
     return FileMailboxProvider(seed_dir)

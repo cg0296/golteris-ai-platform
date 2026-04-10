@@ -1,7 +1,7 @@
 """
 backend/email/file_provider.py — File-based mailbox provider for dev and demo.
 
-Reads JSON email files from a seed directory (e.g., seed/beltmann/shipper_emails/).
+Reads JSON email files from a seed directory (e.g., seed/shipper_emails/).
 Tracks which files have been processed via a .processed JSON file in the same
 directory so files aren't re-ingested on restart.
 
@@ -9,7 +9,7 @@ This is the demo fallback — if IMAP isn't configured or the network is flaky,
 the demo runs on pre-loaded seed data.
 
 Usage:
-    provider = FileMailboxProvider("seed/beltmann/shipper_emails")
+    provider = FileMailboxProvider("seed/shipper_emails")
     messages = provider.fetch_new_messages()
 """
 

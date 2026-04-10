@@ -8,7 +8,7 @@ Endpoints:
     PATCH  /api/organizations/:id      — Update organization settings
 
 Used by the admin to create and manage tenants. In v1 single-tenant mode,
-there is one organization (Beltmann). In v2, multiple organizations exist.
+there is one organization. In v2, multiple organizations exist.
 
 Cross-cutting constraints:
     NFR-SE-4 — org_id on every row, managed here

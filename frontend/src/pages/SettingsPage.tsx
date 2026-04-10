@@ -521,7 +521,7 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Reset all data to a fresh demo state with realistic Beltmann scenarios.
+            Reset all data to a fresh demo state with realistic freight scenarios.
           </p>
           {showReseedConfirm ? (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">

@@ -66,7 +66,7 @@ def clear_all_data(db: Session = Depends(get_db)):
 @router.post("/reseed")
 def reseed_demo_data(db: Session = Depends(get_db)):
     """
-    Clear all data and reseed with realistic Beltmann demo scenarios.
+    Clear all data and reseed with realistic demo scenarios.
 
     This is a destructive operation — all existing RFQs, messages, approvals,
     events, bids, and jobs are deleted and replaced with fresh demo data.
@@ -220,7 +220,7 @@ def reseed_demo_data(db: Session = Depends(get_db)):
          "new_rfq", 12),
         (rfqs[5], "inbound", rfqs[5].customer_email,
          f"Reefer shipment {rfqs[5].origin} to {rfqs[5].destination}",
-         f"Hello Beltmann team,\n\nWe have a reefer load from {rfqs[5].origin} to {rfqs[5].destination}. 1 truck, frozen produce.\n\nAmy Torres",
+         f"Hello,\n\nWe have a reefer load from {rfqs[5].origin} to {rfqs[5].destination}. 1 truck, frozen produce.\n\nAmy Torres",
          "new_rfq", 6),
         (None, "inbound", "unknown.sender@gmail.com", "Re: Shipment update",
          "Hi,\n\nJust checking on the status of our shipment. Can you provide an ETA?\n\nThanks",
@@ -239,12 +239,12 @@ def reseed_demo_data(db: Session = Depends(get_db)):
          "ignored", 14),
         # Carrier bid reply
         (rfqs[3], "inbound", "bids@expresscarriers.com", "Re: RFQ Seattle to Portland",
-         f"Beltmann,\n\nWe can do Seattle to Portland for $2,850. Available next week.\n\nExpress Carriers Dispatch",
+         f"Hi,\n\nWe can do Seattle to Portland for $2,850. Available next week.\n\nExpress Carriers Dispatch",
          "attached", 3),
         # Outbound reply
         (rfqs[0], "outbound", "jillian@beltmann.com",
          f"Re: Quote Request - {rfqs[0].origin} to {rfqs[0].destination}",
-         f"Hi Tom,\n\nThank you for your request. We can offer 2 dry vans at $2,850 each for Chicago to Dallas.\n\nTransit time: 2-3 business days.\n\nBest,\nJillian\nBeltmann Logistics",
+         f"Hi Tom,\n\nThank you for your request. We can offer 2 dry vans at $2,850 each for Chicago to Dallas.\n\nTransit time: 2-3 business days.\n\nBest,\nJillian",
          "attached", 9),
     ]
 
@@ -262,7 +262,7 @@ def reseed_demo_data(db: Session = Depends(get_db)):
         (rfqs[0], ApprovalType.CUSTOMER_REPLY,
          f"Re: Quote Request - {rfqs[0].origin} to {rfqs[0].destination}",
          rfqs[0].customer_email, "Draft reply with rate options",
-         f"Hi Tom,\n\nThank you for your quote request. Based on current market rates:\n\n- 2 Dry Vans: $2,850 each\n- Transit: 2-3 business days\n- All-in rate including fuel surcharge\n\nPlease let me know if you'd like to proceed.\n\nBest regards,\nJillian\nBeltmann Logistics"),
+         f"Hi Tom,\n\nThank you for your quote request. Based on current market rates:\n\n- 2 Dry Vans: $2,850 each\n- Transit: 2-3 business days\n- All-in rate including fuel surcharge\n\nPlease let me know if you'd like to proceed.\n\nBest regards,\nJillian"),
         (rfqs[3], ApprovalType.CARRIER_RFQ,
          f"RFQ: {rfqs[3].origin} to {rfqs[3].destination}",
          "dispatch@carrierexpress.com", "Carrier RFQ ready for distribution",

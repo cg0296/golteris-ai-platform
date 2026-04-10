@@ -4,7 +4,7 @@ backend/services/rfq_state_machine.py — RFQ state transition engine.
 This module owns all RFQ state changes. No other code should directly update
 rfq.state — everything goes through transition_rfq() or override_rfq_state().
 
-The state machine implements the Beltmann MVP quoting flow:
+The state machine implements the MVP quoting flow:
 
     inquiry ─→ needs_clarification ─→ ready_to_quote ─→ waiting_on_carriers
                                                     │
@@ -54,7 +54,7 @@ logger = logging.getLogger("golteris.services.rfq_state_machine")
 #
 # Format: {from_state: [list of allowed to_states]}
 #
-# These encode the Beltmann MVP flow. Adding a new transition is as simple
+# These encode the MVP flow. Adding a new transition is as simple
 # as adding an entry here — no other code needs to change.
 #
 # CANCELLED is always reachable from any state (deal can fall through at
@@ -116,7 +116,7 @@ def transition_rfq(
         rfq_id: The RFQ to transition.
         new_state: The target state.
         actor: Who is making this change — an agent name (e.g., "extraction_agent",
-               "validation_agent") or a user identifier (e.g., "jillian@beltmann.com").
+               "validation_agent") or a user identifier (e.g., the user's email).
         reason: Optional human-readable reason for the transition, shown in the
                 RFQ detail timeline (e.g., "Follow-up received with missing fields",
                 "Carrier bids received from 3 carriers").

@@ -61,8 +61,21 @@ def send_daily_summary(db: Session = Depends(get_db)):
         from backend.services.email_ingestion import get_provider_from_config
         provider = get_provider_from_config()
 
-        # Send to the broker (Jillian) — in v2 this would come from user settings
-        broker_email = "jillian@beltmann.com"
+        # Send to the primary broker — picks an admin/owner user, falling
+        # back to any active user. Configurable per-user in a later version.
+        from backend.db.models import User
+        primary = (
+            db.query(User)
+            .filter(User.active == True)
+            .order_by(
+                (User.role.in_(["admin", "owner"])).desc(),
+                User.id.asc(),
+            )
+            .first()
+        )
+        if not primary or not primary.email:
+            return {"status": "error", "message": "No active user to send daily summary to"}
+        broker_email = primary.email
         result = provider.send_message(
             to=broker_email,
             subject=subject,

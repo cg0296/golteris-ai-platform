@@ -42,7 +42,7 @@
       "name": "New RFQ — Detailed",
       "role": "customer",
       "subject": "Quote request — {origin} to {destination}",
-      "body": "Hi Beltmann team,\n\nWe need {truck_count} {equipment} from {origin} to {destination}.\n\nCommodity: {commodity}\nWeight: {weight} lbs\nPickup: {pickup_date}\n\nPlease send your best rate.\n\nThanks,\n{name}\n{company}"
+      "body": "Hello,\n\nWe need {truck_count} {equipment} from {origin} to {destination}.\n\nCommodity: {commodity}\nWeight: {weight} lbs\nPickup: {pickup_date}\n\nPlease send your best rate.\n\nThanks,\n{name}\n{company}"
     },
     {
       "id": "clarification-reply",
