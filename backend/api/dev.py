@@ -467,6 +467,19 @@ def run_migration(db = Depends(get_db)):
                 results.append(f"{table}.{col}: already exists")
             else:
                 results.append(f"{table}.{col}: {err[:80]}")
+
+    # Backfill ref_numbers on RFQs that don't have one
+    from backend.db.models import RFQ
+    from backend.services.ref_number import generate_ref_number
+    missing = db.query(RFQ).filter(RFQ.ref_number.is_(None)).order_by(RFQ.created_at).all()
+    backfilled = 0
+    for rfq in missing:
+        rfq.ref_number = generate_ref_number(db, created_at=rfq.created_at)
+        backfilled += 1
+    if backfilled:
+        db.commit()
+    results.append(f"ref_number backfill: {backfilled} RFQs updated")
+
     return {"results": results}
 
 

@@ -118,9 +118,9 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
                           routing_status=MessageRoutingStatus.IGNORED)
 
     # Strategy 0: RFQ reference tag in subject (most reliable).
-    # Outbound emails include [RFQ-42] in the subject. When the recipient
-    # replies, the tag carries over in the Re: subject. This is a
-    # deterministic match that works even when thread headers are lost.
+    # Outbound emails include [RFQ-YYYYMMDD-HHMM-NNN] in the subject.
+    # When the recipient replies, the tag carries over in the Re: subject.
+    # This is a deterministic match even when thread headers are lost.
     result = _try_rfq_tag_match(db, message)
     if result.rfq_id:
         _apply_match(db, message, result)
@@ -161,7 +161,7 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
             subject = (message.subject or "").strip()
             looks_like_reply = (
                 subject.lower().startswith("re:")
-                or bool(re.search(r'\[RFQ-\d+\]', subject))
+                or bool(re.search(r'\[RFQ-[\w-]+\]', subject))
             )
             if rfq and rfq.state in (RFQState.NEEDS_CLARIFICATION, RFQState.INQUIRY) and looks_like_reply:
                 result = MatchResult(
@@ -269,34 +269,41 @@ def match_message_to_rfq(db: Session, message_id: int) -> MatchResult:
 
 def _try_rfq_tag_match(db: Session, message: Message) -> MatchResult:
     """
-    Try to match via [RFQ-{id}] tag in the subject line.
+    Try to match via [RFQ-{ref_number}] tag in the subject line.
 
-    All outbound emails include a reference tag like [RFQ-42] in the subject.
-    When the recipient replies, email clients preserve it in the Re: subject.
-    This gives us a deterministic match that doesn't depend on thread headers
-    or sender lookup — just a simple regex on the subject.
+    All outbound emails include a reference tag like [RFQ-20260409-1523-001]
+    in the subject. When the recipient replies, email clients preserve it in
+    the Re: subject. This gives us a deterministic match that doesn't depend
+    on thread headers or sender lookup — just a simple regex on the subject.
+
+    Supports both smart ref_number format (YYYYMMDD-HHMM-NNN) and legacy
+    numeric IDs for backwards compatibility with older threads.
     """
     subject = message.subject or ""
-    match = re.search(r'\[RFQ-(\d+)\]', subject)
+    match = re.search(r'\[RFQ-([\w-]+)\]', subject)
     if not match:
         return MatchResult()
 
-    rfq_id = int(match.group(1))
-    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    ref_value = match.group(1)
+
+    # Try ref_number lookup first (smart format), fall back to numeric ID
+    rfq = db.query(RFQ).filter(RFQ.ref_number == ref_value).first()
+    if not rfq and ref_value.isdigit():
+        rfq = db.query(RFQ).filter(RFQ.id == int(ref_value)).first()
 
     if not rfq:
-        logger.warning("Message %d has [RFQ-%d] tag but RFQ not found", message.id, rfq_id)
+        logger.warning("Message %d has [RFQ-%s] tag but RFQ not found", message.id, ref_value)
         return MatchResult()
 
     if rfq.state in TERMINAL_STATES:
-        logger.info("Message %d has [RFQ-%d] tag but RFQ is %s — skipping", message.id, rfq_id, rfq.state.value)
+        logger.info("Message %d has [RFQ-%s] tag but RFQ is %s — skipping", message.id, ref_value, rfq.state.value)
         return MatchResult()
 
     return MatchResult(
-        rfq_id=rfq_id,
+        rfq_id=rfq.id,
         confidence=0.99,
         method="rfq_tag",
-        reason=f"Subject contains [RFQ-{rfq_id}] reference tag",
+        reason=f"Subject contains [RFQ-{ref_value}] reference tag",
         routing_status=MessageRoutingStatus.ATTACHED,
     )
 

@@ -282,7 +282,8 @@ def counter_offer(
     company_name = get_sign_off(db)
 
     # Build the counter-offer email
-    subject = f"Re: RFQ {rfq.origin} to {rfq.destination} — Counter Offer [RFQ-{rfq_id}]"
+    ref_tag = rfq.ref_number or str(rfq_id)
+    subject = f"Re: RFQ {rfq.origin} to {rfq.destination} — Counter Offer [RFQ-{ref_tag}]"
     email_body = (
         f"Hi {bid.carrier_name},\n\n"
         f"Thank you for your quote of ${bid.rate:,.2f} for {rfq.origin} to {rfq.destination}.\n\n"
@@ -365,7 +366,8 @@ def rebid_request(
 
     approval_ids = []
     for carrier in carriers:
-        subject = f"Re: RFQ {rfq.origin} to {rfq.destination} — Updated Request [RFQ-{rfq_id}]"
+        ref_tag = rfq.ref_number or str(rfq_id)
+        subject = f"Re: RFQ {rfq.origin} to {rfq.destination} — Updated Request [RFQ-{ref_tag}]"
         email_body = (
             f"Hi {carrier.contact_name or carrier.name},\n\n"
             f"We'd like you to re-submit your rate for this lane:\n\n"

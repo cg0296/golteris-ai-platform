@@ -805,8 +805,9 @@ def _handle_general_inquiry(db: Session, message: Message) -> None:
             f"{broker_name}\n{company_name}"
         )
 
-        # Tag the reply subject with [RFQ-NN] so follow-up replies get matched
-        reply_subject = f"Re: {message.subject or 'Your inquiry'} [RFQ-{rfq.id}]"
+        # Tag the reply subject with ref_number so follow-up replies get matched
+        ref_tag = rfq.ref_number or str(rfq.id)
+        reply_subject = f"Re: {message.subject or 'Your inquiry'} [RFQ-{ref_tag}]"
 
         # Create approval for the response (C2 gate)
         auto_send = is_auto_send_enabled(db, "Follow-up Automation")

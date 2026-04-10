@@ -13,6 +13,7 @@ import {
   Send,
   Bot,
   Info,
+  XCircle,
 } from "lucide-react"
 import { cn, formatRelativeTime } from "@/lib/utils"
 import type { ActivityEvent } from "@/types/api"
@@ -32,6 +33,8 @@ function getEventIcon(eventType: string): { icon: LucideIcon; color: string } {
       return { icon: FileEdit, color: "text-blue-500 bg-blue-50" }
     case "email_sent":
       return { icon: Send, color: "text-teal-500 bg-teal-50" }
+    case "carrier_declined":
+      return { icon: XCircle, color: "text-red-500 bg-red-50" }
     default:
       return { icon: Info, color: "text-gray-500 bg-gray-50" }
   }

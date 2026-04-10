@@ -365,7 +365,7 @@ export function RfqDetailDrawer({ rfqId, onClose, rfqIds, onSelectRfq }: RfqDeta
       {/* Carrier selection modal (#32) */}
       <CarrierSelectModal
         rfqId={carrierModalRfqId}
-        onClose={() => setCarrierModalRfqId(null)}
+        onClose={() => { setCarrierModalRfqId(null); onClose(); }}
       />
     </Sheet>
   )
@@ -565,6 +565,11 @@ function MessagesSection({ messages }: { messages: RfqMessage[] }) {
               </span>
             )}
           </div>
+          {msg.direction === "outbound" && msg.recipients && (
+            <p className="text-xs text-muted-foreground mb-1">
+              To: {msg.recipients}
+            </p>
+          )}
           {msg.subject && (
             <p className="text-xs text-muted-foreground mb-1">
               Subject: {msg.subject}

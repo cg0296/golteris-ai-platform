@@ -63,9 +63,17 @@ PARSE_CARRIER_BID_TOOL = ToolDefinition(
     input_schema={
         "type": "object",
         "properties": {
+            "declined": {
+                "type": "boolean",
+                "description": "True if the carrier is declining/passing on this load (e.g., 'we'll pass', 'can't help', 'no trucks available'). When true, rate can be null.",
+            },
+            "decline_reason": {
+                "type": ["string", "null"],
+                "description": "Why the carrier declined (e.g., 'no capacity', 'out of service area', 'too far out'). Only set if declined=true.",
+            },
             "rate": {
                 "type": ["number", "null"],
-                "description": "The quoted rate amount (numeric, e.g., 2850.00). This is the total rate, not per-mile.",
+                "description": "The quoted rate amount (numeric, e.g., 2850.00). This is the total rate, not per-mile. Null if carrier declined.",
             },
             "currency": {
                 "type": "string",
@@ -96,7 +104,7 @@ PARSE_CARRIER_BID_TOOL = ToolDefinition(
                 "description": "Overall confidence in the extraction (1.0 = clear quote, <0.7 = ambiguous)",
             },
         },
-        "required": ["rate", "currency", "confidence"],
+        "required": ["rate", "currency", "confidence", "declined"],
     },
 )
 
@@ -143,7 +151,11 @@ def parse_carrier_bid(db: Session, message_id: int) -> Optional[CarrierBid]:
         # Build the prompt with the carrier's email content
         system_prompt = (
             "You are a freight logistics assistant. A carrier has replied to a Rate "
-            "Request (RFQ) with their pricing. Extract the bid details from their email. "
+            "Request (RFQ). They may be providing pricing OR declining the load.\n\n"
+            "If the carrier is declining (e.g., 'we'll pass', 'can't help', 'no trucks available', "
+            "'not interested', 'out of our area'), set declined=true with a decline_reason. "
+            "Rate can be null for declines.\n\n"
+            "If they are providing a quote, set declined=false and extract the bid details. "
             "If the quote is unclear or ambiguous, set confidence below 0.7."
         )
         user_prompt = (
@@ -171,6 +183,27 @@ def parse_carrier_bid(db: Session, message_id: int) -> Optional[CarrierBid]:
         # Extract the parsed bid data from the tool call
         bid_data = result.tool_calls[0].get("input", {})
         confidence = bid_data.get("confidence", 0)
+
+        # Handle carrier declining the load — no bid record, just an audit event
+        if bid_data.get("declined"):
+            carrier_name = _resolve_carrier_name(db, message.sender)
+            decline_reason = bid_data.get("decline_reason", "No reason given")
+            db.add(AuditEvent(
+                rfq_id=rfq.id,
+                event_type="carrier_declined",
+                actor="carrier_bid_parser",
+                description=f"{carrier_name} declined this load — {decline_reason}",
+                event_data={
+                    "carrier_name": carrier_name,
+                    "carrier_email": message.sender,
+                    "decline_reason": decline_reason,
+                    "message_id": message.id,
+                },
+            ))
+            db.commit()
+            finish_run(db, run.id, status="completed")
+            logger.info("Carrier %s declined RFQ %d: %s", carrier_name, rfq.id, decline_reason)
+            return None
 
         # Create the CarrierBid record — resolve carrier name from DB or sender (#174)
         carrier_bid = CarrierBid(
