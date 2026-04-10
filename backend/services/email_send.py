@@ -119,9 +119,29 @@ def send_approved_email(db: Session, approval_id: int) -> None:
         if original:
             reply_to_message_id = original.message_id_header
 
-    # Check if a quote sheet should be attached (#152)
+    # Check if a quote sheet should be attached (#152, customer variant)
+    # Customer quotes always get the customer-facing sheet automatically.
+    # Carrier RFQs get the carrier sheet only when broker checked the box.
     attachment = None
-    if approval.reason and "[ATTACH_QUOTE_SHEET]" in approval.reason and approval.rfq_id:
+    attach_customer_sheet = (
+        approval.approval_type == ApprovalType.CUSTOMER_QUOTE
+        and approval.rfq_id is not None
+    )
+    attach_carrier_sheet = (
+        approval.reason
+        and "[ATTACH_QUOTE_SHEET]" in approval.reason
+        and approval.rfq_id is not None
+        and approval.approval_type != ApprovalType.CUSTOMER_QUOTE
+    )
+
+    if attach_customer_sheet:
+        try:
+            attachment = _generate_customer_quote_attachment(db, approval.rfq_id)
+            if attachment:
+                logger.info("Customer quote sheet attached for approval %d", approval_id)
+        except Exception as e:
+            logger.warning("Could not generate customer quote attachment: %s", e)
+    elif attach_carrier_sheet:
         try:
             attachment = _generate_quote_sheet_attachment(db, approval.rfq_id)
             logger.info("Quote sheet attachment generated for approval %d", approval_id)
@@ -299,6 +319,188 @@ def _generate_quote_sheet_attachment(db: Session, rfq_id: int) -> dict | None:
 
     return {
         "filename": f"{ref_id.replace(' ', '_')}_quote_sheet.xlsx",
+        "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "data_base64": base64.b64encode(buf.read()).decode("utf-8"),
+    }
+
+
+def _generate_customer_quote_attachment(db: Session, rfq_id: int) -> dict | None:
+    """
+    Generate a customer-facing Excel quote sheet as an attachment.
+
+    Unlike the carrier quote sheet (which asks carriers to fill in pricing),
+    this version is the finished customer deliverable. It shows:
+
+      - Shipment details (origin, destination, equipment, commodity, weight, dates)
+      - The final quoted rate (customer rate, markup already applied)
+      - Carrier feedback: availability, terms, notes from the winning bid
+        (without revealing the carrier name, raw carrier rate, or margin)
+
+    This is attached automatically to every customer_quote approval when
+    it sends (see send_approved_email).
+
+    Args:
+        db: SQLAlchemy session
+        rfq_id: The RFQ to generate the customer quote sheet for
+
+    Returns:
+        Dict with filename, content_type, data_base64 — or None if openpyxl
+        is missing or the RFQ has no pricing data.
+    """
+    import base64
+    from io import BytesIO
+    from datetime import datetime, timedelta, timezone
+
+    from backend.db.models import RFQ, CarrierBid
+
+    rfq = db.query(RFQ).filter(RFQ.id == rfq_id).first()
+    if not rfq or not rfq.quoted_amount:
+        return None
+
+    # Find the carrier bid that was selected (the one matching quoted_amount's
+    # winning carrier). If no bid is explicitly linked, use the lowest bid as
+    # a proxy for "winning bid" to source availability/terms/notes from.
+    winning_bid = (
+        db.query(CarrierBid)
+        .filter(CarrierBid.rfq_id == rfq_id)
+        .order_by(CarrierBid.rate.asc().nullslast())
+        .first()
+    )
+
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    except ImportError:
+        return None
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Quote"
+
+    # ── Styling ──
+    title_font = Font(bold=True, size=16, color="0E2841")
+    label_font = Font(bold=True, size=11, color="0E2841")
+    rate_font = Font(bold=True, size=18, color="0F9ED5")
+    header_fill = PatternFill(start_color="0E2841", end_color="0E2841", fill_type="solid")
+    header_font = Font(bold=True, size=11, color="FFFFFF")
+    thin = Side(style="thin", color="CCCCCC")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center = Alignment(horizontal="center", vertical="center")
+    left = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+    # Column widths
+    ws.column_dimensions["A"].width = 18
+    ws.column_dimensions["B"].width = 42
+
+    ref_id = rfq.ref_number or f"RFQ-{rfq.id}"
+
+    # ── Title ──
+    ws["A1"] = "FREIGHT QUOTE"
+    ws["A1"].font = title_font
+    ws.merge_cells("A1:B1")
+
+    ws["A2"] = f"Reference: {ref_id}"
+    ws["A2"].font = Font(italic=True, size=10, color="666666")
+    ws.merge_cells("A2:B2")
+
+    validity = (datetime.now(timezone.utc) + timedelta(days=5)).strftime("%B %d, %Y")
+    ws["A3"] = f"Valid through: {validity}"
+    ws["A3"].font = Font(italic=True, size=10, color="666666")
+    ws.merge_cells("A3:B3")
+
+    # ── Shipment Details ──
+    row = 5
+    ws.cell(row=row, column=1, value="SHIPMENT DETAILS").font = header_font
+    ws.cell(row=row, column=1).fill = header_fill
+    ws.cell(row=row, column=2).fill = header_fill
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+    row += 1
+
+    details = [
+        ("Origin", rfq.origin or "—"),
+        ("Destination", rfq.destination or "—"),
+        ("Equipment", rfq.equipment_type or "—"),
+        ("Truck Count", str(rfq.truck_count or 1)),
+        ("Commodity", rfq.commodity or "—"),
+        ("Weight", f"{rfq.weight_lbs:,} lbs" if rfq.weight_lbs else "—"),
+        ("Pickup Date", rfq.pickup_date.strftime("%B %d, %Y") if rfq.pickup_date else "—"),
+        ("Delivery Date", rfq.delivery_date.strftime("%B %d, %Y") if rfq.delivery_date else "—"),
+    ]
+    if rfq.special_requirements:
+        details.append(("Special Requirements", rfq.special_requirements))
+
+    for label, value in details:
+        ws.cell(row=row, column=1, value=label).font = label_font
+        ws.cell(row=row, column=1).border = border
+        ws.cell(row=row, column=1).alignment = left
+        ws.cell(row=row, column=2, value=str(value)).border = border
+        ws.cell(row=row, column=2).alignment = left
+        row += 1
+
+    # ── Quoted Rate ──
+    row += 1
+    ws.cell(row=row, column=1, value="QUOTED RATE").font = header_font
+    ws.cell(row=row, column=1).fill = header_fill
+    ws.cell(row=row, column=2).fill = header_fill
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+    row += 1
+
+    ws.cell(row=row, column=1, value="Total").font = label_font
+    ws.cell(row=row, column=1).border = border
+    rate_cell = ws.cell(row=row, column=2, value=f"${float(rfq.quoted_amount):,.2f}")
+    rate_cell.font = rate_font
+    rate_cell.border = border
+    rate_cell.alignment = Alignment(horizontal="right", vertical="center")
+    row += 1
+
+    ws.cell(row=row, column=1, value="Rate Type").font = label_font
+    ws.cell(row=row, column=1).border = border
+    ws.cell(row=row, column=2, value="All-in (includes fuel surcharge)").border = border
+    row += 1
+
+    # ── Carrier Feedback (from winning bid, if any) ──
+    if winning_bid and (winning_bid.availability or winning_bid.terms or winning_bid.notes):
+        row += 1
+        ws.cell(row=row, column=1, value="CARRIER FEEDBACK").font = header_font
+        ws.cell(row=row, column=1).fill = header_fill
+        ws.cell(row=row, column=2).fill = header_fill
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+        row += 1
+
+        feedback = []
+        if winning_bid.availability:
+            feedback.append(("Availability", winning_bid.availability))
+        if winning_bid.terms:
+            feedback.append(("Payment Terms", winning_bid.terms))
+        if winning_bid.notes:
+            feedback.append(("Notes", winning_bid.notes))
+
+        for label, value in feedback:
+            ws.cell(row=row, column=1, value=label).font = label_font
+            ws.cell(row=row, column=1).border = border
+            ws.cell(row=row, column=1).alignment = left
+            cell = ws.cell(row=row, column=2, value=str(value))
+            cell.border = border
+            cell.alignment = left
+            # Increase row height for wrapped notes
+            if len(str(value)) > 40:
+                ws.row_dimensions[row].height = 30
+            row += 1
+
+    # ── Instructions ──
+    row += 2
+    ws.cell(row=row, column=1, value="TO ACCEPT THIS QUOTE").font = label_font
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+    row += 1
+    ws.cell(row=row, column=1, value="Reply to this email confirming the shipment details above.").font = Font(size=10)
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    return {
+        "filename": f"{ref_id}_quote.xlsx",
         "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "data_base64": base64.b64encode(buf.read()).decode("utf-8"),
     }
